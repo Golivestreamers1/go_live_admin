@@ -40,6 +40,48 @@ export const dashboardService = {
       console.error('Failed to fetch system metrics:', error);
       throw error;
     }
+  },
+
+  // Live snapshot: active streams, current viewers, top streams
+  getLive: async () => {
+    const response = await api.get('/dashboard/live');
+    return response.data.data;
+  },
+
+  // All-time / range stream totals + peaks + averages
+  getStreamTotals: async () => {
+    const response = await api.get('/dashboard/streams/totals');
+    return response.data.data;
+  },
+
+  // Host metrics: CPU / RAM / disk / heap / event-loop / uptime
+  getHost: async () => {
+    const response = await api.get('/dashboard/host');
+    return response.data.data;
+  },
+
+  // Mongo metrics
+  getMongo: async () => {
+    const response = await api.get('/dashboard/mongo');
+    return response.data.data;
+  },
+
+  // Backblaze B2 metrics
+  getB2: async () => {
+    const response = await api.get('/dashboard/infra/b2');
+    return response.data.data;
+  },
+
+  // Agora usage metrics
+  getAgora: async () => {
+    const response = await api.get('/dashboard/infra/agora');
+    return response.data.data;
+  },
+
+  // Real threshold-based alerts
+  getDashboardAlerts: async () => {
+    const response = await api.get('/dashboard/alerts');
+    return response.data.data;
   }
 };
 
