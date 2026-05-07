@@ -9,13 +9,18 @@ export const topSpendersService = {
       sort = 'usd_desc',
       filter = 'all',
       period = 'all',
+      startDate,
+      endDate,
     } = params;
+    const hasCustomRange = Boolean(startDate || endDate);
     const queryParams = new URLSearchParams({
       page: String(page),
       limit: String(limit),
       sort,
       filter,
-      period,
+      ...(hasCustomRange ? {} : { period }),
+      ...(startDate ? { startDate: new Date(startDate).toISOString() } : {}),
+      ...(endDate ? { endDate: new Date(endDate).toISOString() } : {}),
       ...(search && String(search).trim() ? { search: String(search).trim() } : {}),
     });
     const response = await api.get(`/admin/crown/top-spenders?${queryParams}`);

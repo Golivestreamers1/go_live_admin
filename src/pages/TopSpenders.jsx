@@ -21,28 +21,32 @@ import {
   DialogDescription,
   DialogFooter,
 } from '../components/ui/dialog';
-import { Crown, Search, RefreshCw, CrownIcon, XCircle } from 'lucide-react';
+import { Crown, Search, RefreshCw, CrownIcon, XCircle, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { topSpendersService } from '../services/topSpendersService';
 
 const SORT_OPTIONS = [
-  { value: 'usd_desc', label: 'USD (high → low)' },
-  { value: 'usd_asc', label: 'USD (low → high)' },
-  { value: 'coins_desc', label: 'Coins (high → low)' },
-  { value: 'coins_asc', label: 'Coins (low → high)' },
-  { value: 'rubies_desc', label: 'Rubies (high → low)' },
-  { value: 'rubies_asc', label: 'Rubies (low → high)' },
-  { value: 'name_asc', label: 'Name (A → Z)' },
+  { value: 'usd_desc', label: 'USD spent (high → low)' },
+  { value: 'usd_asc', label: 'USD spent (low → high)' },
+  { value: 'coins_bought_desc', label: 'Coins bought (high → low)' },
+  { value: 'coins_bought_asc', label: 'Coins bought (low → high)' },
+  { value: 'rubies_earned_desc', label: 'Rubies earned (high → low)' },
+  { value: 'rubies_earned_asc', label: 'Rubies earned (low → high)' },
+  { value: 'wallet_coins_desc', label: 'Wallet coins (high → low)' },
+  { value: 'wallet_coins_asc', label: 'Wallet coins (low → high)' },
+  { value: 'wallet_rubies_desc', label: 'Wallet rubies (high → low)' },
+  { value: 'wallet_rubies_asc', label: 'Wallet rubies (low → high)' },
+  { value: 'username_asc', label: 'Username (A → Z)' },
 ];
 
 const FILTER_OPTIONS = [
-  { value: 'all', label: 'All spenders' },
+  { value: 'all', label: 'All users' },
   { value: 'ruby', label: 'With Ruby Crown' },
   { value: 'no_ruby', label: 'Without Ruby Crown' },
-  { value: 'has_coins', label: 'Has coins (> 0)' },
-  { value: 'no_coins', label: 'No coins (= 0)' },
-  { value: 'has_rubies', label: 'Has rubies (> 0)' },
-  { value: 'no_rubies', label: 'No rubies (= 0)' },
+  { value: 'has_coins', label: 'Wallet coins (> 0)' },
+  { value: 'no_coins', label: 'No wallet coins (= 0)' },
+  { value: 'has_rubies', label: 'Wallet rubies (> 0)' },
+  { value: 'no_rubies', label: 'No wallet rubies (= 0)' },
 ];
 
 const PERIOD_OPTIONS = [
@@ -51,6 +55,7 @@ const PERIOD_OPTIONS = [
   { value: 'day', label: 'Today' },
   { value: 'week', label: 'This week' },
   { value: 'month', label: 'This month' },
+  { value: 'custom', label: 'Custom range…' },
 ];
 
 const PERIOD_LABEL = {
@@ -59,6 +64,7 @@ const PERIOD_LABEL = {
   day: 'today',
   week: 'this week',
   month: 'this month',
+  custom: 'custom range',
 };
 
 const CROWN_TIER_OPTIONS = [
@@ -102,6 +108,50 @@ function formatDate(value) {
   }
 }
 
+const CopyableField = ({ value, display, label, primary = false }) => {
+  if (value === null || value === undefined || value === '') return null;
+  const text = display ?? value;
+  const handleCopy = async (e) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(String(value));
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error('Copy failed');
+    }
+  };
+  return (
+    <div
+      className={`group flex items-center gap-1 ${
+        primary ? 'font-medium text-foreground' : 'text-xs text-muted-foreground'
+      }`}
+    >
+      <span className="truncate max-w-[220px]" title={String(value)}>
+        {text}
+      </span>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+        aria-label={`Copy ${label}`}
+      >
+        <Copy className="h-3 w-3" />
+      </button>
+    </div>
+  );
+};
+
+const UserCell = ({ user }) => (
+  <div className="space-y-0.5 min-w-[200px]">
+    <CopyableField value={user.name} label="Name" primary />
+    <CopyableField value={user.username} display={`@${user.username}`} label="Username" />
+    <CopyableField value={user.email} label="Email" />
+    {!user.name && !user.username && !user.email && (
+      <span className="text-muted-foreground">—</span>
+    )}
+  </div>
+);
+
 const TopSpendersTab = ({ onAction }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +160,19 @@ const TopSpendersTab = ({ onAction }) => {
   const [sort, setSort] = useState('usd_desc');
   const [filter, setFilter] = useState('all');
   const [period, setPeriod] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+
+  const isCustomRange = period === 'custom';
+
+  const handlePeriodChange = (value) => {
+    setPeriod(value);
+    if (value !== 'custom') {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
 
   const fetchList = useCallback(
     async (page = 1) => {
@@ -122,7 +184,9 @@ const TopSpendersTab = ({ onAction }) => {
           search: search || undefined,
           sort,
           filter,
-          period,
+          period: isCustomRange ? undefined : period,
+          startDate: isCustomRange && startDate ? new Date(startDate).toISOString() : undefined,
+          endDate: isCustomRange && endDate ? new Date(endDate).toISOString() : undefined,
         });
         setRows(result.data || []);
         setPagination({
@@ -137,7 +201,7 @@ const TopSpendersTab = ({ onAction }) => {
         setLoading(false);
       }
     },
-    [search, sort, filter, period]
+    [search, sort, filter, period, startDate, endDate, isCustomRange]
   );
 
   useEffect(() => {
@@ -145,7 +209,17 @@ const TopSpendersTab = ({ onAction }) => {
   }, [fetchList]);
 
   const handleSearch = () => setSearch(searchInput.trim());
-  const usdHeader = `USD (${PERIOD_LABEL[period] || 'all time'})`;
+  const formatRangeLabel = () => {
+    const fmt = (v) => (v ? new Date(v).toLocaleString() : '…');
+    return `${fmt(startDate)} → ${fmt(endDate)}`;
+  };
+  const rangeLabel =
+    isCustomRange && (startDate || endDate)
+      ? formatRangeLabel()
+      : PERIOD_LABEL[period] || 'all time';
+  const usdHeader = `USD spent (${rangeLabel})`;
+  const coinsBoughtHeader = `Coins bought (${rangeLabel})`;
+  const rubiesEarnedHeader = `Rubies earned (${rangeLabel})`;
 
   return (
     <Card>
@@ -155,9 +229,10 @@ const TopSpendersTab = ({ onAction }) => {
           <CardTitle>Top Spenders</CardTitle>
         </div>
         <CardDescription>
-          Users who made coin purchases in the selected period, sorted by USD spend. Pick a period (hourly → all time),
-          sort, and filter below. Admin can grant or revoke the Ruby Crown on any user — no threshold, no rank, no slot
-          check.
+          Activity within the selected period — USD spent, coins bought, and rubies earned all reflect the chosen window.
+          Wallet columns always show the current balance. Pick a preset (hourly → all time) or choose “Custom range…”
+          to set a start/end date and time. Admin can grant or revoke the Ruby Crown on any user — no threshold, no
+          rank, no slot check.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -173,8 +248,8 @@ const TopSpendersTab = ({ onAction }) => {
               <Search className="h-4 w-4" />
             </Button>
           </div>
-          <div className="w-40">
-            <Select value={period} onValueChange={setPeriod} placeholder="Period">
+          <div className="w-44">
+            <Select value={period} onValueChange={handlePeriodChange} placeholder="Period">
               {PERIOD_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {o.label}
@@ -182,7 +257,7 @@ const TopSpendersTab = ({ onAction }) => {
               ))}
             </Select>
           </div>
-          <div className="w-48">
+          <div className="w-56">
             <Select value={sort} onValueChange={setSort} placeholder="Sort">
               {SORT_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
@@ -206,15 +281,57 @@ const TopSpendersTab = ({ onAction }) => {
           </Button>
         </div>
 
+        {isCustomRange && (
+          <div className="flex flex-wrap gap-2 items-center bg-muted/40 rounded-md p-3">
+            <span className="text-sm text-muted-foreground">Range:</span>
+            <Input
+              type="datetime-local"
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-[220px]"
+              aria-label="Start date and time"
+            />
+            <span className="text-muted-foreground">→</span>
+            <Input
+              type="datetime-local"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-[220px]"
+              aria-label="End date and time"
+            />
+            {(startDate || endDate) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+              >
+                Clear
+              </Button>
+            )}
+            {!startDate && !endDate && (
+              <span className="text-xs text-muted-foreground">
+                Pick a start, end, or both. Empty = open-ended.
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
-                <TableHead>Username</TableHead>
                 <TableHead>{usdHeader}</TableHead>
-                <TableHead>Wallet (coins)</TableHead>
-                <TableHead>Rubies</TableHead>
+                <TableHead>{coinsBoughtHeader}</TableHead>
+                <TableHead>{rubiesEarnedHeader}</TableHead>
+                <TableHead>Wallet coins</TableHead>
+                <TableHead>Wallet rubies</TableHead>
                 <TableHead>Ruby Crown</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -222,15 +339,15 @@ const TopSpendersTab = ({ onAction }) => {
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     Loading…
                   </TableCell>
                 </TableRow>
               )}
               {!loading && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    No spenders match these filters for this period.
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    No users match these filters for this period.
                   </TableCell>
                 </TableRow>
               )}
@@ -239,12 +356,19 @@ const TopSpendersTab = ({ onAction }) => {
                   const id = u._id || u.id;
                   return (
                     <TableRow key={id}>
-                      <TableCell className="font-medium">{u.name || '—'}</TableCell>
-                      <TableCell>{u.username || '—'}</TableCell>
+                      <TableCell>
+                        <UserCell user={u} />
+                      </TableCell>
                       <TableCell>
                         {typeof u.totalUsd === 'number'
                           ? `$${u.totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
                           : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {typeof u.coinsBought === 'number' ? u.coinsBought.toLocaleString() : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {typeof u.rubiesEarned === 'number' ? u.rubiesEarned.toLocaleString() : '—'}
                       </TableCell>
                       <TableCell>
                         {typeof u.coins === 'number' ? u.coins.toLocaleString() : '—'}
@@ -412,26 +536,25 @@ const CrownsTab = ({ onAction }) => {
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
-                <TableHead>Username</TableHead>
                 <TableHead>Tier</TableHead>
                 <TableHead>Expires</TableHead>
                 <TableHead>Source</TableHead>
-                <TableHead>Wallet (coins)</TableHead>
-                <TableHead>Rubies</TableHead>
+                <TableHead>Wallet coins</TableHead>
+                <TableHead>Wallet rubies</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Loading…
                   </TableCell>
                 </TableRow>
               )}
               {!loading && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     No active crowns match these filters.
                   </TableCell>
                 </TableRow>
@@ -443,8 +566,9 @@ const CrownsTab = ({ onAction }) => {
                   const tierName = TIER_NAME[u.tier] || u.tierLabel || `Tier ${u.tier}`;
                   return (
                     <TableRow key={id}>
-                      <TableCell className="font-medium">{u.name || '—'}</TableCell>
-                      <TableCell>{u.username || '—'}</TableCell>
+                      <TableCell>
+                        <UserCell user={u} />
+                      </TableCell>
                       <TableCell>
                         <Badge className={cls}>{tierName}</Badge>
                       </TableCell>
