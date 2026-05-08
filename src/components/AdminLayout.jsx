@@ -36,6 +36,7 @@ import {
   LifeBuoy,
   Bell,
   AlertTriangle,
+  Share2,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -101,6 +102,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Top Spenders',
       href: '/topspenders',
       icon: Crown,
+    },
+    {
+      name: 'Referrals',
+      href: '/referrals',
+      icon: Share2,
     },
     {
       name: 'Banners',

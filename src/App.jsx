@@ -29,6 +29,7 @@ import WithdrawRequests from './pages/WithdrawRequests';
 import WithdrawRequestDetails from './pages/WithdrawRequestDetails';
 import WithdrawRequestStreamDetails from './pages/WithdrawRequestStreamDetails';
 import TopSpenders from './pages/TopSpenders';
+import Referrals from './pages/Referrals';
 import GifterPayoutDetails from './pages/GifterPayoutDetails';
 import StreamerRubiesList from './pages/StreamerRubiesList';
 import StreamerRubiesDetail from './pages/StreamerRubiesDetail';
@@ -155,6 +156,17 @@ function App() {
             }
           />
           <Route path="/ruby-crown-wallet" element={<Navigate to="/topspenders" replace />} />
+
+          <Route
+            path="/referrals"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <Referrals />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/qr-codes"
