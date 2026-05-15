@@ -36,6 +36,7 @@ const emptyGift = {
   animationUrl: '',
   /** Raw Lottie JSON (Bodymovin) — from paste or .json file read in browser; stored in MongoDB. */
   animationJson: '',
+  animationDurationMs: null,
   displayOrder: 0,
   isActive: true,
 };
@@ -101,6 +102,10 @@ const GiftManagement = () => {
       iconUrl: gift.iconUrl ?? '',
       animationUrl: gift.animationUrl ?? '',
       animationJson: typeof gift.animationJson === 'string' ? gift.animationJson : '',
+      animationDurationMs:
+        typeof gift.animationDurationMs === 'number' && gift.animationDurationMs > 0
+          ? gift.animationDurationMs
+          : null,
       displayOrder: gift.displayOrder ?? 0,
       isActive: gift.isActive !== false,
     });
@@ -153,6 +158,10 @@ const GiftManagement = () => {
         iconUrl: iconT || undefined,
         animationUrl: animT || undefined,
         animationJson: animJsonT || null,
+        animationDurationMs:
+          typeof form.animationDurationMs === 'number' && form.animationDurationMs > 0
+            ? form.animationDurationMs
+            : undefined,
         displayOrder: Number(form.displayOrder) || 0,
         isActive: form.isActive,
       };
@@ -211,9 +220,23 @@ const GiftManagement = () => {
       const result = await giftService.uploadAnimation(file);
       const url = result?.url ?? result;
       if (url) {
-        setForm((f) => ({ ...f, animationUrl: url }));
+        const autoIcon = result?.iconUrl?.trim?.() || '';
+        setForm((f) => ({
+          ...f,
+          animationUrl: url,
+          animationDurationMs:
+            typeof result?.animationDurationMs === 'number' && result.animationDurationMs > 0
+              ? result.animationDurationMs
+              : f.animationDurationMs,
+          iconUrl: autoIcon || f.iconUrl,
+        }));
+        if (autoIcon) setIconPreviewUrl(result?.iconPreviewUrl || autoIcon);
         setAnimationPreviewUrl(result?.previewUrl || url);
-        toast.success('Animation uploaded — viewers will see it when this gift is sent');
+        toast.success(
+          autoIcon
+            ? 'Animation uploaded — picker icon auto-generated'
+            : 'Animation uploaded — viewers will see it when this gift is sent',
+        );
       } else toast.error('Upload failed');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Upload failed');
