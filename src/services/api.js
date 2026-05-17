@@ -1,11 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://api.golivestreamers.com/api/v1";
-// const API_BASE_URL = 'http://localhost:8002/api/v1';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://golive.staging.api.server2.creativecreation.io/api/v1";
 
 const api = axios.create({
-  baseURL: "https://golive.staging.api.server2.creativecreation.io/api/v1",
-  // baseURL:"https://api.golivestreamers.com/api/v1",
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
