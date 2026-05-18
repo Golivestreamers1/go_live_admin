@@ -125,4 +125,12 @@ export const userService = {
     );
     return response.data.data;
   },
+
+  async getUserActivity(userId, { from, to, granularity = 'day' } = {}) {
+    const params = new URLSearchParams({ granularity });
+    if (from) params.set('from', from instanceof Date ? from.toISOString() : String(from));
+    if (to) params.set('to', to instanceof Date ? to.toISOString() : String(to));
+    const response = await api.get(`/admin/users/${userId}/activity?${params}`);
+    return response.data.data;
+  },
 };

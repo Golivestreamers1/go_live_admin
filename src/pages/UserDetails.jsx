@@ -17,6 +17,9 @@ import {
   AlertTriangle,
   Search,
   Copy,
+  Clock,
+  Eye,
+  Smartphone,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
@@ -34,6 +37,23 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { userService } from '../services/userService';
+import FraudCascadeDialog from '../components/FraudCascadeDialog';
+
+// Super-admin only. Mirrors AdminLayout's check + the backend requireSuperAdmin
+// middleware (role === "admin"). Handles both string role and {role:{name,level}}.
+function isCurrentUserSuperAdmin() {
+  try {
+    const raw = localStorage.getItem('adminUser');
+    if (!raw) return false;
+    const u = JSON.parse(raw);
+    const roleField = u?.role;
+    const name = (roleField?.name || roleField || '').toString().toUpperCase();
+    const level = roleField?.level;
+    return level >= 5 || name === 'ADMIN' || name === 'SUPER_ADMIN';
+  } catch {
+    return false;
+  }
+}
 
 const fmtNum = (n) => (n == null ? '0' : Number(n).toLocaleString());
 const fmtUsd = (n) => (n == null ? '$0.00' : `$${Number(n).toFixed(2)}`);
@@ -85,6 +105,325 @@ const PlatformBadge = ({ platform }) => {
   );
 };
 
+/** Render milliseconds as "Xh Ym" (or "Xm Ys" below an hour, or "0m"). */
+function fmtDuration(ms) {
+  const n = Math.max(0, Number(ms) || 0);
+  if (n < 1000) return '0m';
+  const totalMinutes = Math.floor(n / 60000);
+  if (totalMinutes < 1) {
+    const s = Math.floor(n / 1000);
+    return `${s}s`;
+  }
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/** One row of three stat cards for a named window (Today / This Week / This Month). */
+function ActivityRow({ label, totals }) {
+  const t = totals || { appMs: 0, watchMs: 0, broadcastMs: 0 };
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-gray-700">{label}</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard icon={Smartphone} label="In app" value={fmtDuration(t.appMs)} color="text-sky-600" />
+        <StatCard icon={Radio} label="Streaming" value={fmtDuration(t.broadcastMs)} color="text-purple-600" />
+        <StatCard icon={Eye} label="Watching" value={fmtDuration(t.watchMs)} color="text-emerald-600" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Div-based stacked bar chart for the bucketed series (no charting library).
+ * Each row: date label + three stacked bars (app / streaming / watching) + totals.
+ * Bar widths are percentages relative to the max app-time day in view so the chart reads
+ * at a glance without needing y-axis ticks.
+ */
+/**
+ * Vertical grouped bar chart, plain divs (no chart lib).
+ * Groups = app / streaming / watching — rendered side by side per day so the eye doesn't
+ * accidentally read them as summed (app time overlaps the other two).
+ * X-axis labels thin out automatically for long ranges so they don't overlap.
+ */
+function ActivitySeries({ series }) {
+  if (!series || series.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-6 text-center">
+        No activity recorded for this range yet.
+      </p>
+    );
+  }
+  const maxMs = series.reduce(
+    (m, r) => Math.max(m, r.appMs || 0, r.broadcastMs || 0, r.watchMs || 0),
+    0
+  );
+  if (maxMs === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-6 text-center">
+        No time tracked in this range (the user hasn't opened the app, streamed, or watched).
+      </p>
+    );
+  }
+
+  // At most ~15 date labels so they don't collide.
+  const labelStride = Math.max(1, Math.ceil(series.length / 15));
+  const chartHeightPx = 220;
+  const midMs = Math.round(maxMs / 2);
+
+  return (
+    <div>
+      <div className="flex">
+        {/* Y-axis scale */}
+        <div
+          className="flex flex-col justify-between pr-2 text-right text-[10px] text-gray-500 tabular-nums"
+          style={{ height: `${chartHeightPx}px` }}
+        >
+          <span>{fmtDuration(maxMs)}</span>
+          <span>{fmtDuration(midMs)}</span>
+          <span>0</span>
+        </div>
+
+        {/* Plot area — bars + horizontal gridlines */}
+        <div className="relative flex-1">
+          <div
+            className="absolute inset-0 flex flex-col justify-between pointer-events-none"
+            aria-hidden
+          >
+            <div className="border-t border-gray-200" />
+            <div className="border-t border-gray-200" />
+            <div className="border-t border-gray-200" />
+          </div>
+          <div
+            className="relative flex items-end gap-1 border-l border-b border-gray-300 pl-1"
+            style={{ height: `${chartHeightPx}px` }}
+          >
+            {series.map((row) => {
+              const appH = Math.round(((row.appMs || 0) / maxMs) * 100);
+              const bcH = Math.round(((row.broadcastMs || 0) / maxMs) * 100);
+              const watchH = Math.round(((row.watchMs || 0) / maxMs) * 100);
+              const title =
+                `${row.bucket}\n` +
+                `In app: ${fmtDuration(row.appMs)}\n` +
+                `Streaming: ${fmtDuration(row.broadcastMs)}\n` +
+                `Watching: ${fmtDuration(row.watchMs)}`;
+              return (
+                <div
+                  key={row.bucket}
+                  className="flex h-full flex-1 items-end justify-center gap-[2px]"
+                  title={title}
+                >
+                  <div
+                    className="w-full max-w-[6px] min-w-[2px] rounded-t bg-sky-500"
+                    style={{ height: `${appH}%` }}
+                  />
+                  <div
+                    className="w-full max-w-[6px] min-w-[2px] rounded-t bg-purple-500"
+                    style={{ height: `${bcH}%` }}
+                  />
+                  <div
+                    className="w-full max-w-[6px] min-w-[2px] rounded-t bg-emerald-500"
+                    style={{ height: `${watchH}%` }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* X-axis labels — MM-DD, thinned out for long ranges */}
+      <div className="flex pl-[calc(2rem+4px)]">
+        {series.map((row, i) => (
+          <div
+            key={row.bucket}
+            className="flex-1 overflow-hidden pt-1 text-center font-mono text-[9px] text-gray-500"
+          >
+            {i % labelStride === 0 ? row.bucket.slice(5) : ''}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** yyyy-MM-dd string for <input type="date">. Uses local time so picker shows the date the admin expects. */
+function toDateInputValue(d) {
+  if (!d) return '';
+  const date = d instanceof Date ? d : new Date(d);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Whole-day span in local time (start-of-day → end-of-day) so the query captures the full picked day. */
+function dateInputToStartOfDay(str) {
+  if (!str) return null;
+  const [y, m, d] = str.split('-').map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+function dateInputToEndOfDay(str) {
+  if (!str) return null;
+  const [y, m, d] = str.split('-').map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 23, 59, 59, 999);
+}
+
+/** Which preset (if any) the current from/to matches, within 1-day tolerance. */
+function detectActivePreset(from, to) {
+  if (!from || !to) return null;
+  const now = Date.now();
+  const spanMs = to.getTime() - from.getTime();
+  const span = Math.round(spanMs / (24 * 60 * 60 * 1000));
+  const endCloseToNow = Math.abs(to.getTime() - now) < 24 * 60 * 60 * 1000;
+  if (!endCloseToNow) return null;
+  if (span === 6 || span === 7) return 7;
+  if (span === 29 || span === 30) return 30;
+  if (span === 89 || span === 90) return 90;
+  return null;
+}
+
+function ActivityPanel({ activity, loading, from, to, onChangeRange, onRefresh }) {
+  const totals = activity?.totals || {
+    today: { appMs: 0, watchMs: 0, broadcastMs: 0 },
+    week: { appMs: 0, watchMs: 0, broadcastMs: 0 },
+    month: { appMs: 0, watchMs: 0, broadcastMs: 0 },
+  };
+  const rangeTotals = activity?.rangeTotals || { appMs: 0, watchMs: 0, broadcastMs: 0 };
+  const series = activity?.series || [];
+  const activePreset = detectActivePreset(from, to);
+
+  const applyPreset = (days) => {
+    const newTo = new Date();
+    const newFrom = new Date();
+    newFrom.setHours(0, 0, 0, 0);
+    newFrom.setDate(newFrom.getDate() - (days - 1));
+    onChangeRange(newFrom, newTo);
+  };
+
+  const handleFromChange = (e) => {
+    const next = dateInputToStartOfDay(e.target.value);
+    if (!next) return;
+    if (to && next > to) return;
+    onChangeRange(next, to);
+  };
+  const handleToChange = (e) => {
+    const next = dateInputToEndOfDay(e.target.value);
+    if (!next) return;
+    if (from && next < from) return;
+    onChangeRange(from, next);
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="size-5 text-sky-600" /> Time tracking
+              </CardTitle>
+              <CardDescription>
+                App foreground, streaming, and watching time. App time overlaps with
+                streaming/watching (the user is in all three at once while broadcasting).
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
+              {loading ? <Loader2 className="size-4 animate-spin" /> : 'Refresh'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <ActivityRow label="Today" totals={totals.today} />
+          <ActivityRow label="This week (Mon → now)" totals={totals.week} />
+          <ActivityRow label="This month" totals={totals.month} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle>Daily breakdown</CardTitle>
+                <CardDescription>
+                  {from && to ? (
+                    <>
+                      {toDateInputValue(from)} → {toDateInputValue(to)} · total in range —
+                      app {fmtDuration(rangeTotals.appMs)}, streaming {fmtDuration(rangeTotals.broadcastMs)},
+                      watching {fmtDuration(rangeTotals.watchMs)}.
+                    </>
+                  ) : (
+                    'Pick a date range below.'
+                  )}
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1 rounded-md border bg-white p-1">
+                {[7, 30, 90].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => applyPreset(d)}
+                    className={`px-3 py-1 text-xs rounded ${
+                      d === activePreset
+                        ? 'bg-sky-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-600">From</label>
+                <input
+                  type="date"
+                  value={toDateInputValue(from)}
+                  max={toDateInputValue(to)}
+                  onChange={handleFromChange}
+                  className="h-8 rounded-md border border-gray-300 bg-white px-2 text-sm"
+                />
+                <label className="text-xs text-gray-600">To</label>
+                <input
+                  type="date"
+                  value={toDateInputValue(to)}
+                  min={toDateInputValue(from)}
+                  max={toDateInputValue(new Date())}
+                  onChange={handleToChange}
+                  className="h-8 rounded-md border border-gray-300 bg-white px-2 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="size-5 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <>
+              <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-gray-600">
+                <span className="flex items-center gap-1"><span className="inline-block size-2 rounded bg-sky-500" /> In app</span>
+                <span className="flex items-center gap-1"><span className="inline-block size-2 rounded bg-purple-500" /> Streaming</span>
+                <span className="flex items-center gap-1"><span className="inline-block size-2 rounded bg-emerald-500" /> Watching</span>
+              </div>
+              <ActivitySeries series={series} />
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
 export default function UserDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -106,6 +445,31 @@ export default function UserDetails() {
   const [withdrawalsPagination, setWithdrawalsPagination] = useState({ current: 1, total: 1, totalItems: 0, status: '' });
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
   const [withdrawalsStatus, setWithdrawalsStatus] = useState('');
+
+  // Fraud cascade: flag a specific WalletTransaction as the root of fraud.
+  // Super-admin only — the dialog + backend both re-check.
+  const superAdmin = isCurrentUserSuperAdmin();
+  const [fraudDialogOpen, setFraudDialogOpen] = useState(false);
+  const [fraudRootTxnId, setFraudRootTxnId] = useState('');
+  // Hide zero-amount cascade audit breadcrumbs by default — gift status flips
+  // and conversion links create rows with no balance movement, which clutter
+  // the timeline. Toggle to reveal for full audit.
+  const [showCascadeBreadcrumbs, setShowCascadeBreadcrumbs] = useState(false);
+  const openFraudCascade = (txnId) => {
+    setFraudRootTxnId(String(txnId || ''));
+    setFraudDialogOpen(true);
+  };
+  // A cascade-generated ledger entry shouldn't itself be re-flagged as fraud.
+  const CASCADE_GENERATED_TYPES = new Set([
+    'cascade_reversal',
+    'cascade_reversal_undo',
+    'lifetime_rubies_reconcile',
+  ]);
+  const isCascadeBreadcrumb = (t) =>
+    CASCADE_GENERATED_TYPES.has(t.type) &&
+    !t.coins &&
+    !t.rubies &&
+    !t.usd;
 
   const [verifyInput, setVerifyInput] = useState('');
   const [verifyResult, setVerifyResult] = useState(null);
@@ -135,6 +499,16 @@ export default function UserDetails() {
 
   const [adminActions, setAdminActions] = useState([]);
   const [adminActionsLoading, setAdminActionsLoading] = useState(false);
+
+  const [activity, setActivity] = useState(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityFrom, setActivityFrom] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - 29);
+    return d;
+  });
+  const [activityTo, setActivityTo] = useState(() => new Date());
 
   useEffect(() => {
     let cancelled = false;
@@ -183,6 +557,18 @@ export default function UserDetails() {
       toast.error(err?.response?.data?.message || 'Failed to load transactions');
     } finally {
       setWalletTxLoading(false);
+    }
+  };
+
+  const loadActivity = async (from = activityFrom, to = activityTo) => {
+    try {
+      setActivityLoading(true);
+      const data = await userService.getUserActivity(id, { from, to, granularity: 'day' });
+      setActivity(data);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to load activity');
+    } finally {
+      setActivityLoading(false);
     }
   };
 
@@ -471,13 +857,15 @@ export default function UserDetails() {
           if (v === 'wallet' && !lifetimeAudit) loadLifetimeAudit();
           if (v === 'wallet' && adminActions.length === 0) loadAdminActions();
           if (v === 'withdrawals' && withdrawals.length === 0) loadWithdrawals(1);
+          if (v === 'activity' && !activity) loadActivity();
         }}
       >
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4 md:grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
           <TabsTrigger value="purchases">Purchases</TabsTrigger>
           <TabsTrigger value="streams">Streams</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
           <TabsTrigger value="crown">Crown</TabsTrigger>
         </TabsList>
@@ -992,6 +1380,15 @@ export default function UserDetails() {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={showCascadeBreadcrumbs}
+                      onChange={(e) => setShowCascadeBreadcrumbs(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                    Show cascade breadcrumbs
+                  </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm"
                     value={walletTxType}
@@ -1048,15 +1445,27 @@ export default function UserDetails() {
                         <TableHead>Description</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>When</TableHead>
+                        {superAdmin ? <TableHead className="text-right">Fraud</TableHead> : null}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {walletTx.map((t) => (
+                      {walletTx
+                        .filter((t) => showCascadeBreadcrumbs || !isCascadeBreadcrumb(t))
+                        .map((t) => {
+                          const isCascadeType = CASCADE_GENERATED_TYPES.has(t.type);
+                          const alreadyRoot = !!t.rootOfCascade;
+                          const flaggable = superAdmin && !isCascadeType && !alreadyRoot;
+                          return (
                         <TableRow key={t._id}>
                           <TableCell>
                             <Badge variant="outline" className="font-mono text-xs">
                               {t.type}
                             </Badge>
+                            {t.cascadeId ? (
+                              <Badge className="ml-2 bg-red-100 text-red-800" variant="secondary">
+                                cascade-linked
+                              </Badge>
+                            ) : null}
                           </TableCell>
                           <TableCell className={`text-right tabular-nums ${t.coins < 0 ? 'text-red-600' : t.coins > 0 ? 'text-green-600' : ''}`}>
                             {t.coins ? (t.coins > 0 ? `+${fmtNum(t.coins)}` : fmtNum(t.coins)) : '—'}
@@ -1085,8 +1494,39 @@ export default function UserDetails() {
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{fmtDate(t.createdAt)}</TableCell>
+                          {superAdmin ? (
+                            <TableCell className="text-right">
+                              {alreadyRoot ? (
+                                <Link
+                                  to={`/fraud-cascade/${t.rootOfCascade.cascadeId}`}
+                                  title={`Open cascade ${t.rootOfCascade.cascadeId} · status: ${t.rootOfCascade.status}`}
+                                >
+                                  <Badge
+                                    className="bg-red-100 text-red-800 font-mono text-[10px] hover:bg-red-200 cursor-pointer"
+                                    variant="secondary"
+                                  >
+                                    Cascade #{String(t.rootOfCascade.cascadeId).slice(-6)}
+                                  </Badge>
+                                </Link>
+                              ) : flaggable ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-700 border-red-200 hover:bg-red-50"
+                                  title="Reverse this transaction and every downstream effect via fraud cascade"
+                                  onClick={() => openFraudCascade(t._id)}
+                                >
+                                  <AlertTriangle className="size-3.5 mr-1" />
+                                  Flag fraud
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          ) : null}
                         </TableRow>
-                      ))}
+                          );
+                        })}
                     </TableBody>
                   </Table>
                   {walletTxPagination.total > 1 ? (
@@ -1235,21 +1675,48 @@ export default function UserDetails() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              {p.paypalOrderId ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setVerifyInput(p.paypalOrderId);
-                                    handleVerify(p.paypalOrderId);
-                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                  }}
-                                >
-                                  Re-verify
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
-                              )}
+                              <div className="flex items-center justify-end gap-2">
+                                {p.paypalOrderId ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setVerifyInput(p.paypalOrderId);
+                                      handleVerify(p.paypalOrderId);
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                  >
+                                    Re-verify
+                                  </Button>
+                                ) : null}
+                                {superAdmin && p.rootOfCascade ? (
+                                  <Link
+                                    to={`/fraud-cascade/${p.rootOfCascade.cascadeId}`}
+                                    title={`Open cascade ${p.rootOfCascade.cascadeId} · status: ${p.rootOfCascade.status}`}
+                                  >
+                                    <Badge
+                                      className="bg-red-100 text-red-800 font-mono text-[10px] hover:bg-red-200 cursor-pointer"
+                                      variant="secondary"
+                                    >
+                                      Cascade #{String(p.rootOfCascade.cascadeId).slice(-6)}
+                                    </Badge>
+                                  </Link>
+                                ) : superAdmin ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-700 border-red-200 hover:bg-red-50"
+                                    title="Reverse this purchase and every downstream effect via fraud cascade"
+                                    onClick={() => openFraudCascade(p._id)}
+                                  >
+                                    <AlertTriangle className="size-3.5 mr-1" />
+                                    Flag fraud
+                                  </Button>
+                                ) : null}
+                                {!p.paypalOrderId && !superAdmin ? (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                ) : null}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -1324,6 +1791,22 @@ export default function UserDetails() {
               </Link>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ACTIVITY TAB */}
+        <TabsContent value="activity" className="mt-4 space-y-4">
+          <ActivityPanel
+            activity={activity}
+            loading={activityLoading}
+            from={activityFrom}
+            to={activityTo}
+            onChangeRange={(from, to) => {
+              setActivityFrom(from);
+              setActivityTo(to);
+              loadActivity(from, to);
+            }}
+            onRefresh={() => loadActivity()}
+          />
         </TabsContent>
 
         {/* WITHDRAWALS TAB */}
@@ -1496,6 +1979,23 @@ export default function UserDetails() {
         </TabsContent>
       </Tabs>
 
+      {superAdmin ? (
+        <FraudCascadeDialog
+          open={fraudDialogOpen}
+          initialTxnId={fraudRootTxnId}
+          onClose={() => setFraudDialogOpen(false)}
+          onCompleted={() => {
+            // After execute, refresh the tabs so "cascade-linked" badges show
+            // on the relevant rows immediately.
+            if (walletTx.length > 0) {
+              loadWalletTransactions(walletTxPagination.current || 1);
+            }
+            if (purchases.length > 0) {
+              loadPurchases(purchasesPagination.current || 1);
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 }

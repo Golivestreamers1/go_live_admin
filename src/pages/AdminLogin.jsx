@@ -12,7 +12,7 @@ const AdminLogin = ({ onLoginSuccess }) => {
             <Shield className="size-4" />
           </div>
           <span className="text-lg font-semibold text-gray-900">
-            Universal Project Template Admin
+            Go Live Admin
           </span>
         </div>
 

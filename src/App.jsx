@@ -29,6 +29,7 @@ import WithdrawRequests from './pages/WithdrawRequests';
 import WithdrawRequestDetails from './pages/WithdrawRequestDetails';
 import WithdrawRequestStreamDetails from './pages/WithdrawRequestStreamDetails';
 import TopSpenders from './pages/TopSpenders';
+import Referrals from './pages/Referrals';
 import GifterPayoutDetails from './pages/GifterPayoutDetails';
 import StreamerRubiesList from './pages/StreamerRubiesList';
 import StreamerRubiesDetail from './pages/StreamerRubiesDetail';
@@ -36,6 +37,9 @@ import StreamerStreamGiftsAdmin from './pages/StreamerStreamGiftsAdmin';
 import SupportTickets from './pages/SupportTickets';
 import SupportTicketDetail from './pages/SupportTicketDetail';
 import SupportSettings from './pages/SupportSettings';
+import FraudCascade from './pages/FraudCascade';
+import FraudCascadeDetails from './pages/FraudCascadeDetails';
+import IapManagement from './pages/IapManagement';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -153,6 +157,17 @@ function App() {
             }
           />
           <Route path="/ruby-crown-wallet" element={<Navigate to="/topspenders" replace />} />
+
+          <Route
+            path="/referrals"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <Referrals />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/qr-codes"
@@ -451,6 +466,37 @@ function App() {
             }
           />
 
+
+          <Route
+            path="/fraud-cascade"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <FraudCascade />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/iap"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <IapManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fraud-cascade/:id"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <FraudCascadeDetails />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Admin Login */}
           <Route
