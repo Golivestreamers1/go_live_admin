@@ -23,6 +23,7 @@ import {
   ShoppingCart,
   Tags,
   ClipboardList,
+  ScrollText,
   Star,
   Wallet,
   Flag,
@@ -169,6 +170,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Bell,
     },
     {
+      name: 'Logging Settings',
+      href: '/logging-settings',
+      icon: ScrollText,
+    },
+    {
       name: 'IAP Management',
       href: '/iap',
       icon: ShieldCheck,
@@ -294,14 +300,14 @@ const AdminLayout = ({ children, user, onLogout }) => {
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed left-0 top-0 bottom-0 w-64 bg-white shadow-xl">
+        <div className="fixed left-0 top-0 bottom-0 w-64 bg-white shadow-xl flex flex-col">
           <div className="flex items-center justify-between p-4 border-b">
             <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)}>
               <X className="w-4 h-4" />
             </Button>
           </div>
-          <nav className="p-4 space-y-1">
+          <nav className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon;
 
@@ -388,7 +394,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
           <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1">
           {navigation.map((item) => {
             const Icon = item.icon;
 

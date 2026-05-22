@@ -37,6 +37,7 @@ import StreamerStreamGiftsAdmin from './pages/StreamerStreamGiftsAdmin';
 import SupportTickets from './pages/SupportTickets';
 import SupportTicketDetail from './pages/SupportTicketDetail';
 import SupportSettings from './pages/SupportSettings';
+import LoggingSettings from './pages/LoggingSettings';
 import FraudCascade from './pages/FraudCascade';
 import FraudCascadeDetails from './pages/FraudCascadeDetails';
 import IapManagement from './pages/IapManagement';
@@ -451,6 +452,16 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <SupportSettings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/logging-settings"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <LoggingSettings />
                 </AdminLayout>
               </ProtectedRoute>
             }
