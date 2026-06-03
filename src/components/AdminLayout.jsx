@@ -31,6 +31,7 @@ import {
   DollarSign,
   ArrowDownToLine,
   Sparkles,
+  ShieldHalf,
   Crown,
   ImageIcon,
   Gem,
@@ -88,6 +89,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Dashboard',
       href: '/',
       icon: LayoutDashboard,
+    },
+    {
+      name: 'App Stability',
+      href: '/stabilization',
+      icon: ShieldHalf,
     },
     {
       name: 'User Management',

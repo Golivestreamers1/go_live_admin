@@ -4,6 +4,11 @@ import { Toaster } from 'sonner';
 
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
+import Stabilization from './pages/Stabilization';
+import OptimizationImpact from './pages/OptimizationImpact';
+import NativeImagesMemoryLeak from './pages/NativeImagesMemoryLeak';
+import LiveDeviceDetail from './pages/LiveDeviceDetail';
+import CameraMicMemory from './pages/CameraMicMemory';
 import UserManagement from './pages/UserManagement';
 import UserDetails from './pages/UserDetails';
 import SponsoredCreators from './pages/SponsoredCreators';
@@ -108,6 +113,61 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <AdminDashboard />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization/optimization-impact"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <OptimizationImpact />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization/camera-mic-memory/device/:userId"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <LiveDeviceDetail />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization/camera-mic-memory"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <CameraMicMemory />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization/native-images-memory-leak"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <NativeImagesMemoryLeak />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <Stabilization />
                 </AdminLayout>
               </ProtectedRoute>
             }
