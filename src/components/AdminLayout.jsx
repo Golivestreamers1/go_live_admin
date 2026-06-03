@@ -38,6 +38,7 @@ import {
   Bell,
   AlertTriangle,
   Share2,
+  Tv,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -172,6 +173,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'IAP Management',
       href: '/iap',
       icon: ShieldCheck,
+    },
+    {
+      name: 'Streaming Settings',
+      href: '/settings/streaming',
+      icon: Tv,
     },
     // {
     //   name: 'QR Codes',
