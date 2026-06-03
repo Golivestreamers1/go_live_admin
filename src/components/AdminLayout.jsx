@@ -38,6 +38,7 @@ import {
   Bell,
   AlertTriangle,
   Share2,
+  Tv,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -173,6 +174,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       href: '/iap',
       icon: ShieldCheck,
     },
+    {
+      name: 'Streaming Settings',
+      href: '/settings/streaming',
+      icon: Tv,
+    },
     // {
     //   name: 'QR Codes',
     //   href: '/qr-codes',
@@ -294,14 +300,14 @@ const AdminLayout = ({ children, user, onLogout }) => {
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed left-0 top-0 bottom-0 w-64 bg-white shadow-xl">
-          <div className="flex items-center justify-between p-4 border-b">
+        <div className="fixed left-0 top-0 bottom-0 w-64 bg-white shadow-xl flex flex-col overflow-hidden">
+          <div className="flex shrink-0 items-center justify-between p-4 border-b">
             <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)}>
               <X className="w-4 h-4" />
             </Button>
           </div>
-          <nav className="p-4 space-y-1">
+          <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon;
 
@@ -383,12 +389,12 @@ const AdminLayout = ({ children, user, onLogout }) => {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:left-0 lg:top-0 lg:bottom-0 lg:w-64 lg:bg-white lg:border-r lg:flex lg:flex-col">
-        <div className="flex items-center px-6 py-4 border-b">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col lg:border-r lg:bg-white lg:overflow-hidden">
+        <div className="flex shrink-0 items-center border-b px-6 py-4">
           <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-1">
           {navigation.map((item) => {
             const Icon = item.icon;
 
@@ -465,7 +471,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
           })}
         </nav>
 
-        <div className="p-4 border-t">
+        <div className="shrink-0 border-t p-4">
           {user && (
             <div className="flex items-center space-x-2 mb-3 p-2 bg-gray-50 rounded-md">
               <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">

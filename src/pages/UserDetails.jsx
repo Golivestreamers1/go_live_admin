@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import {
   Clock,
   Eye,
   Smartphone,
+  UserPlus,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
@@ -38,6 +39,7 @@ import {
 } from '../components/ui/table';
 import { userService } from '../services/userService';
 import FraudCascadeDialog from '../components/FraudCascadeDialog';
+import { UserReferralsPanel } from '../components/referral/UserReferralsPanel';
 
 // Super-admin only. Mirrors AdminLayout's check + the backend requireSuperAdmin
 // middleware (role === "admin"). Handles both string role and {role:{name,level}}.
@@ -424,9 +426,29 @@ function ActivityPanel({ activity, loading, from, to, onChangeRange, onRefresh }
   );
 }
 
+const USER_DETAIL_TABS = [
+  'overview',
+  'wallet',
+  'purchases',
+  'streams',
+  'activity',
+  'withdrawals',
+  'referrals',
+  'crown',
+];
+
 export default function UserDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(() =>
+    USER_DETAIL_TABS.includes(tabFromUrl) ? tabFromUrl : 'overview'
+  );
+
+  useEffect(() => {
+    if (USER_DETAIL_TABS.includes(tabFromUrl)) setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -850,8 +872,9 @@ export default function UserDetails() {
 
       {/* Tabs */}
       <Tabs
-        defaultValue="overview"
+        value={activeTab}
         onValueChange={(v) => {
+          setActiveTab(v);
           if (v === 'purchases' && purchases.length === 0) loadPurchases(1);
           if (v === 'wallet' && walletTx.length === 0) loadWalletTransactions(1);
           if (v === 'wallet' && !lifetimeAudit) loadLifetimeAudit();
@@ -860,13 +883,14 @@ export default function UserDetails() {
           if (v === 'activity' && !activity) loadActivity();
         }}
       >
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-7">
+        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
           <TabsTrigger value="purchases">Purchases</TabsTrigger>
           <TabsTrigger value="streams">Streams</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
+          <TabsTrigger value="referrals">Referrals</TabsTrigger>
           <TabsTrigger value="crown">Crown</TabsTrigger>
         </TabsList>
 
@@ -1930,6 +1954,23 @@ export default function UserDetails() {
                   ) : null}
                 </>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* REFERRALS TAB */}
+        <TabsContent value="referrals" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserPlus className="size-4 text-emerald-600" /> Referrals
+              </CardTitle>
+              <CardDescription>
+                Referral code, who invited this user, monthly reward cap, and everyone they referred.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UserReferralsPanel userId={id} />
             </CardContent>
           </Card>
         </TabsContent>

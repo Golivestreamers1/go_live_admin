@@ -36,8 +36,30 @@ const emptyGift = {
   animationUrl: '',
   /** Raw Lottie JSON (Bodymovin) — from paste or .json file read in browser; stored in MongoDB. */
   animationJson: '',
+  animationDurationMs: null,
+  /** Admin-facing seconds (converted to ms on save). */
+  animationDurationSec: '',
   displayOrder: 0,
   isActive: true,
+};
+
+const msToDurationSecInput = (ms) => {
+  if (ms == null || ms === '' || Number(ms) <= 0) return '';
+  const sec = Number(ms) / 1000;
+  return Number.isInteger(sec) ? String(sec) : String(Math.round(sec * 100) / 100);
+};
+
+const parseDurationSecToMs = (secStr) => {
+  if (secStr === '' || secStr == null) return null;
+  const sec = Number(secStr);
+  if (!Number.isFinite(sec) || sec <= 0) return null;
+  return Math.round(sec * 1000);
+};
+
+const formatDurationLabel = (ms) => {
+  if (ms == null || Number(ms) <= 0) return '—';
+  const sec = Number(ms) / 1000;
+  return sec >= 10 ? `${sec.toFixed(1)} s` : `${sec < 1 ? sec.toFixed(2) : sec.toFixed(1)} s`;
 };
 
 /** Table / picker preview: icon first; else static animation (GIF/WebP/PNG), not Lottie JSON. */
@@ -101,6 +123,11 @@ const GiftManagement = () => {
       iconUrl: gift.iconUrl ?? '',
       animationUrl: gift.animationUrl ?? '',
       animationJson: typeof gift.animationJson === 'string' ? gift.animationJson : '',
+      animationDurationMs:
+        typeof gift.animationDurationMs === 'number' && gift.animationDurationMs > 0
+          ? gift.animationDurationMs
+          : null,
+      animationDurationSec: msToDurationSecInput(gift.animationDurationMs),
       displayOrder: gift.displayOrder ?? 0,
       isActive: gift.isActive !== false,
     });
@@ -153,6 +180,14 @@ const GiftManagement = () => {
         iconUrl: iconT || undefined,
         animationUrl: animT || undefined,
         animationJson: animJsonT || null,
+        animationDurationMs: (() => {
+          const fromSec = parseDurationSecToMs(form.animationDurationSec);
+          if (fromSec != null) return fromSec;
+          if (typeof form.animationDurationMs === 'number' && form.animationDurationMs > 0) {
+            return form.animationDurationMs;
+          }
+          return null;
+        })(),
         displayOrder: Number(form.displayOrder) || 0,
         isActive: form.isActive,
       };
@@ -211,9 +246,27 @@ const GiftManagement = () => {
       const result = await giftService.uploadAnimation(file);
       const url = result?.url ?? result;
       if (url) {
-        setForm((f) => ({ ...f, animationUrl: url }));
+        const autoIcon = result?.iconUrl?.trim?.() || '';
+        setForm((f) => ({
+          ...f,
+          animationUrl: url,
+          animationDurationMs:
+            typeof result?.animationDurationMs === 'number' && result.animationDurationMs > 0
+              ? result.animationDurationMs
+              : f.animationDurationMs,
+          animationDurationSec:
+            typeof result?.animationDurationMs === 'number' && result.animationDurationMs > 0
+              ? msToDurationSecInput(result.animationDurationMs)
+              : f.animationDurationSec,
+          iconUrl: autoIcon || f.iconUrl,
+        }));
+        if (autoIcon) setIconPreviewUrl(result?.iconPreviewUrl || autoIcon);
         setAnimationPreviewUrl(result?.previewUrl || url);
-        toast.success('Animation uploaded — viewers will see it when this gift is sent');
+        toast.success(
+          autoIcon
+            ? 'Animation uploaded — picker icon auto-generated'
+            : 'Animation uploaded — viewers will see it when this gift is sent',
+        );
       } else toast.error('Upload failed');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Upload failed');
@@ -300,6 +353,7 @@ const GiftManagement = () => {
                   <TableHead>Category</TableHead>
                   <TableHead>Coins</TableHead>
                   <TableHead>Rubies</TableHead>
+                  <TableHead>Duration</TableHead>
                   <TableHead>Order</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -354,6 +408,9 @@ const GiftManagement = () => {
                     </TableCell>
                     <TableCell>{g.coinValue}</TableCell>
                     <TableCell>{g.rubyValue ?? '—'}</TableCell>
+                    <TableCell className="text-sm tabular-nums whitespace-nowrap">
+                      {formatDurationLabel(g.animationDurationMs)}
+                    </TableCell>
                     <TableCell>{g.displayOrder ?? 0}</TableCell>
                     <TableCell>
                       <Badge variant={g.isActive !== false ? 'default' : 'secondary'}>
@@ -529,6 +586,53 @@ const GiftManagement = () => {
                 placeholder="Or paste animation URL (Lottie .json or image URL)"
                 className="mt-1"
               />
+            </div>
+            <div className="space-y-2 rounded-lg border border-dashed p-3 bg-muted/30">
+              <Label htmlFor="animationDurationSec">Playback duration (seconds)</Label>
+              <p className="text-xs text-muted-foreground">
+                How long the gift animation plays on stream (GIF/WebP loop timing). Auto-filled when you
+                upload a GIF; you can override. Leave empty to use app default (~10s for Lottie). Examples:{' '}
+                <code className="text-xs">1.8</code> = 1800ms, <code className="text-xs">9</code> = 9 seconds.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Input
+                  id="animationDurationSec"
+                  type="number"
+                  min={0.1}
+                  step={0.1}
+                  className="max-w-[160px]"
+                  value={form.animationDurationSec}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      animationDurationSec: e.target.value,
+                      animationDurationMs: null,
+                    }))
+                  }
+                  placeholder="e.g. 1.8"
+                />
+                {form.animationDurationSec !== '' && parseDurationSecToMs(form.animationDurationSec) != null && (
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    = {parseDurationSecToMs(form.animationDurationSec).toLocaleString()} ms
+                  </span>
+                )}
+                {form.animationDurationSec !== '' && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        animationDurationSec: '',
+                        animationDurationMs: null,
+                      }))
+                    }
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Icon image (optional)</Label>

@@ -26,9 +26,18 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Clock,
+  Eye,
+  Info,
+  ExternalLink,
+  List,
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { toast } from 'sonner';
 import { referralService } from '../services/referralService';
+import { ReferralCriteriaProgress } from '../components/referral/ReferralCriteriaProgress';
+import { ReferralJourneyDialog } from '../components/referral/ReferralJourneyDialog';
+import { ReferrerDetailsDialog } from '../components/referral/ReferrerDetailsDialog';
 
 const PERIOD_OPTIONS = [
   { value: 'all', label: 'All time' },
@@ -151,6 +160,96 @@ const UserCell = ({ user, fallbackId }) => {
     </div>
   );
 };
+
+const initials = (name) => {
+  const parts = String(name || '?')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+};
+
+/** Compact referrer identity for leaderboard rows */
+const ReferrerIdentityCell = ({ row }) => {
+  const name = row.name || 'Unknown';
+  return (
+    <div className="flex items-center gap-2.5 max-w-[200px]">
+      <Avatar className="h-8 w-8 shrink-0 border">
+        <AvatarImage src={row.profilePicture} alt="" />
+        <AvatarFallback className="text-[10px] bg-muted">{initials(name)}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <p className="font-medium text-sm truncate" title={name}>
+          {name}
+        </p>
+        {row.username ? (
+          <p className="text-xs text-muted-foreground truncate" title={`@${row.username}`}>
+            @{row.username}
+          </p>
+        ) : row.email ? (
+          <p className="text-[11px] text-muted-foreground truncate" title={row.email}>
+            {row.email}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+const MonthlyRewardBadge = ({ row, cap = 3, compact = false }) => {
+  if (row.referralUnlimitedRewards) {
+    return (
+      <Badge className="bg-violet-600 text-[11px] whitespace-nowrap">Unlimited</Badge>
+    );
+  }
+  const used = row.rewardedThisMonth ?? 0;
+  const atCap = used >= cap;
+  if (compact) {
+    return (
+      <span
+        className={`inline-block text-xs font-medium tabular-nums whitespace-nowrap ${atCap ? 'text-amber-800' : ''}`}
+        title={atCap ? 'Monthly cap reached' : `${used} of ${cap} rewarded this month (UTC)`}
+      >
+        {used}/{cap}
+        {atCap ? ' · cap' : ''}
+      </span>
+    );
+  }
+  return (
+    <div className="space-y-0.5">
+      <Badge
+        variant="outline"
+        className={`whitespace-nowrap tabular-nums text-xs ${atCap ? 'border-amber-400 text-amber-800 bg-amber-50' : ''}`}
+      >
+        {used} / {cap} this month
+      </Badge>
+      {atCap && (
+        <p className="text-[10px] text-amber-700 leading-tight">Cap full</p>
+      )}
+    </div>
+  );
+};
+
+/** Infer paid vs linked-only when API omits breakdown fields. */
+function getReferrerRowBreakdown(row) {
+  const count = Number(row.count) || 0;
+  const rubies = Number(row.rubies) || 0;
+  let rewarded = row.rewardedCount;
+  if (rewarded == null || rewarded === '') {
+    rewarded = rubies > 0 ? Math.min(count, Math.floor(rubies / 500)) : 0;
+  } else {
+    rewarded = Number(rewarded) || 0;
+  }
+  let linkedOnly = row.linkedOnlyCount;
+  if (linkedOnly == null || linkedOnly === '') {
+    linkedOnly = Math.max(0, count - rewarded);
+  } else {
+    linkedOnly = Number(linkedOnly) || 0;
+  }
+  return { count, rewarded, linkedOnly };
+}
 
 /* ──────────────────────────────────────────────────────────
  * Shared filter bar
@@ -349,6 +448,15 @@ const StatsOverview = ({ filters }) => {
       tone: 'text-blue-600',
     },
     {
+      title: 'Pending (awaiting criteria)',
+      value: stats ? fmtNumber(stats.pending?.awaitingCriteria) : '—',
+      hint: stats
+        ? `${fmtNumber(stats.pending?.completedStagingRows)} completed staging rows`
+        : 'Code applied, rubies not paid yet',
+      icon: Clock,
+      tone: 'text-violet-600',
+    },
+    {
       title: 'Failed attempts',
       value: stats
         ? fmtNumber(
@@ -367,7 +475,7 @@ const StatsOverview = ({ filters }) => {
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       {tiles.map((t) => {
         const Icon = t.icon;
         return (
@@ -418,6 +526,8 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('count_desc');
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [drillReferrerId, setDrillReferrerId] = useState(null);
+  const [monthlyCap, setMonthlyCap] = useState(3);
 
   const fetchPage = useCallback(
     async (page = 1) => {
@@ -433,6 +543,7 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
           endDate: filters.period === 'custom' ? filters.endDate : undefined,
         });
         setRows(result.data || []);
+        if (result.monthlyRewardCap != null) setMonthlyCap(result.monthlyRewardCap);
         setPagination({
           page: result.pagination?.page || 1,
           totalPages: result.pagination?.totalPages || 1,
@@ -462,11 +573,23 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
           <CardTitle>Top Referrers</CardTitle>
         </div>
         <CardDescription>
-          Ranked by number of successful referrals within the selected period. Click a row to drill
-          into who they referred.
+          Leaderboard for the selected date range. &quot;Referrals&quot; counts everyone linked;
+          &quot;Rubies paid&quot; is only where the referrer actually received 500 rubies.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50/80 px-3 py-2.5 text-sm text-blue-900">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <p>
+            <strong>Monthly limit:</strong> Each referrer gets rubies for up to{' '}
+            <strong>{monthlyCap}</strong> referrals per calendar month (UTC). After that, new
+            referrals still link but show as <em>linked only</em> with 0 rubies. To remove the cap for
+            one user, click <strong>Profile</strong> in the table → Referrals tab →{' '}
+            <em>Enable unlimited rewards</em>. (Custom limits like 5/month are not supported — only 3/month
+            or unlimited.)
+          </p>
+        </div>
+
         <FilterBar
           searchInput={searchInput}
           setSearchInput={setSearchInput}
@@ -485,31 +608,57 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
           setEndDate={(v) => onRangeChange({ endDate: v })}
         />
 
-        <div className="rounded-md border">
-          <Table>
+        <p className="text-xs text-muted-foreground lg:hidden">
+          Swipe horizontally to see all columns →
+        </p>
+        <div className="rounded-md border overflow-x-auto overscroll-x-contain">
+          <Table className="min-w-[960px] table-fixed">
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-[200px]" />
+              <col className="w-[108px]" />
+              <col className="w-[88px]" />
+              <col className="w-[88px]" />
+              <col className="w-[72px]" />
+              <col className="w-[72px]" />
+              <col className="w-[118px]" />
+              <col className="w-[148px]" />
+            </colgroup>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[60px]">#</TableHead>
-                <TableHead>Referrer</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Referrals ({periodLabel})</TableHead>
-                <TableHead>Rubies earned ({periodLabel})</TableHead>
-                <TableHead>Last referral</TableHead>
-                <TableHead>Wallet rubies</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="px-2">#</TableHead>
+                <TableHead className="px-2">Referrer</TableHead>
+                <TableHead className="px-2">Code</TableHead>
+                <TableHead className="px-2 text-right" title={periodLabel}>
+                  <span className="block">Referrals</span>
+                  <span className="text-[10px] font-normal text-muted-foreground truncate">
+                    {periodLabel}
+                  </span>
+                </TableHead>
+                <TableHead className="px-2 text-right" title={periodLabel}>
+                  <span className="block">Rubies</span>
+                  <span className="text-[10px] font-normal text-muted-foreground">paid</span>
+                </TableHead>
+                <TableHead className="px-2 text-center">
+                  <span className="block">Month</span>
+                  <span className="text-[10px] font-normal text-muted-foreground">UTC</span>
+                </TableHead>
+                <TableHead className="px-2 text-right">Wallet</TableHead>
+                <TableHead className="px-2">Last</TableHead>
+                <TableHead className="px-2 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-10">
                     Loading…
                   </TableCell>
                 </TableRow>
               )}
               {!loading && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-10">
                     No referrers match these filters.
                   </TableCell>
                 </TableRow>
@@ -517,29 +666,61 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
               {!loading &&
                 rows.map((r, idx) => {
                   const rank = (pagination.page - 1) * 20 + idx + 1;
+                  const { count, rewarded, linkedOnly } = getReferrerRowBreakdown(r);
                   return (
-                    <TableRow key={String(r.referrerId)}>
-                      <TableCell className="text-muted-foreground">{rank}</TableCell>
-                      <TableCell>
-                        <UserCell user={r} fallbackId={r.referrerId} />
+                    <TableRow key={String(r.referrerId)} className="hover:bg-muted/20">
+                      <TableCell className="px-2 text-muted-foreground text-sm tabular-nums">
+                        {rank}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
+                        <ReferrerIdentityCell row={r} />
+                      </TableCell>
+                      <TableCell className="px-2">
                         {r.referralCode ? (
-                          <Copyable value={r.referralCode} label="Referral code" primary />
+                          <Copyable value={r.referralCode} label="Code" primary truncate={90} />
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="font-semibold">{fmtNumber(r.count)}</TableCell>
-                      <TableCell>{fmtNumber(r.rubies)}</TableCell>
-                      <TableCell>{formatDate(r.lastReferralAt)}</TableCell>
-                      <TableCell>{fmtNumber(r.currentRubies)}</TableCell>
-                      <TableCell className="text-right">
-                        <Link to={`/users/${r.referrerId}`}>
-                          <Button size="sm" variant="outline">
-                            Profile
+                      <TableCell className="px-2 text-right">
+                        <p className="font-semibold tabular-nums">{fmtNumber(count)}</p>
+                        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                          <span className="text-emerald-700">{fmtNumber(rewarded)} paid</span>
+                          {linkedOnly > 0 ? (
+                            <span className="text-amber-700"> · {fmtNumber(linkedOnly)} free</span>
+                          ) : null}
+                        </p>
+                      </TableCell>
+                      <TableCell className="px-2 text-right">
+                        <p className="font-semibold tabular-nums text-rose-700">{fmtNumber(r.rubies)}</p>
+                      </TableCell>
+                      <TableCell className="px-2 text-center">
+                        <MonthlyRewardBadge row={r} cap={monthlyCap} compact />
+                      </TableCell>
+                      <TableCell className="px-2 text-right tabular-nums text-sm">
+                        {fmtNumber(r.currentRubies)}
+                      </TableCell>
+                      <TableCell className="px-2 text-[11px] text-muted-foreground whitespace-nowrap">
+                        {formatDate(r.lastReferralAt)}
+                      </TableCell>
+                      <TableCell className="px-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setDrillReferrerId(String(r.referrerId))}
+                          >
+                            <List className="h-3 w-3 mr-1" />
+                            List
                           </Button>
-                        </Link>
+                          <Link to={`/users/${r.referrerId}?tab=referrals`}>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs">
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Profile
+                            </Button>
+                          </Link>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -549,6 +730,200 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
         </div>
         <Pager pagination={pagination} onPageChange={(p) => fetchPage(p)} loading={loading} />
       </CardContent>
+
+      <ReferrerDetailsDialog
+        referrerId={drillReferrerId}
+        filters={filters}
+        open={Boolean(drillReferrerId)}
+        onOpenChange={(v) => !v && setDrillReferrerId(null)}
+      />
+    </Card>
+  );
+};
+
+/* ──────────────────────────────────────────────────────────
+ * Pending referrals tab
+ * ────────────────────────────────────────────────────────── */
+const PENDING_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Awaiting criteria' },
+  { value: 'completed', label: 'Completed (staging)' },
+  { value: 'all', label: 'All statuses' },
+];
+
+const PendingTab = () => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('pending');
+  const [live, setLive] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [journeyUserId, setJourneyUserId] = useState(null);
+  const [criteriaConfig, setCriteriaConfig] = useState(null);
+
+  const fetchPage = useCallback(
+    async (page = 1) => {
+      try {
+        setLoading(true);
+        const result = await referralService.getPending({
+          page,
+          limit: 20,
+          search: search || undefined,
+          status,
+          live,
+        });
+        setRows(result.data || []);
+        setCriteriaConfig(result.criteriaConfig || null);
+        setPagination({
+          page: result.pagination?.page || 1,
+          totalPages: result.pagination?.totalPages || 1,
+          total: result.pagination?.total ?? 0,
+        });
+      } catch (e) {
+        console.error(e);
+        toast.error(e?.response?.data?.message || 'Failed to load pending referrals');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [search, status, live]
+  );
+
+  useEffect(() => {
+    fetchPage(1);
+  }, [fetchPage]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Clock className="h-5 w-5 text-violet-600" />
+          <CardTitle>Pending referrals</CardTitle>
+        </div>
+        <CardDescription>
+          Users who applied a code but have not received referrer rubies yet. Toggle live engagement
+          to recompute from session logs (slower).
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+            <Input
+              placeholder="Search user, email, code…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && setSearch(searchInput.trim())}
+            />
+            <Button type="button" variant="secondary" onClick={() => setSearch(searchInput.trim())}>
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="w-48">
+            <Select value={status} onValueChange={setStatus} placeholder="Status">
+              {PENDING_STATUS_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </Select>
+          </div>
+          <Button
+            type="button"
+            variant={live ? 'default' : 'outline'}
+            onClick={() => setLive((v) => !v)}
+            title="Recompute engagement from live session data"
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Live engagement {live ? 'on' : 'off'}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => fetchPage(pagination.page)} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+
+        {criteriaConfig && (
+          <p className="text-xs text-muted-foreground">
+            Criteria: {criteriaConfig.minEngagementMinutes} min app •{' '}
+            {criteriaConfig.minCompletedStreams} streams OR {criteriaConfig.minLiveMinutes} min live
+            • verify: {criteriaConfig.requireVerified ? 'required' : 'optional'}
+          </p>
+        )}
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Referred user</TableHead>
+                <TableHead>Referrer</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Progress</TableHead>
+                <TableHead>Applied</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    Loading…
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    No pending rows match.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading &&
+                rows.map((r) => {
+                  const referredId = r.referredUserId?._id || r.referredUserId;
+                  return (
+                    <TableRow key={String(r._id)}>
+                      <TableCell>
+                        <UserCell user={r.referredUserId} fallbackId={referredId} />
+                      </TableCell>
+                      <TableCell>
+                        <UserCell user={r.referrerId} fallbackId={r.referrerId?._id} />
+                      </TableCell>
+                      <TableCell>
+                        <Copyable value={r.referralCodeUsed} label="Code" primary />
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{r.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <ReferralCriteriaProgress progress={r.criteriaProgress} compact />
+                      </TableCell>
+                      <TableCell>{formatDate(r.createdAt)}</TableCell>
+                      <TableCell>
+                        {referredId && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setJourneyUserId(String(referredId))}
+                          >
+                            Journey
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+            </TableBody>
+          </Table>
+        </div>
+        <Pager pagination={pagination} onPageChange={(p) => fetchPage(p)} loading={loading} />
+      </CardContent>
+
+      <ReferralJourneyDialog
+        referredUserId={journeyUserId}
+        open={Boolean(journeyUserId)}
+        onOpenChange={(v) => !v && setJourneyUserId(null)}
+      />
     </Card>
   );
 };
@@ -563,6 +938,7 @@ const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('date_desc');
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [journeyUserId, setJourneyUserId] = useState(null);
 
   const fetchPage = useCallback(
     async (page = 1) => {
@@ -635,26 +1011,31 @@ const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
                 <TableHead>Referred user</TableHead>
                 <TableHead>Code used</TableHead>
                 <TableHead>Rubies</TableHead>
+                <TableHead>Reward</TableHead>
                 <TableHead>When</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Loading…
                   </TableCell>
                 </TableRow>
               )}
               {!loading && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     No referrals match these filters.
                   </TableCell>
                 </TableRow>
               )}
               {!loading &&
-                rows.map((r) => (
+                rows.map((r) => {
+                  const referredId = r.referredUserId?._id || r.referredUserId;
+                  const rewarded = Number(r.rubiesAwarded) > 0;
+                  return (
                   <TableRow key={String(r._id)}>
                     <TableCell>
                       <div>
@@ -692,14 +1073,37 @@ const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
                     <TableCell className="font-medium">
                       {fmtNumber(r.rubiesAwarded)}
                     </TableCell>
+                    <TableCell>
+                      <Badge className={rewarded ? 'bg-emerald-600' : 'bg-slate-500'}>
+                        {rewarded ? 'Rewarded' : 'Linked (no reward)'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{formatDate(r.createdAt)}</TableCell>
+                    <TableCell>
+                      {referredId && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setJourneyUserId(String(referredId))}
+                        >
+                          Journey
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
-                ))}
+                );
+                })}
             </TableBody>
           </Table>
         </div>
         <Pager pagination={pagination} onPageChange={(p) => fetchPage(p)} loading={loading} />
       </CardContent>
+
+      <ReferralJourneyDialog
+        referredUserId={journeyUserId}
+        open={Boolean(journeyUserId)}
+        onOpenChange={(v) => !v && setJourneyUserId(null)}
+      />
     </Card>
   );
 };
@@ -714,6 +1118,7 @@ const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [journeyUserId, setJourneyUserId] = useState(null);
 
   const fetchPage = useCallback(
     async (page = 1) => {
@@ -790,25 +1195,28 @@ const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
                 <TableHead>Source</TableHead>
                 <TableHead>When</TableHead>
                 <TableHead>Note</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     Loading…
                   </TableCell>
                 </TableRow>
               )}
               {!loading && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     No attempts match these filters.
                   </TableCell>
                 </TableRow>
               )}
               {!loading &&
-                rows.map((r) => (
+                rows.map((r) => {
+                  const referredId = r.referredUserId?._id || r.referredUserId;
+                  return (
                   <TableRow key={String(r._id)}>
                     <TableCell>
                       <Badge className={STATUS_BADGE[r.status] || 'bg-slate-500'}>
@@ -859,13 +1267,31 @@ const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
                     <TableCell className="text-xs text-muted-foreground max-w-[280px] truncate" title={r.errorMessage || ''}>
                       {r.errorMessage || '—'}
                     </TableCell>
+                    <TableCell>
+                      {referredId && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setJourneyUserId(String(referredId))}
+                        >
+                          Journey
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
-                ))}
+                );
+                })}
             </TableBody>
           </Table>
         </div>
         <Pager pagination={pagination} onPageChange={(p) => fetchPage(p)} loading={loading} />
       </CardContent>
+
+      <ReferralJourneyDialog
+        referredUserId={journeyUserId}
+        open={Boolean(journeyUserId)}
+        onOpenChange={(v) => !v && setJourneyUserId(null)}
+      />
     </Card>
   );
 };
@@ -907,8 +1333,9 @@ const Referrals = () => {
       <div>
         <h1 className="text-2xl font-bold">Referrals</h1>
         <p className="text-sm text-muted-foreground">
-          Track who referred who, sort top referrers, and diagnose failed referral attempts. Date
-          filter applies across all tabs.
+          Track who referred who, pending criteria progress, monthly reward cap (3 rubies payouts /
+          month), and failed attempts. Date filter applies to stats, top referrers, logs, and
+          attempts — not the pending queue.
         </p>
       </div>
 
@@ -917,6 +1344,7 @@ const Referrals = () => {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="top">Top referrers</TabsTrigger>
+          <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="logs">Successful referrals</TabsTrigger>
           <TabsTrigger value="attempts">Attempts &amp; failures</TabsTrigger>
         </TabsList>
@@ -927,6 +1355,9 @@ const Referrals = () => {
             onRangeChange={handleRangeChange}
             periodLabel={periodLabel}
           />
+        </TabsContent>
+        <TabsContent value="pending" className="mt-4">
+          <PendingTab />
         </TabsContent>
         <TabsContent value="logs" className="mt-4">
           <LogsTab
