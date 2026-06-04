@@ -3,37 +3,32 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Smartphone } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { DataCollectionBanner } from '../components/stabilization/LiveDeviceList';
-import {
-  formatAge,
-  formatRam,
-  formatRole,
-} from '../components/stabilization/liveDeviceShared';
+import { formatAge, formatAppRamUsage, formatRole } from '../components/stabilization/liveDeviceShared';
 import {
   DeviceMemoryMetricsPanel,
-  useLiveDeviceHistory,
 } from '../components/stabilization/DeviceMemoryMetricsPanel';
 import stabilizationService from '../services/stabilizationService';
-import { usePolling } from '../hooks/usePolling';
+import { useStabilizationRealtime } from '../hooks/useStabilizationRealtime';
+import StabilizationLiveBadge from '../components/stabilization/StabilizationLiveBadge';
 
-const LIST_PATH = '/stabilization/camera-mic-memory';
+const LIST_PATH = '/stabilization';
 
 const LiveDeviceDetail = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
 
-  const polling = usePolling(() => stabilizationService.getCameraMicStabilization(), {
-    defaultIntervalMs: 20_000,
-  });
+  const realtime = useStabilizationRealtime(
+    () => stabilizationService.getCameraMicStabilization(),
+    (payload) => payload?.cameraMic,
+  );
 
-  const data = polling.data;
+  const data = realtime.data;
   const liveDevices = data?.liveDevices || [];
   const stepCount = data?.cleanupStepsActive ?? 8;
-  const liveHistory = useLiveDeviceHistory(liveDevices, polling.lastUpdatedAt?.getTime());
 
   const device = liveDevices.find((d) => d.userId === userId);
-  const historyPoints = userId ? liveHistory[userId] || [] : [];
 
-  if (!polling.isLoading && data && !device) {
+  if (!realtime.isLoading && data && !device) {
     return (
       <div className="space-y-4">
         <Link
@@ -41,7 +36,7 @@ const LiveDeviceDetail = () => {
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gray-900"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to live devices
+          Back to App Stability
         </Link>
         <div className="rounded-xl border border-dashed bg-gray-50/50 p-10 text-center">
           <Smartphone className="mx-auto mb-3 h-10 w-10 text-gray-300" />
@@ -50,7 +45,7 @@ const LiveDeviceDetail = () => {
             This user left the stream or their ping expired (~3 min).
           </p>
           <Button className="mt-4" variant="outline" onClick={() => navigate(LIST_PATH)}>
-            Return to device list
+            Return to App Stability
           </Button>
         </div>
       </div>
@@ -66,36 +61,36 @@ const LiveDeviceDetail = () => {
             className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gray-900"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to live devices
+            Back to App Stability
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-gray-900">
             {device?.deviceModel ?? 'Loading device…'}
+            <StabilizationLiveBadge isLive={realtime.isLive} isStale={realtime.isStale} />
           </h1>
           {device ? (
             <p className="mt-1 text-sm text-muted-foreground">
               {formatRole(device.role)} · {device.osName} {device.osVersion} ·{' '}
-              {formatRam(device.totalMemoryMb)} · ping {formatAge(device.reportedAt)}
+              {formatAppRamUsage(device, { precise: true })} · ping {formatAge(device.reportedAt)}
             </p>
           ) : null}
         </div>
-        <Button variant="outline" size="sm" onClick={polling.refresh} disabled={polling.isLoading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${polling.isLoading ? 'animate-spin' : ''}`} />
+        <Button variant="outline" size="sm" onClick={realtime.refresh} disabled={realtime.isLoading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${realtime.isLoading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
       {device ? (
         <>
-          <DataCollectionBanner device={device} historyPoints={historyPoints} />
+          <DataCollectionBanner device={device} />
           <DeviceMemoryMetricsPanel
             device={device}
-            historyPoints={historyPoints}
             stepCount={stepCount}
             subtitle={[
               formatRole(device.role),
               device.osName,
               device.osVersion,
-              formatRam(device.totalMemoryMb),
+              formatAppRamUsage(device, { precise: true }),
               `Last ping ${formatAge(device.reportedAt)}`,
             ]
               .filter(Boolean)

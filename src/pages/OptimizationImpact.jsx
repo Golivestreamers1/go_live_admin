@@ -16,7 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import stabilizationService from '../services/stabilizationService';
-import { usePolling } from '../hooks/usePolling';
+import { useStabilizationRealtime } from '../hooks/useStabilizationRealtime';
+import StabilizationLiveBadge from '../components/stabilization/StabilizationLiveBadge';
 
 const formatMb = (mb) => {
   if (mb == null) return '—';
@@ -139,10 +140,11 @@ const ProbeSparkline = ({ samples }) => {
 };
 
 const OptimizationImpact = () => {
-  const polling = usePolling(() => stabilizationService.getOptimizationImpact(), {
-    defaultIntervalMs: 30_000,
-  });
-  const data = polling.data;
+  const realtime = useStabilizationRealtime(
+    () => stabilizationService.getOptimizationImpact(),
+    (payload) => payload?.optimizationImpact,
+  );
+  const data = realtime.data;
   const headline = data?.headline;
   const scenarios = data?.scenarios || [];
   const cpu = data?.cpu;
@@ -161,17 +163,18 @@ const OptimizationImpact = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to App Stability
           </Link>
-          <h1 className="flex items-center gap-2 text-3xl font-bold text-gray-900">
+          <h1 className="flex flex-wrap items-center gap-2 text-3xl font-bold text-gray-900">
             <Sparkles className="h-8 w-8 text-emerald-500" />
             Optimization Impact
+            <StabilizationLiveBadge isLive={realtime.isLive} isStale={realtime.isStale} />
           </h1>
           <p className="mt-1 max-w-3xl text-gray-600">
             Client-ready view of how our performance work makes Go Live lighter, smoother, and
             more stable — with before/after benchmarks and live proof from real devices.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={polling.refresh} disabled={polling.isLoading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${polling.isLoading ? 'animate-spin' : ''}`} />
+        <Button variant="outline" size="sm" onClick={realtime.refresh} disabled={realtime.isLoading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${realtime.isLoading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>

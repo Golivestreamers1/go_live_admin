@@ -12,11 +12,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import stabilizationService from '../services/stabilizationService';
-import { usePolling } from '../hooks/usePolling';
+import { useStabilizationRealtime } from '../hooks/useStabilizationRealtime';
+import StabilizationLiveBadge from '../components/stabilization/StabilizationLiveBadge';
 import {
   DeviceMemoryMetricsPanel,
   ProbeMetricsPanel,
-  useLiveDeviceHistory,
 } from '../components/stabilization/DeviceMemoryMetricsPanel';
 import LiveDeviceList from '../components/stabilization/LiveDeviceList';
 
@@ -90,17 +90,17 @@ const DeviceSpecsLine = ({ row }) => {
 };
 
 const CameraMicMemory = () => {
-  const polling = usePolling(() => stabilizationService.getCameraMicStabilization(), {
-    defaultIntervalMs: 20_000,
-  });
-  const data = polling.data;
+  const realtime = useStabilizationRealtime(
+    () => stabilizationService.getCameraMicStabilization(),
+    (payload) => payload?.cameraMic,
+  );
+  const data = realtime.data;
   const summary = data?.summary;
   const liveDevices = data?.liveDevices || [];
   const recentReleases = data?.recentReleases || [];
   const recentProbes = data?.recentProbes || [];
   const releaseMatrix = data?.releaseMatrix || [];
   const stepCount = data?.cleanupStepsActive ?? CLEANUP_STEPS.length;
-  const liveHistory = useLiveDeviceHistory(liveDevices, polling.lastUpdatedAt?.getTime());
 
   return (
     <div className="space-y-6">
@@ -113,17 +113,18 @@ const CameraMicMemory = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to App Stability
           </Link>
-          <h1 className="flex items-center gap-2 text-3xl font-bold text-gray-900">
+          <h1 className="flex flex-wrap items-center gap-2 text-3xl font-bold text-gray-900">
             <Video className="h-8 w-8 text-rose-500" />
             Camera &amp; Mic Cleanup
+            <StabilizationLiveBadge isLive={realtime.isLive} isStale={realtime.isStale} />
           </h1>
           <p className="mt-1 max-w-3xl text-gray-600">
             When someone finishes a live stream or stops watching, we run a full teardown so the
             phone&apos;s camera and microphone are released — not left locked in the background.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={polling.refresh} disabled={polling.isLoading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${polling.isLoading ? 'animate-spin' : ''}`} />
+        <Button variant="outline" size="sm" onClick={realtime.refresh} disabled={realtime.isLoading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${realtime.isLoading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
@@ -177,7 +178,6 @@ const CameraMicMemory = () => {
 
       <LiveDeviceList
         liveDevices={liveDevices}
-        liveHistory={liveHistory}
         summary={summary}
       />
 

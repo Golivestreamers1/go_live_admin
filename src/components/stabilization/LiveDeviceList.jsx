@@ -6,10 +6,13 @@ import {
   formatAge,
   formatRole,
   getDeviceTelemetryStages,
+  appFootprintSummary,
+  formatAppRamUsage,
   micCameraSummary,
   roleBadgeClass,
   sortLiveDevices,
 } from './liveDeviceShared';
+import { StreamHealthBadge, StreamHealthCompact } from './StreamHealthPanel';
 
 function StageDots({ stages }) {
   const doneCount = stages.filter((s) => s.done).length;
@@ -29,9 +32,10 @@ function StageDots({ stages }) {
   );
 }
 
-function DeviceListRow({ device, historyPoints }) {
-  const stages = getDeviceTelemetryStages(device, historyPoints);
-  const detailPath = `/stabilization/camera-mic-memory/device/${device.userId}`;
+function DeviceListRow({ device }) {
+  const stages = getDeviceTelemetryStages(device);
+  const detailPath = `/stabilization/device/${device.userId}`;
+  const leak = device.ramLeakSignal;
 
   return (
     <Link
@@ -44,24 +48,48 @@ function DeviceListRow({ device, historyPoints }) {
           <Badge variant="outline" className={`text-[10px] ${roleBadgeClass(device.role)}`}>
             {formatRole(device.role)}
           </Badge>
+          {leak ? (
+            <Badge
+              variant="outline"
+              className={`text-[10px] ${
+                leak.level === 'fail'
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : 'border-amber-200 bg-amber-50 text-amber-800'
+              }`}
+            >
+              RAM ↑ {Math.round(leak.growthMb)} MB
+            </Badge>
+          ) : null}
+          {device.streamHealthLevel === 'critical' ? (
+            <StreamHealthBadge level="critical" />
+          ) : device.streamHealthLevel === 'warning' ? (
+            <StreamHealthBadge level="warning" />
+          ) : null}
         </div>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {device.osName} {device.osVersion} · ping {formatAge(device.reportedAt)}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">{micCameraSummary(device)}</p>
+        <p className="mt-1 text-xs text-emerald-800 font-medium tabular-nums">
+          {formatAppRamUsage(device, { precise: true })}
+        </p>
+        <div className="mt-1.5">
+          <StreamHealthCompact device={device} />
+        </div>
+        <p className="mt-0.5 text-xs text-blue-700/90">{appFootprintSummary(device)}</p>
         <div className="mt-2">
           <StageDots stages={stages} />
         </div>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="text-xs font-medium text-blue-600">View details</span>
-        <ChevronRight className="h-5 w-5 text-gray-400" />
+      <div className="flex shrink-0 items-center gap-0.5 self-center pl-2 text-blue-600">
+        <span className="whitespace-nowrap text-xs font-medium">View details</span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-blue-500" aria-hidden />
       </div>
     </Link>
   );
 }
 
-export default function LiveDeviceList({ liveDevices, liveHistory, summary }) {
+export default function LiveDeviceList({ liveDevices, summary }) {
   const sortedDevices = useMemo(() => sortLiveDevices(liveDevices), [liveDevices]);
 
   if (sortedDevices.length === 0) {
@@ -83,24 +111,20 @@ export default function LiveDeviceList({ liveDevices, liveHistory, summary }) {
         <h2 className="text-lg font-semibold text-gray-900">Live devices</h2>
         <p className="text-sm text-muted-foreground">
           {summary?.streamersLive ?? 0} streaming · {summary?.viewersLive ?? 0} watching · tap a
-          device for Xcode-style metrics · updates every 20s
+          device for full metrics · live via socket (~5 sec pings from app)
         </p>
       </div>
       <div className="divide-y divide-gray-100">
         {sortedDevices.map((device) => (
-          <DeviceListRow
-            key={device.userId}
-            device={device}
-            historyPoints={liveHistory[device.userId] || []}
-          />
+          <DeviceListRow key={device.userId} device={device} />
         ))}
       </div>
     </div>
   );
 }
 
-export function DataCollectionBanner({ device, historyPoints }) {
-  const stages = getDeviceTelemetryStages(device, historyPoints);
+export function DataCollectionBanner({ device }) {
+  const stages = getDeviceTelemetryStages(device);
   const doneCount = stages.filter((s) => s.done).length;
   const allDone = doneCount === stages.length;
 
@@ -109,7 +133,7 @@ export function DataCollectionBanner({ device, historyPoints }) {
   return (
     <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3">
       <p className="text-sm font-medium text-amber-900">
-        Collecting live data ({doneCount}/{stages.length}) — app pings every ~20s
+        Collecting live data ({doneCount}/{stages.length}) — app pings every ~5 sec
       </p>
       <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
         {stages.map((stage) => (
@@ -122,7 +146,7 @@ export function DataCollectionBanner({ device, historyPoints }) {
               {stage.done ? '✓' : '…'}
             </span>
             {stage.label}
-            {!stage.done && stage.id === 'timeline' ? ' (needs 2 pings ~40s)' : null}
+            {!stage.done && stage.id === 'timeline' ? ' (needs 2 pings ~10 sec)' : null}
           </li>
         ))}
       </ul>

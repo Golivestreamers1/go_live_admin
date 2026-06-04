@@ -130,6 +130,17 @@ function App() {
           />
 
           <Route
+            path="/stabilization/device/:userId"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <LiveDeviceDetail />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/stabilization/camera-mic-memory/device/:userId"
             element={
               <ProtectedRoute>

@@ -113,7 +113,7 @@ export function ReferrerDetailsDialog({ referrerId, filters, open, onOpenChange 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Referrer details</DialogTitle>
             <DialogDescription>
@@ -164,7 +164,7 @@ export function ReferrerDetailsDialog({ referrerId, filters, open, onOpenChange 
 
               <Tabs value={rewardStatus} onValueChange={handleFilterChange} className="w-full">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-muted/60 p-1">
+                  <TabsList className="flex h-auto w-full min-w-0 flex-wrap justify-start gap-1 bg-muted/60 p-1">
                     {REWARD_TABS.map((tab) => {
                       const raw = summary?.[tab.countKey];
                       const showCount =

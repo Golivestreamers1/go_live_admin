@@ -30,7 +30,7 @@ function PeriodCard({ title, subtitle, range, stats, active, onSelect }) {
       type="button"
       onClick={onSelect}
       className={cn(
-        'text-left rounded-lg border p-3 min-w-[200px] flex-1 transition-colors',
+        'w-full min-w-0 text-left rounded-lg border p-3 transition-colors',
         active
           ? 'border-primary ring-1 ring-primary/30 bg-primary/5'
           : 'border-border bg-card hover:bg-muted/40',
@@ -38,7 +38,10 @@ function PeriodCard({ title, subtitle, range, stats, active, onSelect }) {
     >
       <p className="text-sm font-semibold">{title}</p>
       {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
-      <p className="text-[10px] text-muted-foreground mt-1 leading-snug" title={formatStatsRangeUtc(range)}>
+      <p
+        className="text-[10px] text-muted-foreground mt-1 leading-snug line-clamp-2 break-words"
+        title={formatStatsRangeUtc(range)}
+      >
         {formatStatsRangeUtc(range)}
       </p>
       <div className="mt-3 space-y-1.5 border-t pt-2">
@@ -98,7 +101,7 @@ export function ReferrerPeriodStats({ breakdown, listPeriod, onSelectListPeriod 
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         Statistics by period (UTC) — click a card to filter the table below
       </p>
-      <div className="flex gap-2 overflow-x-auto pb-1 overscroll-x-contain">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {cards.map((c) => (
           <PeriodCard
             key={c.key}
