@@ -39,6 +39,7 @@ import {
   Bell,
   AlertTriangle,
   Share2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -178,6 +179,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'IAP Management',
       href: '/iap',
       icon: ShieldCheck,
+    },
+    {
+      name: 'Features Allowed',
+      href: '/features-allowed',
+      icon: SlidersHorizontal,
     },
     // {
     //   name: 'QR Codes',
