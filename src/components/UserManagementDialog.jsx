@@ -68,6 +68,7 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
   const [showTempPassword, setShowTempPassword] = useState(false);
   const [tempPassword, setTempPassword] = useState('');
+  const [tempPasswordEmailSent, setTempPasswordEmailSent] = useState(false);
 
   // Delete confirmation state
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -101,6 +102,7 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
     setError('');
     setIsEditing(false);
     setShowTempPassword(false);
+    setTempPasswordEmailSent(false);
     setShowDeleteConfirmation(false);
   }, [user]);
 
@@ -313,10 +315,15 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
       const response = await api.patch(`/admin/users/${user._id}/reset-password`);
 
       if (response.data.success) {
-        const newTempPassword = response.data.data.tempPassword;
+        const { tempPassword: newTempPassword, emailSent, email } = response.data.data || {};
         setTempPassword(newTempPassword);
+        setTempPasswordEmailSent(Boolean(emailSent));
         setShowTempPassword(true);
-        toast.success('Password reset successfully!');
+        if (emailSent && email) {
+          toast.success(`Password reset. Email sent to ${email}.`);
+        } else {
+          toast.success('Password reset. Share the temporary password with the user manually.');
+        }
       }
     } catch (error) {
       console.error('Failed to reset password:', error);
@@ -714,7 +721,7 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
                     Reset Password
                   </h4>
                   <p className="text-sm text-yellow-700 mt-1">
-                    Generate a new temporary password for this user. This will invalidate their current password.
+                    Generate a new temporary password for this user. It will be emailed to them and invalidate their current password.
                   </p>
 
                   {showTempPassword ? (
@@ -726,7 +733,9 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
                         Temporary Password: <code className="bg-green-100 px-2 py-1 rounded">{tempPassword}</code>
                       </p>
                       <p className="text-xs text-green-600 mt-2">
-                        Please share this with the user securely. They will be required to change it on next login.
+                        {tempPasswordEmailSent && user.email
+                          ? `An email with this password was sent to ${user.email}.`
+                          : "Email delivery failed — share this password with the user manually."}
                       </p>
                     </div>
                   ) : (
