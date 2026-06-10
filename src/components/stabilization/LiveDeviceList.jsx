@@ -56,6 +56,7 @@ function DeviceListRow({ device }) {
                   ? 'border-red-200 bg-red-50 text-red-700'
                   : 'border-amber-200 bg-amber-50 text-amber-800'
               }`}
+              title={leak.message || undefined}
             >
               RAM ↑ {Math.round(leak.growthMb)} MB
             </Badge>
@@ -73,6 +74,16 @@ function DeviceListRow({ device }) {
         <p className="mt-1 text-xs text-emerald-800 font-medium tabular-nums">
           {formatAppRamUsage(device, { precise: true })}
         </p>
+        {leak?.message ? (
+          <p
+            className={`mt-1 text-xs font-medium ${
+              leak.level === 'fail' ? 'text-red-700' : 'text-amber-800'
+            }`}
+          >
+            {leak.level === 'fail' ? 'Critical: ' : 'Warning: '}
+            {leak.message}
+          </p>
+        ) : null}
         <div className="mt-1.5">
           <StreamHealthCompact device={device} />
         </div>

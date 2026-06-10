@@ -1,5 +1,6 @@
 import React from 'react';
-import { Activity, Battery, Signal, Wifi } from 'lucide-react';
+import { Activity, AlertTriangle, Battery, Signal, Wifi } from 'lucide-react';
+import { getActiveStreamHealthReasons } from './streamHealthReasons';
 
 const HEALTH_STYLES = {
   healthy: {
@@ -76,6 +77,45 @@ export function StreamHealthBadge({ level }) {
   );
 }
 
+export function StreamHealthReasons({ device, compact = false }) {
+  const level = device?.streamHealthLevel;
+  if (!level || level === 'healthy' || level === 'unknown') return null;
+
+  const reasons = getActiveStreamHealthReasons(device);
+  if (reasons.length === 0) return null;
+
+  const isCritical = level === 'critical';
+  const boxClass = isCritical
+    ? 'border-red-200 bg-red-50 text-red-900'
+    : 'border-amber-200 bg-amber-50 text-amber-900';
+  const iconClass = isCritical ? 'text-red-600' : 'text-amber-600';
+
+  if (compact) {
+    return (
+      <p className={`text-xs font-medium ${isCritical ? 'text-red-700' : 'text-amber-800'}`}>
+        {isCritical ? 'Critical: ' : 'Warning: '}
+        {reasons.join(' · ')}
+      </p>
+    );
+  }
+
+  return (
+    <div className={`mt-3 rounded-lg border px-3 py-2.5 ${boxClass}`}>
+      <div className="flex items-start gap-2">
+        <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${iconClass}`} />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">{isCritical ? 'Critical — why?' : 'Warning — why?'}</p>
+          <ul className="mt-1 space-y-0.5 text-sm">
+            {reasons.map((reason) => (
+              <li key={reason}>• {reason}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function StreamHealthCompact({ device }) {
   if (!device.hasRtcStats && device.batteryLevelPct == null && !device.networkType) {
     return (
@@ -96,9 +136,12 @@ export function StreamHealthCompact({ device }) {
   if (device.batteryLevelPct != null) parts.push(formatBattery(device));
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <StreamHealthBadge level={level} />
-      <span className="text-xs tabular-nums text-gray-700">{parts.join(' · ') || '—'}</span>
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <StreamHealthBadge level={level} />
+        <span className="text-xs tabular-nums text-gray-700">{parts.join(' · ') || '—'}</span>
+      </div>
+      <StreamHealthReasons device={device} compact />
     </div>
   );
 }
@@ -124,6 +167,8 @@ export default function StreamHealthPanel({ device }) {
         </div>
         <StreamHealthBadge level={level} />
       </div>
+
+      <StreamHealthReasons device={device} />
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         <StatCell
