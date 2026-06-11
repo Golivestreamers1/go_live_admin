@@ -50,9 +50,10 @@ function formatNetwork(device) {
 }
 
 function formatBattery(device) {
-  if (device.batteryLevelPct == null) return '—';
-  const pct = `${Math.round(device.batteryLevelPct)}%`;
-  return device.batteryIsCharging ? `${pct} ⚡` : pct;
+  const pct = device.batteryLevelPct;
+  if (pct == null || pct < 0 || pct > 100) return '—';
+  const label = `${Math.round(pct)}%`;
+  return device.batteryIsCharging ? `${label} ⚡` : label;
 }
 
 function formatBitrate(tx, rx, role) {

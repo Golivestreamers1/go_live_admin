@@ -25,6 +25,8 @@ export function getStreamHealthReasons(device) {
   const fps = numOrNull(device?.rtcFps);
   const reconnects = numOrNull(device?.rtcReconnectCount) ?? 0;
   const battery = numOrNull(device?.batteryLevelPct);
+  const batteryLow =
+    battery != null && battery >= 0 && battery <= 100 ? battery : null;
 
   if (conn === 'failed') critical.push('RTC connection failed');
   if (conn === 'disconnected') critical.push('RTC disconnected');
@@ -54,10 +56,10 @@ export function getStreamHealthReasons(device) {
     warning.push(`${reconnects} RTC reconnect${reconnects === 1 ? '' : 's'}`);
   }
 
-  if (battery != null && battery <= 10) {
-    critical.push(`Battery critically low (${Math.round(battery)}%)`);
-  } else if (battery != null && battery <= 20) {
-    warning.push(`Battery low (${Math.round(battery)}%)`);
+  if (batteryLow != null && batteryLow <= 10) {
+    critical.push(`Battery critically low (${Math.round(batteryLow)}%)`);
+  } else if (batteryLow != null && batteryLow <= 20) {
+    warning.push(`Battery low (${Math.round(batteryLow)}%)`);
   }
 
   if (conn === 'reconnecting') warning.push('RTC reconnecting');

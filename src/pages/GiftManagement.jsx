@@ -62,13 +62,46 @@ const formatDurationLabel = (ms) => {
   return sec >= 10 ? `${sec.toFixed(1)} s` : `${sec < 1 ? sec.toFixed(2) : sec.toFixed(1)} s`;
 };
 
-/** Table / picker preview: icon first; else static animation (GIF/WebP/PNG), not Lottie JSON. */
+/** Table / picker preview: icon first; else static animation (GIF/WebP/PNG), not Lottie JSON / MP4. */
 function giftStripPreviewSrc(g) {
   const icon = g?.iconUrl?.trim();
   if (icon) return icon;
   const anim = g?.animationUrl?.trim();
-  if (anim && !/\.json($|\?)/i.test(anim)) return anim;
+  if (anim && !/\.json($|\?)/i.test(anim) && !isVideoAnimationUrl(anim)) return anim;
   return null;
+}
+
+function isVideoAnimationUrl(url) {
+  const u = String(url || '').trim().split('?')[0].toLowerCase();
+  return /\.(mp4|m4v|mov|webm)$/.test(u);
+}
+
+function GiftAnimationPreview({ src, className, imgClassName = 'h-full w-full object-contain' }) {
+  const url = String(src || '').trim();
+  if (!url) return null;
+  if (isVideoAnimationUrl(url)) {
+    return (
+      <video
+        src={url}
+        className={className || imgClassName}
+        muted
+        playsInline
+        loop
+        autoPlay
+      />
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      className={imgClassName}
+      onError={(e) => {
+        e.target.onerror = null;
+        e.target.style.display = 'none';
+      }}
+    />
+  );
 }
 
 const GiftManagement = () => {
@@ -236,9 +269,11 @@ const GiftManagement = () => {
     const file = e?.target?.files?.[0];
     if (!file) return;
     const name = file.name?.toLowerCase() ?? '';
-    const okExt = /\.(gif|webp|png|jpe?g)$/i.test(name);
+    const okExt = /\.(gif|webp|png|jpe?g|mp4|m4v|mov|webm)$/i.test(name);
     if (!okExt) {
-      toast.error('Upload GIF / WebP / PNG / JPG only. For Lottie, upload a .json file or paste JSON below.');
+      toast.error(
+        'Upload GIF / WebP / PNG / JPG / MP4 / MOV / WebM. For Lottie, upload a .json file or paste JSON below.',
+      );
       return;
     }
     try {
@@ -388,15 +423,7 @@ const GiftManagement = () => {
                         (g.animationUrl && /\.json($|\?)/i.test(g.animationUrl)) ? (
                           <span className="px-1 text-center leading-tight">Lottie</span>
                         ) : g.animationUrl ? (
-                          <img
-                            src={g.animationUrl}
-                            alt=""
-                            className="h-full w-full object-contain"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.style.display = 'none';
-                            }}
-                          />
+                          <GiftAnimationPreview src={g.animationUrl} />
                         ) : (
                           <span className="opacity-50">—</span>
                         )}
@@ -534,16 +561,17 @@ const GiftManagement = () => {
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Clapperboard className="h-4 w-4" />
-                Send animation (GIF / WebP / image URL)
+                Send animation (GIF / MP4 / WebP / image URL)
               </Label>
               <p className="text-xs text-muted-foreground">
-                Optional alternative to Lottie JSON: raster animation or static art. You can also upload a file (not .json).
+                Optional alternative to Lottie JSON: GIF, MP4 video, or static image. MP4 plays as the
+                full-screen gift hero in the app (set playback duration below). Max upload ~50MB.
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 <input
                   ref={animationFileRef}
                   type="file"
-                  accept="image/gif,image/webp,image/png,image/jpeg"
+                  accept="image/gif,image/webp,image/png,image/jpeg,video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
                   className="hidden"
                   onChange={handleUploadAnimation}
                 />
@@ -555,7 +583,7 @@ const GiftManagement = () => {
                   onClick={() => animationFileRef.current?.click()}
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  {uploadingAnimation ? 'Uploading…' : 'Upload image / GIF'}
+                  {uploadingAnimation ? 'Uploading…' : 'Upload GIF / MP4 / image'}
                 </Button>
                 {(animationPreviewUrl || form.animationUrl) &&
                 /\.json($|[?#&])/i.test((form.animationUrl || animationPreviewUrl || '').trim()) ? (
@@ -567,14 +595,7 @@ const GiftManagement = () => {
                   </span>
                 ) : (animationPreviewUrl || form.animationUrl) ? (
                   <div className="h-14 w-14 rounded border overflow-hidden bg-muted flex-shrink-0">
-                    <img
-                      src={animationPreviewUrl || form.animationUrl}
-                      alt=""
-                      className="h-full w-full object-contain"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
+                    <GiftAnimationPreview src={animationPreviewUrl || form.animationUrl} />
                   </div>
                 ) : null}
               </div>
@@ -583,15 +604,15 @@ const GiftManagement = () => {
                 type="url"
                 value={form.animationUrl}
                 onChange={(e) => setForm((f) => ({ ...f, animationUrl: e.target.value }))}
-                placeholder="Or paste animation URL (Lottie .json or image URL)"
+                placeholder="Or paste animation URL (Lottie .json, GIF, MP4, or image URL)"
                 className="mt-1"
               />
             </div>
             <div className="space-y-2 rounded-lg border border-dashed p-3 bg-muted/30">
               <Label htmlFor="animationDurationSec">Playback duration (seconds)</Label>
               <p className="text-xs text-muted-foreground">
-                How long the gift animation plays on stream (GIF/WebP loop timing). Auto-filled when you
-                upload a GIF; you can override. Leave empty to use app default (~10s for Lottie). Examples:{' '}
+                How long the gift animation plays on stream (GIF loop or MP4 length). Auto-filled when you
+                upload a GIF; set manually for MP4. Leave empty to use app default (~10s for Lottie). Examples:{' '}
                 <code className="text-xs">1.8</code> = 1800ms, <code className="text-xs">9</code> = 9 seconds.
               </p>
               <div className="flex flex-wrap items-center gap-3">

@@ -15,7 +15,7 @@ export const giftService = {
     return data?.data ?? { url: null, previewUrl: null };
   },
 
-  /** Lottie JSON (.json) or GIF / WebP / PNG / JPEG — same URL stored as gift.animationUrl */
+  /** Lottie JSON (.json), GIF / WebP / PNG / JPEG, or MP4 / MOV / WebM — stored as gift.animationUrl */
   async uploadAnimation(file) {
     const formData = new FormData();
     formData.append('file', file);
