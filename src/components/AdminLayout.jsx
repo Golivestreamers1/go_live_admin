@@ -40,6 +40,7 @@ import {
   AlertTriangle,
   Share2,
   SlidersHorizontal,
+  Trophy,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -161,6 +162,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Gifts',
       href: '/gifts',
       icon: Gift,
+    },
+    {
+      name: 'Contests',
+      href: '/contests',
+      icon: Trophy,
     },
     {
       name: 'Support Tickets',
