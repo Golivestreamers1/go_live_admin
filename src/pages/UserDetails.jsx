@@ -262,6 +262,9 @@ function toDateInputValue(d) {
   return `${y}-${m}-${day}`;
 }
 
+/** Max coins per super-admin adjustment. Must match ADMIN_COIN_ADJUST_MAX / MAX_ADJUST_COINS on the backend. */
+const MAX_ADJUST_COINS = 1_000_000_000;
+
 /** Whole-day span in local time (start-of-day → end-of-day) so the query captures the full picked day. */
 function dateInputToStartOfDay(str) {
   if (!str) return null;
@@ -697,7 +700,7 @@ export default function UserDetails() {
   const adjustValidationError = (() => {
     const amt = Number(adjustAmount);
     if (!adjustAmount || !Number.isInteger(amt) || amt <= 0) return 'Enter a positive whole number';
-    if (amt > 100000) return 'Max 100,000 coins per adjustment';
+    if (amt > MAX_ADJUST_COINS) return `Max ${MAX_ADJUST_COINS.toLocaleString()} coins per adjustment`;
     const r = String(adjustReason || '').trim();
     if (r.length < 10) return 'Reason must be at least 10 characters';
     if (r.length > 500) return 'Reason too long (max 500)';
@@ -1188,11 +1191,11 @@ export default function UserDetails() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="text-xs text-muted-foreground">Amount (coins, max 100,000)</label>
+                    <label className="text-xs text-muted-foreground">Amount (coins, max {MAX_ADJUST_COINS.toLocaleString()})</label>
                     <Input
                       type="number"
                       min="1"
-                      max="100000"
+                      max={MAX_ADJUST_COINS}
                       step="1"
                       placeholder="e.g. 500"
                       value={adjustAmount}
