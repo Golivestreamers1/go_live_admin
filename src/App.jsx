@@ -37,6 +37,7 @@ import WithdrawRequestStreamDetails from './pages/WithdrawRequestStreamDetails';
 import TopSpenders from './pages/TopSpenders';
 import Referrals from './pages/Referrals';
 import GifterPayoutDetails from './pages/GifterPayoutDetails';
+import GifterRecipientsLookup from './pages/GifterRecipientsLookup';
 import StreamerRubiesList from './pages/StreamerRubiesList';
 import StreamerRubiesDetail from './pages/StreamerRubiesDetail';
 import UserStreamEarnings from './pages/UserStreamEarnings';
@@ -466,6 +467,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/gifter-recipients"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <GifterRecipientsLookup />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/withdraw-requests/gifters/:gifterId"
             element={

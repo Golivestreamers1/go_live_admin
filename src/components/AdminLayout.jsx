@@ -42,6 +42,7 @@ import {
   SlidersHorizontal,
   Trophy,
   Radio,
+  Send,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -165,6 +166,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
     //   href: '/cashout-options',
     //   icon: DollarSign,
     // },
+    {
+      name: 'Gifter recipients',
+      href: '/gifter-recipients',
+      icon: Send,
+    },
     {
       name: 'Gifts',
       href: '/gifts',

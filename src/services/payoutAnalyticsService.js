@@ -18,6 +18,13 @@ export const payoutAnalyticsService = {
     return response.data.data;
   },
 
+  async getGifterRecipientsByEmail(email, params = {}) {
+    const response = await api.get("/admin/payout-analytics/gifters/recipients", {
+      params: { email, ...params },
+    });
+    return response.data.data;
+  },
+
   async getStreamDetails(streamId) {
     const response = await api.get(`/admin/payout-analytics/streams/${streamId}`);
     return response.data.data;
