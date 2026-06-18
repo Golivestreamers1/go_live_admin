@@ -41,6 +41,7 @@ import {
   Share2,
   SlidersHorizontal,
   Trophy,
+  Radio,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -147,6 +148,12 @@ const AdminLayout = ({ children, user, onLogout }) => {
       href: '/streamers-rubies',
       icon: Gem,
       pathMatch: 'prefix',
+      pathExclude: ['/user-stream-earnings'],
+    },
+    {
+      name: 'User stream earnings',
+      href: '/user-stream-earnings',
+      icon: Radio,
     },
     {
       name: 'Cash out email change',

@@ -24,6 +24,20 @@ export const userService = {
     return response.data.data; // Unwrap to return inner data object
   },
 
+  /** Public app signup — POST /user/register (name, email, password, optional referralCode). */
+  async registerUser({ name, email, password, referralCode }) {
+    const payload = {
+      name: String(name).trim(),
+      email: String(email).trim().toLowerCase(),
+      password,
+    };
+    if (referralCode?.trim()) {
+      payload.referralCode = referralCode.trim().toUpperCase();
+    }
+    const response = await api.post('/user/register', payload);
+    return response.data;
+  },
+
   async updateUser(id, userData) {
     const response = await api.put(`/admin/users/${id}`, userData);
     return response.data.data; // Unwrap to return inner data object

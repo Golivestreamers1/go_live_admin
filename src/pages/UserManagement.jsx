@@ -48,14 +48,6 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
 
-  // Check if user has permission to create users
-  const canCreateUsers = () => {
-    const user = JSON.parse(localStorage.getItem('adminUser') || '{}');
-
-    // Staff level and above can create users (but only below their level)
-    return user.role?.level >= 3;
-  };
-
   const fetchUsers = async (page = 1, search = '', role = '') => {
     try {
       setLoading(true);
@@ -228,15 +220,13 @@ const UserManagement = () => {
                 Search and filter users by role, name, or email
               </CardDescription>
             </div>
-            {/* {canCreateUsers() && (
-              <Button
-                onClick={() => setCreateUserDialogOpen(true)}
-                className="flex items-center gap-2"
-              >
-                <UserPlus className="h-4 w-4" />
-                Create User
-              </Button>
-            )} */}
+            <Button
+              onClick={() => setCreateUserDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <UserPlus className="h-4 w-4" />
+              Register User
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
