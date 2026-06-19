@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { contestService } from '../services/contestService';
+import { subscribeContestLeaderboard, FALLBACK_POLL_MS } from '../services/contestSocket.service';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -338,6 +339,29 @@ const ContestManagement = () => {
     setDetailsContest(null);
     setEditingPrizes(false);
   };
+
+  // Live standings for an ACTIVE contest: subscribe to the realtime feed so the
+  // admin sees the leaderboard move as gifts arrive — no need for streamers to
+  // end their streams. Ended contests keep their frozen REST standings.
+  const detailsContestId = detailsContest?._id;
+  const detailsIsActive = detailsContest?.status === 'active';
+  useEffect(() => {
+    if (!detailsContestId || !detailsIsActive) return undefined;
+    const unsubscribe = subscribeContestLeaderboard(detailsContestId, (payload) => {
+      if (!payload || payload.__disconnected) return;
+      if (String(payload.contestId) !== String(detailsContestId)) return;
+      if (Array.isArray(payload.list)) setStandings(payload.list);
+    });
+    return unsubscribe;
+  }, [detailsContestId, detailsIsActive]);
+
+  // REST fallback while watching a live contest (covers a dropped socket). Skips
+  // while editing prizes so it doesn't clobber the in-progress draft/meta.
+  useEffect(() => {
+    if (!detailsContestId || !detailsIsActive || editingPrizes) return undefined;
+    const id = setInterval(() => loadDetails(detailsContestId), FALLBACK_POLL_MS);
+    return () => clearInterval(id);
+  }, [detailsContestId, detailsIsActive, editingPrizes, loadDetails]);
 
   const startEditPrizes = () => {
     setPrizeDraft(
