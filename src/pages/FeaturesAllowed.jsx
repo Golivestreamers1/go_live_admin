@@ -1,12 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Share2, Trophy } from 'lucide-react';
+import { Share2, Trophy, Gift, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Switch } from '../components/ui/switch';
 import { featuresAllowedService } from '../services/featuresAllowedService';
 
-export default function FeaturesAllowed() {
-  const [settings, setSettings] = useState({ referral: true, contest: true });
+const FeaturesAllowed = () => {
+  const [settings, setSettings] = useState({
+    referral: true,
+    contest: true,
+    gifterWheel: true,
+    mysteryWheel: true,
+  });
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -17,6 +22,8 @@ export default function FeaturesAllowed() {
       setSettings({
         referral: data?.referral !== false,
         contest: data?.contest !== false,
+        gifterWheel: data?.gifterWheel !== false,
+        mysteryWheel: data?.mysteryWheel !== false,
       });
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to load feature settings');
@@ -58,6 +65,40 @@ export default function FeaturesAllowed() {
       );
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to update contest setting');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleGifterWheelToggle = async (checked) => {
+    try {
+      setUpdating(true);
+      const updated = await featuresAllowedService.updateSettings({ gifterWheel: checked });
+      setSettings((prev) => ({ ...prev, gifterWheel: updated?.gifterWheel !== false }));
+      toast.success(
+        checked
+          ? 'Gifter Wheel enabled — the tile is visible in the gift panel'
+          : 'Gifter Wheel disabled — the tile is hidden and spins are blocked',
+      );
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update Gifter Wheel setting');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleMysteryWheelToggle = async (checked) => {
+    try {
+      setUpdating(true);
+      const updated = await featuresAllowedService.updateSettings({ mysteryWheel: checked });
+      setSettings((prev) => ({ ...prev, mysteryWheel: updated?.mysteryWheel !== false }));
+      toast.success(
+        checked
+          ? 'Mystery Wheel enabled — the tile is visible in the gift panel'
+          : 'Mystery Wheel disabled — the tile is hidden and spins are blocked',
+      );
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update Mystery Wheel setting');
     } finally {
       setUpdating(false);
     }
@@ -135,6 +176,70 @@ export default function FeaturesAllowed() {
           </p>
         </CardContent>
       </Card>
+
+      <Card className="border-l-4 border-l-amber-500">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Gift className="h-5 w-5 text-amber-600" />
+                Gifter Wheel
+              </CardTitle>
+              <CardDescription className="mt-1">
+                When off: the Gifter Wheel tile is hidden in the gift panel and its spin API returns disabled.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-sm border">
+              <span className="text-sm font-medium">
+                {settings.gifterWheel ? 'Enabled' : 'Disabled'}
+              </span>
+              <Switch
+                checked={settings.gifterWheel !== false}
+                onCheckedChange={handleGifterWheelToggle}
+                disabled={loading || updating}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Default is enabled. The viewer pays 1,000 coins to spin and wins the landed amount as coins.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-l-4 border-l-purple-500">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-purple-600" />
+                Mystery Wheel
+              </CardTitle>
+              <CardDescription className="mt-1">
+                When off: the Mystery Wheel tile is hidden in the gift panel and its spin API returns disabled.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-sm border">
+              <span className="text-sm font-medium">
+                {settings.mysteryWheel ? 'Enabled' : 'Disabled'}
+              </span>
+              <Switch
+                checked={settings.mysteryWheel !== false}
+                onCheckedChange={handleMysteryWheelToggle}
+                disabled={loading || updating}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Default is enabled. The viewer pays 1,000 coins to spin and the streamer receives the spin plus the landed prize as rubies.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default FeaturesAllowed;
