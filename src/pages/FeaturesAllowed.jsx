@@ -1,12 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Share2, Gift, Sparkles } from 'lucide-react';
+import { Share2, Trophy, Gift, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Switch } from '../components/ui/switch';
 import { featuresAllowedService } from '../services/featuresAllowedService';
 
 const FeaturesAllowed = () => {
-  const [settings, setSettings] = useState({ referral: true, gifterWheel: true, mysteryWheel: true });
+  const [settings, setSettings] = useState({
+    referral: true,
+    contest: true,
+    gifterWheel: true,
+    mysteryWheel: true,
+  });
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -16,6 +21,7 @@ const FeaturesAllowed = () => {
       const data = await featuresAllowedService.getSettings();
       setSettings({
         referral: data?.referral !== false,
+        contest: data?.contest !== false,
         gifterWheel: data?.gifterWheel !== false,
         mysteryWheel: data?.mysteryWheel !== false,
       });
@@ -42,6 +48,23 @@ const FeaturesAllowed = () => {
       );
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to update referral setting');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleContestToggle = async (checked) => {
+    try {
+      setUpdating(true);
+      const updated = await featuresAllowedService.updateSettings({ contest: checked });
+      setSettings((prev) => ({ ...prev, contest: updated?.contest !== false }));
+      toast.success(
+        checked
+          ? 'Contest feature enabled — the Contest tab is visible in the app'
+          : 'Contest feature disabled — the Contest tab is hidden in the app',
+      );
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update contest setting');
     } finally {
       setUpdating(false);
     }
@@ -118,6 +141,38 @@ const FeaturesAllowed = () => {
         <CardContent>
           <p className="text-sm text-muted-foreground">
             Default is enabled. Admin Referrals analytics page still shows historical data when this is off.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-l-4 border-l-amber-500">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-600" />
+                Contest feature
+              </CardTitle>
+              <CardDescription className="mt-1">
+                When off: the Contest tab is hidden in the app and the public contest APIs return
+                nothing. Contest management here in the admin stays available.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-sm border">
+              <span className="text-sm font-medium">
+                {settings.contest ? 'Enabled' : 'Disabled'}
+              </span>
+              <Switch
+                checked={settings.contest !== false}
+                onCheckedChange={handleContestToggle}
+                disabled={loading || updating}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Default is enabled. Existing contests are not deleted — they reappear when re-enabled.
           </p>
         </CardContent>
       </Card>
