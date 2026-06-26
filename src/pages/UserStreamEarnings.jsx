@@ -6,6 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../co
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
+import { Textarea } from '../components/ui/textarea';
+import { Label } from '../components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -21,6 +31,21 @@ const fmtNum = (n) => new Intl.NumberFormat('en-US').format(Number(n) || 0);
 const fmtUsd = (n) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(n) || 0);
 const fmtDate = (d) => (d ? new Date(d).toLocaleString() : '—');
+
+// Super-admin only (role === "admin"). Matches the backend role gate on the assign endpoints.
+function isCurrentUserSuperAdmin() {
+  try {
+    const raw = localStorage.getItem('adminUser');
+    if (!raw) return false;
+    const u = JSON.parse(raw);
+    const roleField = u?.role;
+    const name = (roleField?.name || roleField || '').toString().toUpperCase();
+    const level = roleField?.level;
+    return level >= 5 || name === 'ADMIN' || name === 'SUPER_ADMIN';
+  } catch {
+    return false;
+  }
+}
 
 const UserStreamEarnings = () => {
   const [search, setSearch] = useState('');
@@ -38,6 +63,15 @@ const UserStreamEarnings = () => {
     totalCount: 0,
     limit: 15,
   });
+  const [recon, setRecon] = useState(null);
+  const [assigningId, setAssigningId] = useState(null);
+  const canAssign = isCurrentUserSuperAdmin();
+
+  // Transfer-to-email modal state. transfer = { scope: 'stream'|'all', stream } | null
+  const [transfer, setTransfer] = useState(null);
+  const [transferEmail, setTransferEmail] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [transferBusy, setTransferBusy] = useState(false);
 
   const [withdrawals, setWithdrawals] = useState([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
@@ -110,13 +144,125 @@ const UserStreamEarnings = () => {
     }
   };
 
+  const loadRecon = async (userId) => {
+    try {
+      const res = await payoutAnalyticsService.getStreamerUnassignedRubies(userId);
+      setRecon(res);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to load unassigned rubies');
+    }
+  };
+
+  const promptReason = (message) => {
+    const reason = window.prompt(message);
+    if (reason == null) return null; // cancelled
+    const trimmed = String(reason).trim();
+    if (trimmed.length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return null;
+    }
+    return trimmed;
+  };
+
+  const handleAssignStream = async (st) => {
+    if (!canAssign || Number(st.owed) <= 0 || !selectedUserId) return;
+    const reason = promptReason(
+      `Assign ${fmtNum(st.owed)} unassigned rubies for stream "${st.title || st.streamId}"?\n\nEnter a reason (min 10 characters) to confirm:`
+    );
+    if (!reason) return;
+    try {
+      setAssigningId(String(st.streamId));
+      const res = await payoutAnalyticsService.assignStreamRubies(selectedUserId, st.streamId, reason);
+      if (res?.assigned > 0) toast.success(`Assigned ${fmtNum(res.assigned)} rubies`);
+      else toast.info('Already settled — nothing to assign');
+      // loadStreams refreshes the wallet-rubies balance shown above from the DB.
+      await Promise.all([
+        loadStreams(selectedUserId, Number(streamPagination.page) || 1),
+        loadRecon(selectedUserId),
+      ]);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to assign rubies');
+    } finally {
+      setAssigningId(null);
+    }
+  };
+
+  const handleAssignAll = async () => {
+    if (!canAssign || !selectedUserId) return;
+    const totalOwed = Number(recon?.summary?.totalAssignableOwed) || 0;
+    if (totalOwed <= 0) return;
+    const reason = promptReason(
+      `Assign ALL ${fmtNum(totalOwed)} unassigned rubies across ${recon?.summary?.unsettledCount || 0} stream(s)?\n\nEnter a reason (min 10 characters) to confirm:`
+    );
+    if (!reason) return;
+    try {
+      setAssigningId('all');
+      const res = await payoutAnalyticsService.assignAllStreamerRubies(selectedUserId, reason);
+      toast.success(
+        `Assigned ${fmtNum(res?.totalAssigned || 0)} rubies across ${res?.streamsSettled || 0} stream(s)`
+      );
+      await Promise.all([
+        loadStreams(selectedUserId, Number(streamPagination.page) || 1),
+        loadRecon(selectedUserId),
+      ]);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to assign rubies');
+    } finally {
+      setAssigningId(null);
+    }
+  };
+
+  const openTransfer = (scope, stream = null) => {
+    setTransferEmail('');
+    setTransferReason('');
+    setTransfer({ scope, stream });
+  };
+
+  const handleTransferSubmit = async () => {
+    if (!selectedUserId || !transfer) return;
+    const email = transferEmail.trim();
+    const reason = transferReason.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Enter a valid target email');
+      return;
+    }
+    if (reason.length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    try {
+      setTransferBusy(true);
+      if (transfer.scope === 'stream') {
+        const res = await payoutAnalyticsService.transferStreamRubies(selectedUserId, transfer.stream.streamId, {
+          email,
+          reason,
+        });
+        if (res?.assigned > 0)
+          toast.success(`Transferred ${fmtNum(res.assigned)} rubies to ${res?.target?.email || email}`);
+        else toast.info('Already settled — nothing to transfer');
+      } else {
+        const res = await payoutAnalyticsService.transferAllStreamerRubies(selectedUserId, { email, reason });
+        toast.success(
+          `Transferred ${fmtNum(res?.totalAssigned || 0)} rubies across ${res?.streamsSettled || 0} stream(s) to ${res?.target?.email || email}`
+        );
+      }
+      setTransfer(null);
+      await Promise.all([loadStreams(selectedUserId, Number(streamPagination.page) || 1), loadRecon(selectedUserId)]);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to transfer rubies');
+    } finally {
+      setTransferBusy(false);
+    }
+  };
+
   const selectUser = async (user) => {
     const uid = user._id;
     setSelectedUserId(uid);
     setSelectedUser(user);
     setSearchResults([]);
     setWithdrawalsStatus('');
-    await Promise.all([loadStreams(uid, 1), loadWithdrawals(uid, 1, '')]);
+    setRecon(null);
+    await Promise.all([loadStreams(uid, 1), loadWithdrawals(uid, 1, ''), loadRecon(uid)]);
   };
 
   useEffect(() => {
@@ -249,6 +395,157 @@ const UserStreamEarnings = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {recon && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Unassigned rubies</CardTitle>
+                    <CardDescription>
+                      Rubies this user received in gifts but were never added to their balance (streams that
+                      took coins but never settled). Computed from completed gifts — 1 coin = 1 ruby.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg border">
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Coins className="w-3 h-3" /> Gifts received (all completed)
+                        </div>
+                        <div className="font-semibold text-lg mt-1">
+                          {fmtNum(recon.summary?.totalGiftCoins)}
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg border">
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Radio className="w-3 h-3" /> Distinct streams
+                        </div>
+                        <div className="font-semibold text-lg mt-1">{fmtNum(recon.summary?.streamCount)}</div>
+                      </div>
+                      <div className="p-3 rounded-lg border">
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Gem className="w-3 h-3" /> Already credited
+                        </div>
+                        <div className="font-semibold text-lg mt-1">{fmtNum(recon.summary?.totalCredited)}</div>
+                      </div>
+                      <div className="p-3 rounded-lg border border-amber-300 bg-amber-50">
+                        <div className="text-xs text-amber-700">Unassigned rubies (owed)</div>
+                        <div className="font-bold text-xl text-amber-800 mt-1">
+                          {fmtNum(recon.summary?.totalOwed)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {canAssign && Number(recon.summary?.totalAssignableOwed) > 0 && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                        <div className="text-sm text-amber-800">
+                          {fmtNum(recon.summary.totalAssignableOwed)} rubies can be added to this user&apos;s
+                          balance across {fmtNum(recon.summary.unsettledCount)} stream(s).
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleAssignAll} disabled={assigningId === 'all'}>
+                            {assigningId === 'all' ? 'Assigning…' : 'Assign all'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openTransfer('all')}
+                            disabled={assigningId === 'all'}
+                          >
+                            Assign all to email
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {!canAssign && Number(recon.summary?.totalOwed) > 0 && (
+                      <div className="text-xs text-gray-500">Super-admin access is required to assign rubies.</div>
+                    )}
+
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Stream</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Gift coins</TableHead>
+                            <TableHead className="text-right">Credited</TableHead>
+                            <TableHead className="text-right">Owed</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(recon.streams || []).filter((st) => Number(st.owed) > 0).length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                                No unassigned rubies — everything is settled 🎉
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            (recon.streams || [])
+                              .filter((st) => Number(st.owed) > 0)
+                              .map((st) => (
+                                <TableRow key={String(st.streamId)}>
+                                  <TableCell>
+                                    <div className="font-medium">{st.title || 'Live stream'}</div>
+                                    <div className="text-xs text-gray-500">{String(st.streamId)}</div>
+                                  </TableCell>
+                                  <TableCell className="text-sm">
+                                    {st.isLive ? (
+                                      <span className="text-green-600">live</span>
+                                    ) : (
+                                      st.status || '—'
+                                    )}
+                                    {st.isBoxChild ? (
+                                      <span className="ml-1 text-xs text-gray-400">(box)</span>
+                                    ) : null}
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums">
+                                    {fmtNum(st.giftCoins)}
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums">
+                                    {fmtNum(st.credited)}
+                                  </TableCell>
+                                  <TableCell className="text-right tabular-nums font-semibold text-amber-700">
+                                    {fmtNum(st.owed)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {!canAssign ? (
+                                      <span className="text-xs text-gray-400">—</span>
+                                    ) : st.isLive ? (
+                                      <span
+                                        className="text-xs text-gray-400"
+                                        title="End the stream first — it settles automatically on end"
+                                      >
+                                        settles on end
+                                      </span>
+                                    ) : (
+                                      <div className="flex justify-end gap-2">
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleAssignStream(st)}
+                                          disabled={assigningId === String(st.streamId)}
+                                        >
+                                          {assigningId === String(st.streamId) ? 'Assigning…' : 'Assign'}
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => openTransfer('stream', st)}
+                                          disabled={assigningId === String(st.streamId)}
+                                        >
+                                          To email
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader>
@@ -476,6 +773,61 @@ const UserStreamEarnings = () => {
           )}
         </>
       )}
+
+      <Dialog
+        open={!!transfer}
+        onOpenChange={(o) => {
+          if (!o && !transferBusy) setTransfer(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {transfer?.scope === 'all'
+                ? 'Assign all unassigned rubies to another user'
+                : 'Assign rubies to another user'}
+            </DialogTitle>
+            <DialogDescription>
+              {transfer?.scope === 'all'
+                ? `Transfer all ${fmtNum(recon?.summary?.totalAssignableOwed)} owed rubies — and the underlying streams + gift records — to the user with this email.`
+                : `Transfer ${fmtNum(transfer?.stream?.owed)} owed rubies — and this stream + its gift records — to the user with this email.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="transfer-email">Target user email</Label>
+              <Input
+                id="transfer-email"
+                type="email"
+                placeholder="user@example.com"
+                value={transferEmail}
+                onChange={(e) => setTransferEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="transfer-reason">Reason (min 10 characters)</Label>
+              <Textarea
+                id="transfer-reason"
+                rows={3}
+                placeholder="Why are you transferring these rubies?"
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-amber-700">
+              The stream(s) and their gift records will move under the target user. This is hard to undo.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTransfer(null)} disabled={transferBusy}>
+              Cancel
+            </Button>
+            <Button onClick={handleTransferSubmit} disabled={transferBusy}>
+              {transferBusy ? 'Transferring…' : 'Transfer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
