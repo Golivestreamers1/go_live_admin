@@ -1,5 +1,6 @@
 import React from 'react';
 import { Activity, AlertTriangle, Battery, Signal, Wifi } from 'lucide-react';
+import { STABILIZATION_PING_INTERVAL_LABEL } from '../../constants/stabilizationTelemetry';
 import { getActiveStreamHealthReasons } from './streamHealthReasons';
 
 const HEALTH_STYLES = {
@@ -121,7 +122,7 @@ export function StreamHealthCompact({ device }) {
   if (!device.hasRtcStats && device.batteryLevelPct == null && !device.networkType) {
     return (
       <p className="text-xs text-muted-foreground">
-        Stream stats pending — join live channel first (~5 sec)
+        Stream stats pending — join live channel first ({STABILIZATION_PING_INTERVAL_LABEL})
       </p>
     );
   }
@@ -163,7 +164,7 @@ export default function StreamHealthPanel({ device }) {
             <p className="text-sm font-semibold text-gray-900">Stream health (Agora + device)</p>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Real-time from Agora RTC callbacks — updates every ~5 sec while live
+            Real-time from Agora RTC callbacks — updates every {STABILIZATION_PING_INTERVAL_LABEL} while live
           </p>
         </div>
         <StreamHealthBadge level={level} />

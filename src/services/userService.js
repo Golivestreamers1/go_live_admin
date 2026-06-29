@@ -133,6 +133,15 @@ export const userService = {
     return response.data.data;
   },
 
+  async adjustUserRubies(userId, { direction, amount, reason }) {
+    const response = await api.post(`/admin/users/${userId}/rubies/adjust`, {
+      direction,
+      amount,
+      reason,
+    });
+    return response.data.data;
+  },
+
   async getUserAdminActions(userId, { page = 1, limit = 20 } = {}) {
     const response = await api.get(
       `/admin/users/${userId}/admin-actions?page=${page}&limit=${limit}`

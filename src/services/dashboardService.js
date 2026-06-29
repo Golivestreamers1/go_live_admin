@@ -48,6 +48,12 @@ export const dashboardService = {
     return response.data.data;
   },
 
+  // Admin force-end a live stream
+  endLiveStream: async (streamId) => {
+    const response = await api.post(`/admin/live-streams/${streamId}/end`);
+    return response.data.data;
+  },
+
   // All-time / range stream totals + peaks + averages
   getStreamTotals: async () => {
     const response = await api.get('/dashboard/streams/totals');

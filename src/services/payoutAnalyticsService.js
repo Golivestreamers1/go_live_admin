@@ -93,6 +93,21 @@ export const payoutAnalyticsService = {
     );
     return response.data.data;
   },
+
+  async getFullWalletTransferPreview(streamerId) {
+    const response = await api.get(
+      `/admin/payout-analytics/streamers/${streamerId}/full-wallet-transfer-preview`
+    );
+    return response.data.data;
+  },
+
+  async transferFullUserWallet(streamerId, { email, reason }) {
+    const response = await api.post(
+      `/admin/payout-analytics/streamers/${streamerId}/transfer-full-wallet`,
+      { email, reason }
+    );
+    return response.data.data;
+  },
 };
 
 export default payoutAnalyticsService;

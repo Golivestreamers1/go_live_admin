@@ -18,6 +18,7 @@ import { Button } from '../components/ui/button';
 import stabilizationService from '../services/stabilizationService';
 import { useStabilizationRealtime } from '../hooks/useStabilizationRealtime';
 import StabilizationLiveBadge from '../components/stabilization/StabilizationLiveBadge';
+import { formatOptimizationLiveSubtitle } from '../utils/stabilizationLiveFacts';
 
 const formatMb = (mb) => {
   if (mb == null) return '—';
@@ -271,15 +272,13 @@ const OptimizationImpact = () => {
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Devices reporting</CardDescription>
+              <CardDescription>Users on live now</CardDescription>
               <CardTitle className="text-2xl tabular-nums">
-                {live?.devicesReportingNow ?? '—'}
+                {live?.usersOnLiveNow ?? '—'}
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
-              {live
-                ? `${live.streamersLive} streaming · ${live.viewersLive} watching`
-                : 'No live sessions'}
+              {formatOptimizationLiveSubtitle(live)}
             </CardContent>
           </Card>
           <Card>

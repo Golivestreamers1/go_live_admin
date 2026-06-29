@@ -44,6 +44,20 @@ function isCurrentUserSuperAdmin() {
 
 const DEFAULT_STREAM_SORT = 'streamEndedAt|desc';
 
+function dateInputToStartOfDay(str) {
+  if (!str) return null;
+  const [y, m, d] = str.split('-').map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+function dateInputToEndOfDay(str) {
+  if (!str) return null;
+  const [y, m, d] = str.split('-').map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 23, 59, 59, 999);
+}
+
 const STREAM_SORT_OPTIONS = [
   { value: 'streamEndedAt|desc', label: 'Stream ended (newest first)' },
   { value: 'streamEndedAt|asc', label: 'Stream ended (oldest first)' },
@@ -70,28 +84,51 @@ const StreamerRubiesDetail = () => {
   const [transferEmail, setTransferEmail] = useState('');
   const [transferReason, setTransferReason] = useState('');
   const [transferBusy, setTransferBusy] = useState(false);
+  const [earningsStartDate, setEarningsStartDate] = useState('');
+  const [earningsEndDate, setEarningsEndDate] = useState('');
+  const [appliedEarningsRange, setAppliedEarningsRange] = useState({ start: '', end: '' });
 
   const formatNumber = (n) => new Intl.NumberFormat('en-US').format(Number(n) || 0);
   const formatUsd = (n) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(n) || 0);
 
-  const load = async (page = 1, sortKey = streamSortOption) => {
+  const load = async (page = 1, sortKey = streamSortOption, range = appliedEarningsRange) => {
     if (!streamerId) return;
     const [streamsSortBy, streamsSortOrder] = String(sortKey).split('|');
     try {
       setLoading(true);
-      const res = await payoutAnalyticsService.getStreamerDetails(streamerId, {
+      const params = {
         streamPage: page,
         streamLimit: 10,
         streamsSortBy,
         streamsSortOrder,
-      });
+      };
+      const start = dateInputToStartOfDay(range.start);
+      const end = dateInputToEndOfDay(range.end);
+      if (start) params.startDate = start.toISOString();
+      if (end) params.endDate = end.toISOString();
+
+      const res = await payoutAnalyticsService.getStreamerDetails(streamerId, params);
       setData(res);
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Failed to load streamer');
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyEarningsDateFilter = () => {
+    const next = { start: earningsStartDate, end: earningsEndDate };
+    setAppliedEarningsRange(next);
+    load(1, streamSortOption, next);
+  };
+
+  const clearEarningsDateFilter = () => {
+    setEarningsStartDate('');
+    setEarningsEndDate('');
+    const next = { start: '', end: '' };
+    setAppliedEarningsRange(next);
+    load(1, streamSortOption, next);
   };
 
   const loadRecon = async () => {
@@ -202,7 +239,10 @@ const StreamerRubiesDetail = () => {
 
   useEffect(() => {
     setStreamSortOption(DEFAULT_STREAM_SORT);
-    load(1, DEFAULT_STREAM_SORT);
+    setEarningsStartDate('');
+    setEarningsEndDate('');
+    setAppliedEarningsRange({ start: '', end: '' });
+    load(1, DEFAULT_STREAM_SORT, { start: '', end: '' });
     loadRecon();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamerId]);
@@ -240,7 +280,39 @@ const StreamerRubiesDetail = () => {
               <CardTitle>{s.name || s.username || 'Streamer'}</CardTitle>
               <CardDescription>{s.email || '—'}</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-gray-50 p-3">
+                <div>
+                  <label className="text-xs text-gray-500">Earnings from (stream ended)</label>
+                  <Input
+                    type="date"
+                    className="mt-1 w-[160px] bg-white"
+                    value={earningsStartDate}
+                    max={earningsEndDate || undefined}
+                    onChange={(e) => setEarningsStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Earnings to</label>
+                  <Input
+                    type="date"
+                    className="mt-1 w-[160px] bg-white"
+                    value={earningsEndDate}
+                    min={earningsStartDate || undefined}
+                    onChange={(e) => setEarningsEndDate(e.target.value)}
+                  />
+                </div>
+                <Button size="sm" onClick={applyEarningsDateFilter} disabled={loading}>
+                  Apply filter
+                </Button>
+                {(appliedEarningsRange.start || appliedEarningsRange.end) && (
+                  <Button size="sm" variant="outline" onClick={clearEarningsDateFilter} disabled={loading}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="p-3 rounded border">
                 <div className="text-xs text-gray-500">Wallet rubies</div>
                 <div className="font-semibold text-lg">{formatNumber(s.rubies)}</div>
@@ -272,6 +344,7 @@ const StreamerRubiesDetail = () => {
               <div className="p-3 rounded border">
                 <div className="text-xs text-gray-500">Withdraw requests</div>
                 <div className="font-semibold">{formatNumber(sum.withdrawRequestsCount)}</div>
+              </div>
               </div>
             </CardContent>
           </Card>

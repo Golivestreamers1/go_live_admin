@@ -32,6 +32,20 @@ const fmtUsd = (n) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(n) || 0);
 const fmtDate = (d) => (d ? new Date(d).toLocaleString() : '—');
 
+function dateInputToStartOfDay(str) {
+  if (!str) return null;
+  const [y, m, d] = str.split('-').map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+function dateInputToEndOfDay(str) {
+  if (!str) return null;
+  const [y, m, d] = str.split('-').map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 23, 59, 59, 999);
+}
+
 // Super-admin only (role === "admin"). Matches the backend role gate on the assign endpoints.
 function isCurrentUserSuperAdmin() {
   try {
@@ -67,11 +81,13 @@ const UserStreamEarnings = () => {
   const [assigningId, setAssigningId] = useState(null);
   const canAssign = isCurrentUserSuperAdmin();
 
-  // Transfer-to-email modal state. transfer = { scope: 'stream'|'all', stream } | null
+  // Transfer-to-email modal state. transfer = { scope: 'stream'|'all'|'full' } | null
   const [transfer, setTransfer] = useState(null);
   const [transferEmail, setTransferEmail] = useState('');
   const [transferReason, setTransferReason] = useState('');
   const [transferBusy, setTransferBusy] = useState(false);
+  const [walletPreview, setWalletPreview] = useState(null);
+  const [walletPreviewLoading, setWalletPreviewLoading] = useState(false);
 
   const [withdrawals, setWithdrawals] = useState([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
@@ -81,6 +97,10 @@ const UserStreamEarnings = () => {
     total: 1,
     totalItems: 0,
   });
+
+  const [earningsStartDate, setEarningsStartDate] = useState('');
+  const [earningsEndDate, setEarningsEndDate] = useState('');
+  const [appliedEarningsRange, setAppliedEarningsRange] = useState({ start: '', end: '' });
 
   const handleSearch = async (e) => {
     e?.preventDefault();
@@ -101,15 +121,25 @@ const UserStreamEarnings = () => {
     }
   };
 
-  const loadStreams = async (userId, page = 1) => {
+  const loadStreams = async (
+    userId,
+    page = 1,
+    range = appliedEarningsRange
+  ) => {
     try {
       setDetailsLoading(true);
-      const res = await payoutAnalyticsService.getStreamerDetails(userId, {
+      const params = {
         streamPage: page,
         streamLimit: 15,
         streamsSortBy: 'streamEndedAt',
         streamsSortOrder: 'desc',
-      });
+      };
+      const start = dateInputToStartOfDay(range.start);
+      const end = dateInputToEndOfDay(range.end);
+      if (start) params.startDate = start.toISOString();
+      if (end) params.endDate = end.toISOString();
+
+      const res = await payoutAnalyticsService.getStreamerDetails(userId, params);
       setSelectedUser(res.streamer);
       setSummary(res.summary || {});
       setStreams(res.streams || []);
@@ -119,6 +149,20 @@ const UserStreamEarnings = () => {
     } finally {
       setDetailsLoading(false);
     }
+  };
+
+  const applyEarningsDateFilter = () => {
+    const next = { start: earningsStartDate, end: earningsEndDate };
+    setAppliedEarningsRange(next);
+    if (selectedUserId) loadStreams(selectedUserId, 1, next);
+  };
+
+  const clearEarningsDateFilter = () => {
+    setEarningsStartDate('');
+    setEarningsEndDate('');
+    const next = { start: '', end: '' };
+    setAppliedEarningsRange(next);
+    if (selectedUserId) loadStreams(selectedUserId, 1, next);
   };
 
   const loadWithdrawals = async (userId, page = 1, status = withdrawalsStatus) => {
@@ -212,6 +256,19 @@ const UserStreamEarnings = () => {
     }
   };
 
+  const loadWalletPreview = async (userId) => {
+    try {
+      setWalletPreviewLoading(true);
+      const res = await payoutAnalyticsService.getFullWalletTransferPreview(userId);
+      setWalletPreview(res);
+    } catch (err) {
+      setWalletPreview(null);
+      toast.error(err?.response?.data?.message || 'Failed to load wallet transfer preview');
+    } finally {
+      setWalletPreviewLoading(false);
+    }
+  };
+
   const openTransfer = (scope, stream = null) => {
     setTransferEmail('');
     setTransferReason('');
@@ -240,14 +297,23 @@ const UserStreamEarnings = () => {
         if (res?.assigned > 0)
           toast.success(`Transferred ${fmtNum(res.assigned)} rubies to ${res?.target?.email || email}`);
         else toast.info('Already settled — nothing to transfer');
-      } else {
+      } else if (transfer.scope === 'all') {
         const res = await payoutAnalyticsService.transferAllStreamerRubies(selectedUserId, { email, reason });
         toast.success(
           `Transferred ${fmtNum(res?.totalAssigned || 0)} rubies across ${res?.streamsSettled || 0} stream(s) to ${res?.target?.email || email}`
         );
+      } else if (transfer.scope === 'full') {
+        const res = await payoutAnalyticsService.transferFullUserWallet(selectedUserId, { email, reason });
+        toast.success(
+          `Full wallet transferred to ${res?.target?.email || email}: ${fmtNum(res?.coinsMoved)} coins, ${fmtNum(res?.rubiesMoved)} rubies, ${fmtNum(res?.streamsMoved)} streams`
+        );
       }
       setTransfer(null);
-      await Promise.all([loadStreams(selectedUserId, Number(streamPagination.page) || 1), loadRecon(selectedUserId)]);
+      await Promise.all([
+        loadStreams(selectedUserId, Number(streamPagination.page) || 1),
+        loadRecon(selectedUserId),
+        loadWalletPreview(selectedUserId),
+      ]);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to transfer rubies');
     } finally {
@@ -262,7 +328,16 @@ const UserStreamEarnings = () => {
     setSearchResults([]);
     setWithdrawalsStatus('');
     setRecon(null);
-    await Promise.all([loadStreams(uid, 1), loadWithdrawals(uid, 1, ''), loadRecon(uid)]);
+    setWalletPreview(null);
+    setEarningsStartDate('');
+    setEarningsEndDate('');
+    setAppliedEarningsRange({ start: '', end: '' });
+    await Promise.all([
+      loadStreams(uid, 1, { start: '', end: '' }),
+      loadWithdrawals(uid, 1, ''),
+      loadRecon(uid),
+      loadWalletPreview(uid),
+    ]);
   };
 
   useEffect(() => {
@@ -354,7 +429,46 @@ const UserStreamEarnings = () => {
                     <span className="ml-2 text-xs text-gray-400">{String(selectedUserId)}</span>
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-gray-50 p-3">
+                    <div>
+                      <label className="text-xs text-gray-500">Earnings from (stream ended)</label>
+                      <Input
+                        type="date"
+                        className="mt-1 w-[160px] bg-white"
+                        value={earningsStartDate}
+                        max={earningsEndDate || undefined}
+                        onChange={(e) => setEarningsStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">Earnings to</label>
+                      <Input
+                        type="date"
+                        className="mt-1 w-[160px] bg-white"
+                        value={earningsEndDate}
+                        min={earningsStartDate || undefined}
+                        onChange={(e) => setEarningsEndDate(e.target.value)}
+                      />
+                    </div>
+                    <Button size="sm" onClick={applyEarningsDateFilter} disabled={detailsLoading}>
+                      Apply filter
+                    </Button>
+                    {(appliedEarningsRange.start || appliedEarningsRange.end) && (
+                      <Button size="sm" variant="outline" onClick={clearEarningsDateFilter} disabled={detailsLoading}>
+                        Clear
+                      </Button>
+                    )}
+                    {(appliedEarningsRange.start || appliedEarningsRange.end) && (
+                      <p className="text-xs text-gray-600">
+                        Showing earnings for streams that ended between{' '}
+                        <span className="font-medium">{appliedEarningsRange.start || '…'}</span> and{' '}
+                        <span className="font-medium">{appliedEarningsRange.end || '…'}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="p-3 rounded-lg border bg-rose-50 border-rose-100">
                     <div className="flex items-center gap-1 text-xs text-rose-700">
                       <Gem className="w-3 h-3" /> Rubies (streams total)
@@ -390,8 +504,27 @@ const UserStreamEarnings = () => {
                     </div>
                   </div>
                   <div className="p-3 rounded-lg border col-span-2 md:col-span-4 bg-gray-50">
-                    <div className="text-xs text-gray-500">Wallet rubies (current balance)</div>
-                    <div className="font-medium">{fmtNum(selectedUser?.rubies)}</div>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs text-gray-500">Wallet rubies (current balance)</div>
+                        <div className="font-medium">{fmtNum(selectedUser?.rubies)}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Coins: {fmtNum(selectedUser?.coins)} · Lifetime rubies:{' '}
+                          {fmtNum(selectedUser?.lifetimeRubies)}
+                        </div>
+                      </div>
+                      {canAssign ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openTransfer('full')}
+                          disabled={walletPreviewLoading}
+                        >
+                          Transfer full wallet to email
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
                   </div>
                 </CardContent>
               </Card>
@@ -783,14 +916,40 @@ const UserStreamEarnings = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {transfer?.scope === 'all'
+              {transfer?.scope === 'full'
+                ? 'Transfer full wallet to another user'
+                : transfer?.scope === 'all'
                 ? 'Assign all unassigned rubies to another user'
                 : 'Assign rubies to another user'}
             </DialogTitle>
             <DialogDescription>
-              {transfer?.scope === 'all'
-                ? `Transfer all ${fmtNum(recon?.summary?.totalAssignableOwed)} owed rubies — and the underlying streams + gift records — to the user with this email.`
-                : `Transfer ${fmtNum(transfer?.stream?.owed)} owed rubies — and this stream + its gift records — to the user with this email.`}
+              {transfer?.scope === 'full' ? (
+                <>
+                  Move this user&apos;s entire wallet and stream history to the account with the target
+                  email — coins, rubies, lifetime rubies, all streams, gift records, wallet transactions,
+                  and withdrawal requests.
+                  {walletPreview ? (
+                    <span className="block mt-2 text-gray-700">
+                      Preview: {fmtNum(walletPreview.wallet?.coins)} coins ·{' '}
+                      {fmtNum(walletPreview.wallet?.rubies)} rubies ·{' '}
+                      {fmtNum(walletPreview.streamsCount)} streams ·{' '}
+                      {fmtNum(walletPreview.unassigned?.totalAssignableOwed)} unassigned rubies ·{' '}
+                      {fmtNum(walletPreview.walletTransactionsCount)} wallet txs ·{' '}
+                      {fmtNum(walletPreview.withdrawRequestsCount)} withdrawals
+                      {walletPreview.liveStreamsCount > 0 ? (
+                        <span className="block text-amber-700 mt-1">
+                          Includes {fmtNum(walletPreview.liveStreamsCount)} live stream(s) — ownership
+                          moves immediately.
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </>
+              ) : transfer?.scope === 'all' ? (
+                `Transfer all ${fmtNum(recon?.summary?.totalAssignableOwed)} owed rubies — and the underlying streams + gift records — to the user with this email.`
+              ) : (
+                `Transfer ${fmtNum(transfer?.stream?.owed)} owed rubies — and this stream + its gift records — to the user with this email.`
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -815,7 +974,9 @@ const UserStreamEarnings = () => {
               />
             </div>
             <p className="text-xs text-amber-700">
-              The stream(s) and their gift records will move under the target user. This is hard to undo.
+              {transfer?.scope === 'full'
+                ? 'This reassigns all stream/gift/ledger rows and moves wallet balances. It is very hard to undo — double-check the target email.'
+                : 'The stream(s) and their gift records will move under the target user. This is hard to undo.'}
             </p>
           </div>
           <DialogFooter>
@@ -823,7 +984,11 @@ const UserStreamEarnings = () => {
               Cancel
             </Button>
             <Button onClick={handleTransferSubmit} disabled={transferBusy}>
-              {transferBusy ? 'Transferring…' : 'Transfer'}
+              {transferBusy
+                ? 'Transferring…'
+                : transfer?.scope === 'full'
+                  ? 'Transfer full wallet'
+                  : 'Transfer'}
             </Button>
           </DialogFooter>
         </DialogContent>

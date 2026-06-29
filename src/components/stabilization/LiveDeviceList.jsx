@@ -13,6 +13,8 @@ import {
   sortLiveDevices,
 } from './liveDeviceShared';
 import { StreamHealthBadge, StreamHealthCompact } from './StreamHealthPanel';
+import { formatPlatformLiveSubtitle } from '../../utils/stabilizationLiveFacts';
+import { STABILIZATION_PING_INTERVAL_LABEL } from '../../constants/stabilizationTelemetry';
 
 function StageDots({ stages }) {
   const doneCount = stages.filter((s) => s.done).length;
@@ -102,8 +104,23 @@ function DeviceListRow({ device }) {
 
 export default function LiveDeviceList({ liveDevices, summary }) {
   const sortedDevices = useMemo(() => sortLiveDevices(liveDevices), [liveDevices]);
+  const platformUsers = summary?.liveOnStreamNow ?? 0;
+  const reportingCount = summary?.telemetryDevicesReporting ?? sortedDevices.length;
 
   if (sortedDevices.length === 0) {
+    if (platformUsers > 0) {
+      return (
+        <div className="rounded-xl border border-dashed bg-amber-50/40 p-10 text-center">
+          <Smartphone className="mx-auto mb-3 h-10 w-10 text-amber-400" />
+          <p className="font-medium text-gray-900">{platformUsers} users on live right now</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {formatPlatformLiveSubtitle(summary)}. Device telemetry rows appear here once the app
+            sends memory reports (~every {STABILIZATION_PING_INTERVAL_LABEL} on the live screen).
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-xl border border-dashed bg-gray-50/50 p-10 text-center">
         <Smartphone className="mx-auto mb-3 h-10 w-10 text-gray-300" />
@@ -121,8 +138,8 @@ export default function LiveDeviceList({ liveDevices, summary }) {
       <div className="border-b bg-gray-50/80 px-4 py-3">
         <h2 className="text-lg font-semibold text-gray-900">Live devices</h2>
         <p className="text-sm text-muted-foreground">
-          {summary?.streamersLive ?? 0} streaming · {summary?.viewersLive ?? 0} watching · tap a
-          device for full metrics · live via socket (~5 sec pings from app)
+          {formatPlatformLiveSubtitle(summary)} · {reportingCount} device
+          {reportingCount === 1 ? '' : 's'} reporting below · tap a row for full metrics
         </p>
       </div>
       <div className="divide-y divide-gray-100">
@@ -144,7 +161,7 @@ export function DataCollectionBanner({ device }) {
   return (
     <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3">
       <p className="text-sm font-medium text-amber-900">
-        Collecting live data ({doneCount}/{stages.length}) — app pings every ~5 sec
+        Collecting live data ({doneCount}/{stages.length}) — app pings every {STABILIZATION_PING_INTERVAL_LABEL}
       </p>
       <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
         {stages.map((stage) => (
