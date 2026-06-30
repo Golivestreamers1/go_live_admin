@@ -1,6 +1,7 @@
 import React from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Smartphone } from 'lucide-react';
+import { useListBack } from '../hooks/useListNavigation';
 import { Button } from '../components/ui/button';
 import { DataCollectionBanner } from '../components/stabilization/LiveDeviceList';
 import { formatAge, formatAppRamUsage, formatRole } from '../components/stabilization/liveDeviceShared';
@@ -15,7 +16,11 @@ const LIST_PATH = '/stabilization';
 
 const LiveDeviceDetail = () => {
   const { userId } = useParams();
-  const navigate = useNavigate();
+  const location = useLocation();
+  const fallbackPath = location.pathname.includes('camera-mic-memory')
+    ? '/stabilization/camera-mic-memory'
+    : LIST_PATH;
+  const goBack = useListBack(fallbackPath);
 
   const realtime = useStabilizationRealtime(
     () => stabilizationService.getCameraMicStabilization(),
@@ -31,20 +36,22 @@ const LiveDeviceDetail = () => {
   if (!realtime.isLoading && data && !device) {
     return (
       <div className="space-y-4">
-        <Link
-          to={LIST_PATH}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gray-900"
+        <Button
+          variant="ghost"
+          size="sm"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gray-900 px-0"
+          onClick={goBack}
         >
           <ArrowLeft className="h-4 w-4" />
           Back to App Stability
-        </Link>
+        </Button>
         <div className="rounded-xl border border-dashed bg-gray-50/50 p-10 text-center">
           <Smartphone className="mx-auto mb-3 h-10 w-10 text-gray-300" />
           <p className="font-medium text-gray-900">Device no longer on live</p>
           <p className="mt-1 text-sm text-muted-foreground">
             This user left the stream or their ping expired (~3 min).
           </p>
-          <Button className="mt-4" variant="outline" onClick={() => navigate(LIST_PATH)}>
+          <Button className="mt-4" variant="outline" onClick={goBack}>
             Return to App Stability
           </Button>
         </div>
@@ -56,13 +63,15 @@ const LiveDeviceDetail = () => {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Link
-            to={LIST_PATH}
-            className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gray-900"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gray-900 px-0"
+            onClick={goBack}
           >
             <ArrowLeft className="h-4 w-4" />
             Back to App Stability
-          </Link>
+          </Button>
           <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-gray-900">
             {device?.deviceModel ?? 'Loading device…'}
             <StabilizationLiveBadge isLive={realtime.isLive} isStale={realtime.isStale} />

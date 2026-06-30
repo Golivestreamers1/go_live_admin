@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { ChevronRight, Smartphone } from 'lucide-react';
+import { ReturnLink } from '../ReturnLink';
 import { Badge } from '../ui/badge';
 import {
   formatAge,
@@ -40,7 +40,7 @@ function DeviceListRow({ device }) {
   const leak = device.ramLeakSignal;
 
   return (
-    <Link
+    <ReturnLink
       to={detailPath}
       className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 transition-colors hover:border-gray-300 hover:bg-gray-50"
     >
@@ -98,7 +98,7 @@ function DeviceListRow({ device }) {
         <span className="whitespace-nowrap text-xs font-medium">View details</span>
         <ChevronRight className="h-4 w-4 shrink-0 text-blue-500" aria-hidden />
       </div>
-    </Link>
+    </ReturnLink>
   );
 }
 

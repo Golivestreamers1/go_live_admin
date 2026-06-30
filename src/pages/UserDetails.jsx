@@ -39,6 +39,7 @@ import {
 } from '../components/ui/table';
 import { userService } from '../services/userService';
 import payoutAnalyticsService from '../services/payoutAnalyticsService';
+import { useListBack } from '../hooks/useListNavigation';
 import FraudCascadeDialog from '../components/FraudCascadeDialog';
 import { UserReferralsPanel } from '../components/referral/UserReferralsPanel';
 
@@ -446,6 +447,7 @@ const USER_DETAIL_TABS = [
 export default function UserDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const goBack = useListBack('/users');
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(() =>
@@ -889,7 +891,7 @@ export default function UserDetails() {
   if (error || !overview) {
     return (
       <div className="max-w-3xl mx-auto p-6">
-        <Button variant="outline" onClick={() => navigate('/users')}>
+        <Button variant="outline" onClick={goBack}>
           <ArrowLeft className="size-4 mr-2" /> Back to users
         </Button>
         <Card className="mt-6">
@@ -918,7 +920,7 @@ export default function UserDetails() {
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate('/users')}>
+        <Button variant="ghost" onClick={goBack}>
           <ArrowLeft className="size-4 mr-2" /> Back to users
         </Button>
       </div>

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useListQueryState } from '../hooks/useListQueryState';
+import { useNavigateWithReturn } from '../hooks/useListNavigation';
 import {
   supportService,
   SUPPORT_CATEGORIES,
@@ -58,29 +59,30 @@ function timeAgo(iso) {
 }
 
 const SupportTickets = () => {
-  const navigate = useNavigate();
-  const [status, setStatus] = useState('');
-  const [category, setCategory] = useState('');
-  const [priority, setPriority] = useState('');
-  const [source, setSource] = useState('');
-  const [q, setQ] = useState('');
-  const [qDebounced, setQDebounced] = useState('');
+  const { params, setQuery } = useListQueryState({
+    filterKeys: ['status', 'category', 'priority', 'source', 'q'],
+  });
+  const navigateWithReturn = useNavigateWithReturn();
+  const [q, setQ] = useState(params.q);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [stats, setStats] = useState({ open: 0, in_progress: 0, awaiting_user: 0, resolved: 0, closed: 0 });
 
-  const fetchData = useCallback(async (page = 1) => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const params = { page, limit: 20 };
-      if (status) params.status = status;
-      if (category) params.category = category;
-      if (priority) params.priority = priority;
-      if (source) params.source = source;
-      if (qDebounced) params.q = qDebounced;
+      const query = {
+        page: params.page,
+        limit: 20,
+      };
+      if (params.status) query.status = params.status;
+      if (params.category) query.category = params.category;
+      if (params.priority) query.priority = params.priority;
+      if (params.source) query.source = params.source;
+      if (params.q) query.q = params.q;
       const [list, counts] = await Promise.all([
-        supportService.listTickets(params),
+        supportService.listTickets(query),
         supportService.getStats(),
       ]);
       setTickets(list.tickets || []);
@@ -92,28 +94,34 @@ const SupportTickets = () => {
     } finally {
       setLoading(false);
     }
-  }, [status, category, priority, source, qDebounced]);
+  }, [params.page, params.status, params.category, params.priority, params.source, params.q]);
 
   useEffect(() => {
-    const t = setTimeout(() => setQDebounced(q), 300);
+    const t = setTimeout(() => {
+      if (q !== params.q) setQuery({ page: 1, q });
+    }, 300);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [q, params.q, setQuery]);
 
   useEffect(() => {
-    fetchData(1);
+    setQ(params.q);
+  }, [params.q]);
+
+  useEffect(() => {
+    fetchData();
   }, [fetchData]);
 
   const [exporting, setExporting] = useState(false);
   const handleExport = async () => {
     try {
       setExporting(true);
-      const params = {};
-      if (status) params.status = status;
-      if (category) params.category = category;
-      if (priority) params.priority = priority;
-      if (source) params.source = source;
-      if (qDebounced) params.q = qDebounced;
-      const blob = await supportService.exportCsv(params);
+      const exportParams = {};
+      if (params.status) exportParams.status = params.status;
+      if (params.category) exportParams.category = params.category;
+      if (params.priority) exportParams.priority = params.priority;
+      if (params.source) exportParams.source = params.source;
+      if (params.q) exportParams.q = params.q;
+      const blob = await supportService.exportCsv(exportParams);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -142,7 +150,7 @@ const SupportTickets = () => {
             <Download className="w-4 h-4 mr-2" />
             {exporting ? 'Exporting…' : 'Export CSV'}
           </Button>
-          <Button variant="outline" onClick={() => fetchData(pagination.page)}>
+          <Button variant="outline" onClick={() => fetchData()}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
@@ -152,7 +160,7 @@ const SupportTickets = () => {
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {SUPPORT_STATUSES.map((s) => (
-          <Card key={s.value} className="cursor-pointer hover:shadow-md transition" onClick={() => setStatus(s.value)}>
+          <Card key={s.value} className="cursor-pointer hover:shadow-md transition" onClick={() => setQuery({ page: 1, status: s.value })}>
             <CardContent className="p-4">
               <div className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${toneClasses(s.tone)}`}>{s.label}</div>
               <div className="text-2xl font-bold mt-2">{stats[s.value] ?? 0}</div>
@@ -169,8 +177,8 @@ const SupportTickets = () => {
               <Button
                 key={t.value || 'all'}
                 size="sm"
-                variant={status === t.value ? 'default' : 'outline'}
-                onClick={() => setStatus(t.value)}
+                variant={params.status === t.value ? 'default' : 'outline'}
+                onClick={() => setQuery({ page: 1, status: t.value })}
               >
                 {t.label}
               </Button>
@@ -188,7 +196,7 @@ const SupportTickets = () => {
               />
             </div>
 
-            <Select value={category || 'all'} onValueChange={(v) => setCategory(v === 'all' ? '' : v)}>
+            <Select value={params.category || 'all'} onValueChange={(v) => setQuery({ page: 1, category: v === 'all' ? '' : v })}>
               <SelectTrigger className="w-44"><SelectValue placeholder="Category" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All categories</SelectItem>
@@ -198,7 +206,7 @@ const SupportTickets = () => {
               </SelectContent>
             </Select>
 
-            <Select value={priority || 'all'} onValueChange={(v) => setPriority(v === 'all' ? '' : v)}>
+            <Select value={params.priority || 'all'} onValueChange={(v) => setQuery({ page: 1, priority: v === 'all' ? '' : v })}>
               <SelectTrigger className="w-36"><SelectValue placeholder="Priority" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All priorities</SelectItem>
@@ -208,7 +216,7 @@ const SupportTickets = () => {
               </SelectContent>
             </Select>
 
-            <Select value={source || 'all'} onValueChange={(v) => setSource(v === 'all' ? '' : v)}>
+            <Select value={params.source || 'all'} onValueChange={(v) => setQuery({ page: 1, source: v === 'all' ? '' : v })}>
               <SelectTrigger className="w-32"><SelectValue placeholder="Source" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All sources</SelectItem>
@@ -218,9 +226,17 @@ const SupportTickets = () => {
               </SelectContent>
             </Select>
 
-            {(status || category || priority || source || q) && (
+            {(params.status || params.category || params.priority || params.source || params.q || q) && (
               <Button variant="ghost" size="sm" onClick={() => {
-                setStatus(''); setCategory(''); setPriority(''); setSource(''); setQ('');
+                setQ('');
+                setQuery({
+                  page: 1,
+                  status: '',
+                  category: '',
+                  priority: '',
+                  source: '',
+                  q: '',
+                });
               }}>
                 <Filter className="w-4 h-4 mr-1" /> Clear
               </Button>
@@ -261,7 +277,7 @@ const SupportTickets = () => {
                     <TableRow
                       key={t._id}
                       className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => navigate(`/support/${t._id}`)}
+                      onClick={() => navigateWithReturn(`/support/${t._id}`)}
                     >
                       <TableCell className="font-mono text-xs">{t.ticketNumber}</TableCell>
                       <TableCell className="max-w-[320px] truncate font-medium">{t.subject}</TableCell>
@@ -290,10 +306,10 @@ const SupportTickets = () => {
             Page {pagination.page} of {pagination.totalPages} · {pagination.total} tickets
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => fetchData(pagination.page - 1)}>
+            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => setQuery({ page: pagination.page - 1 })}>
               Previous
             </Button>
-            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => fetchData(pagination.page + 1)}>
+            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setQuery({ page: pagination.page + 1 })}>
               Next
             </Button>
           </div>

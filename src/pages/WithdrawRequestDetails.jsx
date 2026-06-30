@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useListBack, useNavigateWithReturn } from '../hooks/useListNavigation';
 import { toast } from 'sonner';
 import { ArrowLeft } from 'lucide-react';
 import { withdrawRequestService } from '../services/withdrawRequestService';
@@ -17,7 +18,8 @@ import {
 } from '../components/ui/table';
 
 const WithdrawRequestDetails = () => {
-  const navigate = useNavigate();
+  const navigateWithReturn = useNavigateWithReturn();
+  const goBack = useListBack('/withdraw-requests');
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState(null);
@@ -106,7 +108,7 @@ const WithdrawRequestDetails = () => {
           <h1 className="text-3xl font-bold text-gray-900">Withdraw Request Details</h1>
           <p className="text-gray-600 mt-1">Basic checkout request information.</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/withdraw-requests')}>
+        <Button variant="outline" onClick={goBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
@@ -241,7 +243,7 @@ const WithdrawRequestDetails = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => navigate(`/withdraw-requests/${id}/streams/${stream.streamId}`)}
+                                  onClick={() => navigateWithReturn(`/withdraw-requests/${id}/streams/${stream.streamId}`)}
                                 >
                                   Details
                                 </Button>

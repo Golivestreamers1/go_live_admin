@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useListBack, useNavigateWithReturn } from '../hooks/useListNavigation';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -74,6 +75,8 @@ const STREAM_SORT_OPTIONS = [
 const StreamerRubiesDetail = () => {
   const { streamerId } = useParams();
   const navigate = useNavigate();
+  const navigateWithReturn = useNavigateWithReturn();
+  const goBack = useListBack('/streamers-rubies');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [streamSortOption, setStreamSortOption] = useState(DEFAULT_STREAM_SORT);
@@ -259,7 +262,7 @@ const StreamerRubiesDetail = () => {
           <h1 className="text-3xl font-bold text-gray-900">Streamer details</h1>
           <p className="text-gray-600 mt-1">Streams (paginated), per-stream gifters, link to reject gifts.</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/streamers-rubies')}>
+        <Button variant="outline" onClick={goBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           All streamers
         </Button>
@@ -569,7 +572,7 @@ const StreamerRubiesDetail = () => {
                                 size="sm"
                                 variant="default"
                                 onClick={() =>
-                                  navigate(`/streamers-rubies/${streamerId}/streams/${st.streamId}`)
+                                  navigateWithReturn(`/streamers-rubies/${streamerId}/streams/${st.streamId}`)
                                 }
                               >
                                 Manage gifts

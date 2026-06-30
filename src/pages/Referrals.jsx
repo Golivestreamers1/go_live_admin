@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { ReturnLink } from '../components/ReturnLink';
+import { useListQueryState } from '../hooks/useListQueryState';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -519,15 +520,20 @@ const StatsOverview = ({ filters }) => {
 /* ──────────────────────────────────────────────────────────
  * Top referrers tab
  * ────────────────────────────────────────────────────────── */
-const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }) => {
+const TopReferrersTab = ({ listQuery, filters, onPeriodChange, onRangeChange, periodLabel, active }) => {
+  const { params, setQuery } = listQuery;
+  const search = params.search;
+  const sort = params.sort || 'count_desc';
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('count_desc');
+  const [searchInput, setSearchInput] = useState(search);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [drillReferrerId, setDrillReferrerId] = useState(null);
   const [monthlyCap, setMonthlyCap] = useState(3);
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
 
   const fetchPage = useCallback(
     async (page = 1) => {
@@ -560,10 +566,11 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
   );
 
   useEffect(() => {
-    fetchPage(1);
-  }, [fetchPage]);
+    if (!active) return;
+    fetchPage(params.page);
+  }, [fetchPage, params.page, active]);
 
-  const handleSearch = () => setSearch(searchInput.trim());
+  const handleSearch = () => setQuery({ page: 1, search: searchInput.trim() });
 
   return (
     <Card>
@@ -598,7 +605,7 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
           period={filters.period}
           onPeriodChange={onPeriodChange}
           sort={sort}
-          onSortChange={setSort}
+          onSortChange={(v) => setQuery({ page: 1, sort: v })}
           sortOptions={TOP_SORT_OPTIONS}
           onRefresh={() => fetchPage(pagination.page)}
           loading={loading}
@@ -714,12 +721,12 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
                             <List className="h-3 w-3 mr-1" />
                             List
                           </Button>
-                          <Link to={`/users/${r.referrerId}?tab=referrals`}>
+                          <ReturnLink to={`/users/${r.referrerId}?tab=referrals`}>
                             <Button size="sm" variant="outline" className="h-7 px-2 text-xs">
                               <ExternalLink className="h-3 w-3 mr-1" />
                               Profile
                             </Button>
-                          </Link>
+                          </ReturnLink>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -728,7 +735,7 @@ const TopReferrersTab = ({ filters, onPeriodChange, onRangeChange, periodLabel }
             </TableBody>
           </Table>
         </div>
-        <Pager pagination={pagination} onPageChange={(p) => fetchPage(p)} loading={loading} />
+        <Pager pagination={pagination} onPageChange={(p) => setQuery({ page: p })} loading={loading} />
       </CardContent>
 
       <ReferrerDetailsDialog
@@ -750,16 +757,21 @@ const PENDING_STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
 ];
 
-const PendingTab = () => {
+const PendingTab = ({ listQuery, active }) => {
+  const { params, setQuery } = listQuery;
+  const search = params.search;
+  const status = params.status || 'pending';
+  const live = params.live === '1';
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('pending');
-  const [live, setLive] = useState(false);
+  const [searchInput, setSearchInput] = useState(search);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [journeyUserId, setJourneyUserId] = useState(null);
   const [criteriaConfig, setCriteriaConfig] = useState(null);
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
 
   const fetchPage = useCallback(
     async (page = 1) => {
@@ -790,8 +802,9 @@ const PendingTab = () => {
   );
 
   useEffect(() => {
-    fetchPage(1);
-  }, [fetchPage]);
+    if (!active) return;
+    fetchPage(params.page);
+  }, [fetchPage, params.page, active]);
 
   return (
     <Card>
@@ -812,14 +825,22 @@ const PendingTab = () => {
               placeholder="Search user, email, code…"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && setSearch(searchInput.trim())}
+              onKeyDown={(e) => e.key === 'Enter' && setQuery({ page: 1, search: searchInput.trim() })}
             />
-            <Button type="button" variant="secondary" onClick={() => setSearch(searchInput.trim())}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setQuery({ page: 1, search: searchInput.trim() })}
+            >
               <Search className="h-4 w-4" />
             </Button>
           </div>
           <div className="w-48">
-            <Select value={status} onValueChange={setStatus} placeholder="Status">
+            <Select
+              value={status}
+              onValueChange={(v) => setQuery({ page: 1, status: v })}
+              placeholder="Status"
+            >
               {PENDING_STATUS_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {o.label}
@@ -830,7 +851,7 @@ const PendingTab = () => {
           <Button
             type="button"
             variant={live ? 'default' : 'outline'}
-            onClick={() => setLive((v) => !v)}
+            onClick={() => setQuery({ page: 1, live: live ? '' : '1' })}
             title="Recompute engagement from live session data"
           >
             <Eye className="h-4 w-4 mr-2" />
@@ -916,7 +937,7 @@ const PendingTab = () => {
             </TableBody>
           </Table>
         </div>
-        <Pager pagination={pagination} onPageChange={(p) => fetchPage(p)} loading={loading} />
+        <Pager pagination={pagination} onPageChange={(p) => setQuery({ page: p })} loading={loading} />
       </CardContent>
 
       <ReferralJourneyDialog
@@ -931,14 +952,19 @@ const PendingTab = () => {
 /* ──────────────────────────────────────────────────────────
  * Referral logs (successful payouts) tab
  * ────────────────────────────────────────────────────────── */
-const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
+const LogsTab = ({ listQuery, filters, onPeriodChange, onRangeChange, active }) => {
+  const { params, setQuery } = listQuery;
+  const search = params.search;
+  const sort = params.sort || 'date_desc';
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('date_desc');
+  const [searchInput, setSearchInput] = useState(search);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [journeyUserId, setJourneyUserId] = useState(null);
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
 
   const fetchPage = useCallback(
     async (page = 1) => {
@@ -970,8 +996,9 @@ const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
   );
 
   useEffect(() => {
-    fetchPage(1);
-  }, [fetchPage]);
+    if (!active) return;
+    fetchPage(params.page);
+  }, [fetchPage, params.page, active]);
 
   return (
     <Card>
@@ -988,12 +1015,12 @@ const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
         <FilterBar
           searchInput={searchInput}
           setSearchInput={setSearchInput}
-          onSearch={() => setSearch(searchInput.trim())}
+          onSearch={() => setQuery({ page: 1, search: searchInput.trim() })}
           searchPlaceholder="Search by either user (name, email, code)…"
           period={filters.period}
           onPeriodChange={onPeriodChange}
           sort={sort}
-          onSortChange={setSort}
+          onSortChange={(v) => setQuery({ page: 1, sort: v })}
           sortOptions={LOG_SORT_OPTIONS}
           onRefresh={() => fetchPage(pagination.page)}
           loading={loading}
@@ -1041,12 +1068,12 @@ const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
                       <div>
                         <UserCell user={r.referrerId} fallbackId={r.referrerId?._id} />
                         {r.referrerId?._id && (
-                          <Link
+                          <ReturnLink
                             to={`/users/${r.referrerId._id}`}
                             className="text-xs text-blue-600 hover:underline"
                           >
                             View profile
-                          </Link>
+                          </ReturnLink>
                         )}
                       </div>
                     </TableCell>
@@ -1054,12 +1081,12 @@ const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
                       <div>
                         <UserCell user={r.referredUserId} fallbackId={r.referredUserId?._id} />
                         {r.referredUserId?._id && (
-                          <Link
+                          <ReturnLink
                             to={`/users/${r.referredUserId._id}`}
                             className="text-xs text-blue-600 hover:underline"
                           >
                             View profile
-                          </Link>
+                          </ReturnLink>
                         )}
                       </div>
                     </TableCell>
@@ -1096,7 +1123,7 @@ const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
             </TableBody>
           </Table>
         </div>
-        <Pager pagination={pagination} onPageChange={(p) => fetchPage(p)} loading={loading} />
+        <Pager pagination={pagination} onPageChange={(p) => setQuery({ page: p })} loading={loading} />
       </CardContent>
 
       <ReferralJourneyDialog
@@ -1111,14 +1138,19 @@ const LogsTab = ({ filters, onPeriodChange, onRangeChange }) => {
 /* ──────────────────────────────────────────────────────────
  * Failed attempts tab
  * ────────────────────────────────────────────────────────── */
-const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
+const AttemptsTab = ({ listQuery, filters, onPeriodChange, onRangeChange, active }) => {
+  const { params, setQuery } = listQuery;
+  const search = params.search;
+  const status = params.status || 'all';
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
+  const [searchInput, setSearchInput] = useState(search);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [journeyUserId, setJourneyUserId] = useState(null);
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
 
   const fetchPage = useCallback(
     async (page = 1) => {
@@ -1150,8 +1182,9 @@ const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
   );
 
   useEffect(() => {
-    fetchPage(1);
-  }, [fetchPage]);
+    if (!active) return;
+    fetchPage(params.page);
+  }, [fetchPage, params.page, active]);
 
   return (
     <Card>
@@ -1169,12 +1202,12 @@ const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
         <FilterBar
           searchInput={searchInput}
           setSearchInput={setSearchInput}
-          onSearch={() => setSearch(searchInput.trim())}
+          onSearch={() => setQuery({ page: 1, search: searchInput.trim() })}
           searchPlaceholder="Search by user, email, or code…"
           period={filters.period}
           onPeriodChange={onPeriodChange}
           status={status}
-          onStatusChange={setStatus}
+          onStatusChange={(v) => setQuery({ page: 1, status: v })}
           statusOptions={ATTEMPT_STATUS_OPTIONS}
           onRefresh={() => fetchPage(pagination.page)}
           loading={loading}
@@ -1234,12 +1267,12 @@ const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
                       <div>
                         <UserCell user={r.referredUserId} fallbackId={r.referredUserId?._id} />
                         {r.referredUserId?._id && (
-                          <Link
+                          <ReturnLink
                             to={`/users/${r.referredUserId._id}`}
                             className="text-xs text-blue-600 hover:underline"
                           >
                             View profile
-                          </Link>
+                          </ReturnLink>
                         )}
                       </div>
                     </TableCell>
@@ -1248,12 +1281,12 @@ const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
                         <div>
                           <UserCell user={r.referrerId} fallbackId={r.referrerId?._id} />
                           {r.referrerId?._id && (
-                            <Link
+                            <ReturnLink
                               to={`/users/${r.referrerId._id}`}
                               className="text-xs text-blue-600 hover:underline"
                             >
                               View profile
-                            </Link>
+                            </ReturnLink>
                           )}
                         </div>
                       ) : (
@@ -1284,7 +1317,7 @@ const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
             </TableBody>
           </Table>
         </div>
-        <Pager pagination={pagination} onPageChange={(p) => fetchPage(p)} loading={loading} />
+        <Pager pagination={pagination} onPageChange={(p) => setQuery({ page: p })} loading={loading} />
       </CardContent>
 
       <ReferralJourneyDialog
@@ -1300,10 +1333,14 @@ const AttemptsTab = ({ filters, onPeriodChange, onRangeChange }) => {
  * Page
  * ────────────────────────────────────────────────────────── */
 const Referrals = () => {
-  const [period, setPeriod] = useState('month');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [tab, setTab] = useState('top');
+  const { params, setQuery } = useListQueryState({
+    filterKeys: ['tab', 'period', 'startDate', 'endDate', 'search', 'sort', 'status', 'live'],
+  });
+  const tab = params.tab || 'top';
+  const period = params.period || 'month';
+  const startDate = params.startDate || '';
+  const endDate = params.endDate || '';
+  const listQuery = { params, setQuery };
 
   const periodLabel = useMemo(() => {
     if (period === 'custom' && (startDate || endDate)) {
@@ -1314,17 +1351,21 @@ const Referrals = () => {
   }, [period, startDate, endDate]);
 
   const handlePeriodChange = (v) => {
-    setPeriod(v);
     if (v !== 'custom') {
-      setStartDate('');
-      setEndDate('');
+      setQuery({ period: v, startDate: '', endDate: '', page: 1 });
+    } else {
+      setQuery({ period: v, page: 1 });
     }
   };
 
   const handleRangeChange = ({ startDate: s, endDate: e }) => {
-    if (s !== undefined) setStartDate(s);
-    if (e !== undefined) setEndDate(e);
+    const updates = { page: 1 };
+    if (s !== undefined) updates.startDate = s;
+    if (e !== undefined) updates.endDate = e;
+    setQuery(updates);
   };
+
+  const handleTabChange = (v) => setQuery({ tab: v, page: 1 });
 
   const filters = { period, startDate, endDate };
 
@@ -1341,7 +1382,7 @@ const Referrals = () => {
 
       <StatsOverview filters={filters} />
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="top">Top referrers</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
@@ -1350,27 +1391,33 @@ const Referrals = () => {
         </TabsList>
         <TabsContent value="top" className="mt-4">
           <TopReferrersTab
+            listQuery={listQuery}
             filters={filters}
             onPeriodChange={handlePeriodChange}
             onRangeChange={handleRangeChange}
             periodLabel={periodLabel}
+            active={tab === 'top'}
           />
         </TabsContent>
         <TabsContent value="pending" className="mt-4">
-          <PendingTab />
+          <PendingTab listQuery={listQuery} active={tab === 'pending'} />
         </TabsContent>
         <TabsContent value="logs" className="mt-4">
           <LogsTab
+            listQuery={listQuery}
             filters={filters}
             onPeriodChange={handlePeriodChange}
             onRangeChange={handleRangeChange}
+            active={tab === 'logs'}
           />
         </TabsContent>
         <TabsContent value="attempts" className="mt-4">
           <AttemptsTab
+            listQuery={listQuery}
             filters={filters}
             onPeriodChange={handlePeriodChange}
             onRangeChange={handleRangeChange}
+            active={tab === 'attempts'}
           />
         </TabsContent>
       </Tabs>

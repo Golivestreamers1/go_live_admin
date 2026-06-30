@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import { Search, Gift, Loader2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { ReturnLink } from '../components/ReturnLink';
+import { useListQueryState } from '../hooks/useListQueryState';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -19,14 +20,19 @@ const fmtNum = (n) => new Intl.NumberFormat('en-US').format(Number(n) || 0);
 const fmtDate = (d) => (d ? new Date(d).toLocaleString() : '—');
 
 const GifterRecipientsLookup = () => {
-  const [email, setEmail] = useState('');
+  const { params, setQuery } = useListQueryState({ filterKeys: ['email'] });
+  const [email, setEmail] = useState(params.email);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
 
-  const fetchRecipients = async (page = 1) => {
-    const q = email.trim().toLowerCase();
+  useEffect(() => {
+    setEmail(params.email);
+  }, [params.email]);
+
+  const fetchRecipients = async (page = params.page, emailValue = params.email) => {
+    const q = (emailValue || '').trim().toLowerCase();
     if (!q) {
-      toast.error('Enter a user email to search');
+      setData(null);
       return;
     }
     try {
@@ -42,9 +48,21 @@ const GifterRecipientsLookup = () => {
     }
   };
 
+  useEffect(() => {
+    if (params.email) {
+      fetchRecipients(params.page, params.email);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.page, params.email]);
+
   const handleSearch = (e) => {
     e?.preventDefault();
-    fetchRecipients(1);
+    const q = email.trim().toLowerCase();
+    if (!q) {
+      toast.error('Enter a user email to search');
+      return;
+    }
+    setQuery({ page: 1, email: q });
   };
 
   const gifter = data?.gifter;
@@ -121,13 +139,13 @@ const GifterRecipientsLookup = () => {
               </div>
             </div>
             <div className="mt-4">
-              <Link
+              <ReturnLink
                 to={`/withdraw-requests/gifters/${gifter._id}`}
                 className="inline-flex items-center text-sm text-primary hover:underline"
               >
                 View full gifting history
                 <ExternalLink className="w-3.5 h-3.5 ml-1" />
-              </Link>
+              </ReturnLink>
             </div>
           </CardContent>
         </Card>
@@ -204,7 +222,7 @@ const GifterRecipientsLookup = () => {
                     size="sm"
                     variant="outline"
                     disabled={loading || pagination.page <= 1}
-                    onClick={() => fetchRecipients(pagination.page - 1)}
+                    onClick={() => setQuery({ page: pagination.page - 1 })}
                   >
                     Previous
                   </Button>
@@ -212,7 +230,7 @@ const GifterRecipientsLookup = () => {
                     size="sm"
                     variant="outline"
                     disabled={loading || pagination.page >= pagination.totalPages}
-                    onClick={() => fetchRecipients(pagination.page + 1)}
+                    onClick={() => setQuery({ page: pagination.page + 1 })}
                   >
                     Next
                   </Button>
