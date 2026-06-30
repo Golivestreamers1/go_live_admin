@@ -12,6 +12,14 @@ import { io } from 'socket.io-client';
 
 const SOCKET_PATH = '/socket.io';
 const FALLBACK_POLL_MS = 30_000;
+/**
+ * Standings page size for the details view. MUST match the backend socket push
+ * cap (CONTEST_LB_LIMIT in contestLeaderboardSocket.service.js) so the REST load
+ * and the live socket payload return the same number of rows — otherwise an
+ * active contest's table visibly flips size between REST refreshes (top-N) and
+ * socket pushes (50).
+ */
+const CONTEST_LB_LIMIT = 50;
 
 /** @type {import('socket.io-client').Socket | null} */
 let socket = null;
@@ -125,4 +133,4 @@ export function isContestSocketConnected() {
   return Boolean(socket?.connected);
 }
 
-export { FALLBACK_POLL_MS };
+export { FALLBACK_POLL_MS, CONTEST_LB_LIMIT };

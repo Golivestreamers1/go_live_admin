@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { contestService } from '../services/contestService';
-import { subscribeContestLeaderboard, FALLBACK_POLL_MS } from '../services/contestSocket.service';
+import { subscribeContestLeaderboard, FALLBACK_POLL_MS, CONTEST_LB_LIMIT } from '../services/contestSocket.service';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -318,7 +318,9 @@ const ContestManagement = () => {
   const loadDetails = useCallback(async (id) => {
     setDetailsLoading(true);
     try {
-      const data = await contestService.getContest(id, { limit: 100 });
+      // Match the socket push size so the standings table doesn't oscillate
+      // between the REST top-N and the live socket top-50 for active contests.
+      const data = await contestService.getContest(id, { limit: CONTEST_LB_LIMIT });
       setDetailsContest(data?.contest ?? null);
       setStandings(Array.isArray(data?.standings?.list) ? data.standings.list : []);
     } catch (err) {
