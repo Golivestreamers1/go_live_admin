@@ -34,6 +34,7 @@ import {
   Clock,
   X,
   Coins,
+  Gem,
   Crown,
   ChevronLeft,
   ChevronRight,
@@ -69,7 +70,74 @@ const PAGE_LIMIT = 20;
 const statusBadgeVariant = (s) =>
   ({ active: 'default', scheduled: 'secondary', ended: 'outline', draft: 'secondary' }[s] || 'secondary');
 
-const emptyPrize = () => ({ rank: 1, label: '', coins: '' });
+const emptyPrize = () => ({ rank: 1, label: '', rewardType: 'none', coins: '', rubies: '' });
+
+/**
+ * Resolve the active currency + amount for a prize. Exactly one currency is used
+ * per rank. Legacy prizes may have no `rewardType` but `coins > 0` — treat those
+ * as coins.
+ */
+function prizeAmount(p) {
+  const type = p?.rewardType || (Number(p?.coins) > 0 ? 'coins' : 'none');
+  if (type === 'coins') return { type: 'coins', amount: Math.max(0, Number(p?.coins) || 0) };
+  if (type === 'rubies') return { type: 'rubies', amount: Math.max(0, Number(p?.rubies) || 0) };
+  return { type: 'none', amount: 0 };
+}
+
+/** Coin/gem icon + formatted amount for a prize (null for label-only). */
+function formatReward(p) {
+  const { type, amount } = prizeAmount(p);
+  if (type === 'coins')
+    return (
+      <span className="inline-flex items-center gap-1 text-amber-600">
+        <Coins className="h-3 w-3" />
+        {amount.toLocaleString()}
+      </span>
+    );
+  if (type === 'rubies')
+    return (
+      <span className="inline-flex items-center gap-1 text-rose-600">
+        <Gem className="h-3 w-3" />
+        {amount.toLocaleString()}
+      </span>
+    );
+  return null;
+}
+
+/** Map a stored prize into an editor-row shape (rewardType + bound amount). */
+function prizeToDraft(p) {
+  const { type } = prizeAmount(p);
+  return {
+    rank: p.rank,
+    label: p.label ?? '',
+    rewardType: type,
+    coins: type === 'coins' ? p.coins || '' : '',
+    rubies: type === 'rubies' ? p.rubies || '' : '',
+  };
+}
+
+/**
+ * Normalize an editor row into the backend prize shape. The amount is floored
+ * >= 0 and only the selected currency is non-zero; a legacy row with coins > 0
+ * and no rewardType defaults to coins.
+ */
+function normalizePrize(p) {
+  const rank = Math.max(1, Number(p.rank) || 1);
+  const label = String(p.label).trim();
+  const rewardType = p.rewardType || (Number(p.coins) > 0 ? 'coins' : 'none');
+  const coins = rewardType === 'coins' ? Math.max(0, Math.floor(Number(p.coins) || 0)) : 0;
+  const rubies = rewardType === 'rubies' ? Math.max(0, Math.floor(Number(p.rubies) || 0)) : 0;
+  return { rank, label, rewardType, coins, rubies };
+}
+
+/** Normalize + filter blank labels + dedupe by rank (keep first). */
+function normalizePrizes(rows) {
+  const seen = new Set();
+  return rows
+    .filter((p) => String(p.label).trim())
+    .map(normalizePrize)
+    .filter((p) => (seen.has(p.rank) ? false : seen.add(p.rank)));
+}
 
 const emptyContest = {
   name: '',
@@ -209,7 +277,7 @@ const ContestManagement = () => {
       endAt: isoToLocalInput(c.endAt),
       prizes:
         Array.isArray(c.prizes) && c.prizes.length
-          ? c.prizes.map((p) => ({ rank: p.rank, label: p.label, coins: p.coins || '' }))
+          ? c.prizes.map(prizeToDraft)
           : [emptyPrize()],
     });
     setDialogOpen(true);
@@ -228,7 +296,10 @@ const ContestManagement = () => {
     }));
 
   const addPrize = () =>
-    setForm((f) => ({ ...f, prizes: [...f.prizes, { rank: f.prizes.length + 1, label: '', coins: '' }] }));
+    setForm((f) => ({
+      ...f,
+      prizes: [...f.prizes, { rank: f.prizes.length + 1, label: '', rewardType: 'none', coins: '', rubies: '' }],
+    }));
 
   const removePrize = (idx) =>
     setForm((f) => ({ ...f, prizes: f.prizes.filter((_, i) => i !== idx) }));
@@ -250,13 +321,7 @@ const ContestManagement = () => {
       toast.error('End must be after start');
       return;
     }
-    const prizes = form.prizes
-      .filter((p) => String(p.label).trim())
-      .map((p) => ({
-        rank: Number(p.rank) || 1,
-        label: String(p.label).trim(),
-        coins: Math.max(0, Math.floor(Number(p.coins) || 0)),
-      }));
+    const prizes = normalizePrizes(form.prizes);
 
     const body = {
       name,
@@ -367,9 +432,7 @@ const ContestManagement = () => {
 
   const startEditPrizes = () => {
     setPrizeDraft(
-      [...(detailsContest?.prizes || [])]
-        .sort((a, b) => a.rank - b.rank)
-        .map((p) => ({ rank: p.rank, label: p.label, coins: p.coins || '' }))
+      [...(detailsContest?.prizes || [])].sort((a, b) => a.rank - b.rank).map(prizeToDraft)
     );
     setEditingPrizes(true);
   };
@@ -378,20 +441,14 @@ const ContestManagement = () => {
     setPrizeDraft((d) => d.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
 
   const addDraftPrize = () =>
-    setPrizeDraft((d) => [...d, { rank: d.length + 1, label: '', coins: '' }]);
+    setPrizeDraft((d) => [...d, { rank: d.length + 1, label: '', rewardType: 'none', coins: '', rubies: '' }]);
 
   const removeDraftPrize = (idx) =>
     setPrizeDraft((d) => d.filter((_, i) => i !== idx));
 
   const savePrizes = async () => {
     if (!detailsContest?._id) return;
-    const prizes = prizeDraft
-      .filter((p) => String(p.label).trim())
-      .map((p) => ({
-        rank: Number(p.rank) || 1,
-        label: String(p.label).trim(),
-        coins: Math.max(0, Math.floor(Number(p.coins) || 0)),
-      }));
+    const prizes = normalizePrizes(prizeDraft);
     try {
       setSavingPrizes(true);
       await contestService.updateContest(detailsContest._id, { prizes });
@@ -411,10 +468,10 @@ const ContestManagement = () => {
     try {
       setDisburseLoading(true);
       await contestService.disbursePrize(detailsContest._id, disburseTarget.prize.rank);
+      const { type, amount } = prizeAmount(disburseTarget.prize);
+      const unit = type === 'rubies' ? 'rubies' : 'coins';
       toast.success(
-        `Paid ${Number(disburseTarget.prize.coins).toLocaleString()} coins to ${
-          disburseTarget.recipient?.name || 'the winner'
-        }`
+        `Paid ${amount.toLocaleString()} ${unit} to ${disburseTarget.recipient?.name || 'the winner'}`
       );
       setDisburseTarget(null);
       await loadDetails(detailsContest._id);
@@ -436,8 +493,8 @@ const ContestManagement = () => {
             </CardTitle>
             <CardDescription>
               Run time-boxed streamer competitions. A contest ranks streamers by the chosen metric over
-              its window; the timer auto-starts and auto-declares a winner at the end. Coin prizes are paid
-              out manually by an admin after the contest ends.
+              its window; the timer auto-starts and auto-declares a winner at the end. Coin or ruby prizes
+              are paid out manually by an admin after the contest ends.
             </CardDescription>
           </div>
           <Button onClick={openCreate}>
@@ -497,7 +554,7 @@ const ContestManagement = () => {
                 </TableHeader>
                 <TableBody>
                   {contests.map((c) => {
-                    const coinPrizes = (c.prizes || []).filter((p) => p.coins > 0).length;
+                    const payablePrizes = (c.prizes || []).filter((p) => prizeAmount(p).amount > 0).length;
                     const paid = (c.prizeAwards || []).length;
                     return (
                       <TableRow key={c._id} className="cursor-pointer" onClick={() => openDetails(c)}>
@@ -513,11 +570,11 @@ const ContestManagement = () => {
                             <span className="text-muted-foreground">—</span>
                           ) : (
                             <span className="flex items-center gap-1">
-                              {coinPrizes > 0 && <Coins className="h-3.5 w-3.5 text-amber-500" />}
+                              {payablePrizes > 0 && <Coins className="h-3.5 w-3.5 text-amber-500" />}
                               {(c.prizes || []).length} prize{(c.prizes || []).length > 1 ? 's' : ''}
-                              {coinPrizes > 0 && (
+                              {payablePrizes > 0 && (
                                 <span className="text-xs text-muted-foreground">
-                                  ({paid}/{coinPrizes} paid)
+                                  ({paid}/{payablePrizes} paid)
                                 </span>
                               )}
                             </span>
@@ -689,18 +746,20 @@ const ContestManagement = () => {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Set an optional <strong>coin reward</strong> per rank. The winner is declared automatically;
-                coins are paid out manually by an admin from the contest details after it ends. Leave coins
-                at 0 for a display-only / externally-paid prize.
+                Set an optional <strong>reward</strong> per rank — either <strong>coins</strong> or{' '}
+                <strong>rubies</strong> (one currency per rank). The winner is declared automatically; the
+                reward is paid out manually by an admin from the contest details after it ends. Choose{' '}
+                <strong>None</strong> for a display-only / externally-paid prize.
               </p>
-              <div className="grid grid-cols-[3rem_1fr_6.5rem_2rem] items-center gap-2 text-xs text-muted-foreground px-1">
+              <div className="grid grid-cols-[3rem_1fr_6rem_6.5rem_2rem] items-center gap-2 text-xs text-muted-foreground px-1">
                 <span>Rank</span>
                 <span>Prize description</span>
-                <span>Coins</span>
+                <span>Reward</span>
+                <span>Amount</span>
                 <span />
               </div>
               {form.prizes.map((p, i) => (
-                <div key={i} className="grid grid-cols-[3rem_1fr_6.5rem_2rem] items-center gap-2">
+                <div key={i} className="grid grid-cols-[3rem_1fr_6rem_6.5rem_2rem] items-center gap-2">
                   <Input
                     type="number"
                     min={1}
@@ -713,12 +772,24 @@ const ContestManagement = () => {
                     onChange={(e) => setPrize(i, { label: e.target.value })}
                     placeholder="e.g. Grand prize + featured banner"
                   />
+                  <select
+                    value={p.rewardType || 'none'}
+                    onChange={(e) => setPrize(i, { rewardType: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-2 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="none">None</option>
+                    <option value="coins">Coins</option>
+                    <option value="rubies">Rubies</option>
+                  </select>
                   <Input
                     type="number"
                     min={0}
-                    value={p.coins}
-                    onChange={(e) => setPrize(i, { coins: e.target.value })}
+                    value={p.rewardType === 'coins' ? p.coins : p.rewardType === 'rubies' ? p.rubies : ''}
+                    onChange={(e) =>
+                      setPrize(i, p.rewardType === 'rubies' ? { rubies: e.target.value } : { coins: e.target.value })
+                    }
                     placeholder="0"
+                    disabled={!p.rewardType || p.rewardType === 'none'}
                   />
                   <Button type="button" variant="ghost" size="sm" onClick={() => removePrize(i)}>
                     <X className="h-4 w-4" />
@@ -786,24 +857,25 @@ const ContestManagement = () => {
                   </div>
                   {detailsContest.status !== 'ended' && (
                     <p className="text-xs text-muted-foreground">
-                      Coin prizes can be paid out once the contest has ended and the winner is declared.
+                      Prizes can be paid out once the contest has ended and the winner is declared.
                     </p>
                   )}
 
                   {editingPrizes ? (
                     <div className="space-y-2 rounded-lg border p-3">
                       <p className="text-xs text-muted-foreground">
-                        Standings are frozen — only the prize rewards are editable. Set the coin amount per
-                        rank, then pay out. Ranks already paid are not charged again.
+                        Standings are frozen — only the prize rewards are editable. Pick coins or rubies and
+                        set the amount per rank, then pay out. Ranks already paid are not charged again.
                       </p>
-                      <div className="grid grid-cols-[3rem_1fr_6.5rem_2rem] items-center gap-2 text-xs text-muted-foreground px-1">
+                      <div className="grid grid-cols-[3rem_1fr_6rem_6.5rem_2rem] items-center gap-2 text-xs text-muted-foreground px-1">
                         <span>Rank</span>
                         <span>Prize description</span>
-                        <span>Coins</span>
+                        <span>Reward</span>
+                        <span>Amount</span>
                         <span />
                       </div>
                       {prizeDraft.map((p, i) => (
-                        <div key={i} className="grid grid-cols-[3rem_1fr_6.5rem_2rem] items-center gap-2">
+                        <div key={i} className="grid grid-cols-[3rem_1fr_6rem_6.5rem_2rem] items-center gap-2">
                           <Input
                             type="number"
                             min={1}
@@ -816,12 +888,27 @@ const ContestManagement = () => {
                             onChange={(e) => setDraftPrize(i, { label: e.target.value })}
                             placeholder="e.g. Grand prize"
                           />
+                          <select
+                            value={p.rewardType || 'none'}
+                            onChange={(e) => setDraftPrize(i, { rewardType: e.target.value })}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-2 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <option value="none">None</option>
+                            <option value="coins">Coins</option>
+                            <option value="rubies">Rubies</option>
+                          </select>
                           <Input
                             type="number"
                             min={0}
-                            value={p.coins}
-                            onChange={(e) => setDraftPrize(i, { coins: e.target.value })}
+                            value={p.rewardType === 'coins' ? p.coins : p.rewardType === 'rubies' ? p.rubies : ''}
+                            onChange={(e) =>
+                              setDraftPrize(
+                                i,
+                                p.rewardType === 'rubies' ? { rubies: e.target.value } : { coins: e.target.value }
+                              )
+                            }
                             placeholder="0"
+                            disabled={!p.rewardType || p.rewardType === 'none'}
                           />
                           <Button type="button" variant="ghost" size="sm" onClick={() => removeDraftPrize(i)}>
                             <X className="h-4 w-4" />
@@ -844,7 +931,8 @@ const ContestManagement = () => {
                     </div>
                   ) : (detailsContest.prizes || []).length === 0 ? (
                     <p className="text-xs text-muted-foreground">
-                      No prizes set yet. Click &quot;Edit prizes&quot; to add a coin reward before paying out.
+                      No prizes set yet. Click &quot;Edit prizes&quot; to add a coin or ruby reward before
+                      paying out.
                     </p>
                   ) : (
                   <Table>
@@ -867,18 +955,14 @@ const ContestManagement = () => {
                             (a) => Number(a.rank) === Number(prize.rank)
                           );
                           const isEnded = detailsContest.status === 'ended';
-                          const hasCoins = prize.coins > 0;
+                          const reward = prizeAmount(prize);
+                          const hasPayout = reward.amount > 0;
                           return (
                             <TableRow key={prize.rank}>
                               <TableCell className="font-semibold">#{prize.rank}</TableCell>
                               <TableCell>
                                 <div>{prize.label}</div>
-                                {hasCoins && (
-                                  <div className="text-xs text-amber-600 flex items-center gap-1">
-                                    <Coins className="h-3 w-3" />
-                                    {Number(prize.coins).toLocaleString()} coins
-                                  </div>
-                                )}
+                                {hasPayout && <div className="text-xs mt-0.5">{formatReward(prize)}</div>}
                               </TableCell>
                               <TableCell className="text-sm">
                                 {isEnded ? (
@@ -895,7 +979,7 @@ const ContestManagement = () => {
                                 )}
                               </TableCell>
                               <TableCell className="text-right">
-                                {!hasCoins ? (
+                                {!hasPayout ? (
                                   <span className="text-xs text-muted-foreground">Manual / display only</span>
                                 ) : award ? (
                                   <Badge variant="outline" className="text-emerald-600 border-emerald-200">
@@ -906,7 +990,11 @@ const ContestManagement = () => {
                                     size="sm"
                                     onClick={() => setDisburseTarget({ prize, recipient })}
                                   >
-                                    <Coins className="h-3.5 w-3.5 mr-1" />
+                                    {reward.type === 'rubies' ? (
+                                      <Gem className="h-3.5 w-3.5 mr-1" />
+                                    ) : (
+                                      <Coins className="h-3.5 w-3.5 mr-1" />
+                                    )}
                                     Give prize
                                   </Button>
                                 ) : (
@@ -1003,10 +1091,12 @@ const ContestManagement = () => {
         isOpen={!!disburseTarget}
         onClose={() => setDisburseTarget(null)}
         onConfirm={handleDisburseConfirm}
-        title="Pay out coin prize"
+        title="Pay out prize"
         description={
           disburseTarget
-            ? `Credit ${Number(disburseTarget.prize.coins).toLocaleString()} coins to ${
+            ? `Credit ${prizeAmount(disburseTarget.prize).amount.toLocaleString()} ${
+                prizeAmount(disburseTarget.prize).type === 'rubies' ? 'rubies' : 'coins'
+              } to ${
                 disburseTarget.recipient?.name || 'the winner'
               } (rank #${disburseTarget.prize.rank})? This is recorded in the wallet ledger and the user is notified. It can only be done once per rank.`
             : ''
