@@ -38,6 +38,8 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { userService } from '../services/userService';
+import payoutAnalyticsService from '../services/payoutAnalyticsService';
+import { useListBack } from '../hooks/useListNavigation';
 import FraudCascadeDialog from '../components/FraudCascadeDialog';
 import { UserReferralsPanel } from '../components/referral/UserReferralsPanel';
 
@@ -264,6 +266,8 @@ function toDateInputValue(d) {
 
 /** Max coins per super-admin adjustment. Must match ADMIN_COIN_ADJUST_MAX / MAX_ADJUST_COINS on the backend. */
 const MAX_ADJUST_COINS = 1_000_000_000;
+/** Max rubies per super-admin adjustment. Must match ADMIN_RUBY_ADJUST_MAX / MAX_ADJUST_RUBIES on the backend. */
+const MAX_ADJUST_RUBIES = 1_000_000_000;
 
 /** Whole-day span in local time (start-of-day → end-of-day) so the query captures the full picked day. */
 function dateInputToStartOfDay(str) {
@@ -443,6 +447,7 @@ const USER_DETAIL_TABS = [
 export default function UserDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const goBack = useListBack('/users');
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(() =>
@@ -522,6 +527,13 @@ export default function UserDetails() {
   const [adjustConfirmText, setAdjustConfirmText] = useState('');
   const [adjusting, setAdjusting] = useState(false);
 
+  const [adjustRubyDirection, setAdjustRubyDirection] = useState('credit');
+  const [adjustRubyAmount, setAdjustRubyAmount] = useState('');
+  const [adjustRubyReason, setAdjustRubyReason] = useState('');
+  const [adjustRubyConfirmOpen, setAdjustRubyConfirmOpen] = useState(false);
+  const [adjustRubyConfirmText, setAdjustRubyConfirmText] = useState('');
+  const [adjustingRuby, setAdjustingRuby] = useState(false);
+
   const [adminActions, setAdminActions] = useState([]);
   const [adminActionsLoading, setAdminActionsLoading] = useState(false);
 
@@ -534,6 +546,12 @@ export default function UserDetails() {
     return d;
   });
   const [activityTo, setActivityTo] = useState(() => new Date());
+
+  const [earningsStartDate, setEarningsStartDate] = useState('');
+  const [earningsEndDate, setEarningsEndDate] = useState('');
+  const [appliedEarningsRange, setAppliedEarningsRange] = useState({ start: '', end: '' });
+  const [streamEarnings, setStreamEarnings] = useState(null);
+  const [streamEarningsLoading, setStreamEarningsLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -596,6 +614,48 @@ export default function UserDetails() {
       setActivityLoading(false);
     }
   };
+
+  const loadStreamEarnings = async (page = 1, range = appliedEarningsRange) => {
+    try {
+      setStreamEarningsLoading(true);
+      const params = {
+        streamPage: page,
+        streamLimit: 15,
+        streamsSortBy: 'streamEndedAt',
+        streamsSortOrder: 'desc',
+      };
+      const start = dateInputToStartOfDay(range.start);
+      const end = dateInputToEndOfDay(range.end);
+      if (start) params.startDate = start.toISOString();
+      if (end) params.endDate = end.toISOString();
+      const data = await payoutAnalyticsService.getStreamerDetails(id, params);
+      setStreamEarnings(data);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to load stream earnings');
+    } finally {
+      setStreamEarningsLoading(false);
+    }
+  };
+
+  const applyEarningsDateFilter = () => {
+    const next = { start: earningsStartDate, end: earningsEndDate };
+    setAppliedEarningsRange(next);
+    loadStreamEarnings(1, next);
+  };
+
+  const clearEarningsDateFilter = () => {
+    setEarningsStartDate('');
+    setEarningsEndDate('');
+    const next = { start: '', end: '' };
+    setAppliedEarningsRange(next);
+    loadStreamEarnings(1, next);
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'streams' || !id) return;
+    loadStreamEarnings(1, appliedEarningsRange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, id]);
 
   const loadWithdrawals = async (page = 1, status = withdrawalsStatus) => {
     try {
@@ -748,6 +808,57 @@ export default function UserDetails() {
     }
   };
 
+  const adjustRubyValidationError = (() => {
+    const amt = Number(adjustRubyAmount);
+    if (!adjustRubyAmount || !Number.isInteger(amt) || amt <= 0) return 'Enter a positive whole number';
+    if (amt > MAX_ADJUST_RUBIES) return `Max ${MAX_ADJUST_RUBIES.toLocaleString()} rubies per adjustment`;
+    const r = String(adjustRubyReason || '').trim();
+    if (r.length < 10) return 'Reason must be at least 10 characters';
+    if (r.length > 500) return 'Reason too long (max 500)';
+    if (currentAdmin?._id && String(currentAdmin._id) === String(id)) {
+      return 'You cannot adjust your own balance';
+    }
+    return null;
+  })();
+
+  const openAdjustRubyConfirm = () => {
+    if (adjustRubyValidationError) {
+      toast.error(adjustRubyValidationError);
+      return;
+    }
+    setAdjustRubyConfirmText('');
+    setAdjustRubyConfirmOpen(true);
+  };
+
+  const submitAdjustRubies = async () => {
+    if (adjustRubyConfirmText !== 'CONFIRM') {
+      toast.error('Type CONFIRM to proceed');
+      return;
+    }
+    try {
+      setAdjustingRuby(true);
+      const result = await userService.adjustUserRubies(id, {
+        direction: adjustRubyDirection,
+        amount: Number(adjustRubyAmount),
+        reason: adjustRubyReason.trim(),
+      });
+      toast.success(
+        `${adjustRubyDirection === 'credit' ? 'Credited' : 'Debited'} ${fmtNum(result.amount)} rubies — new balance ${fmtNum(result.newBalance)}`
+      );
+      setAdjustRubyAmount('');
+      setAdjustRubyReason('');
+      setAdjustRubyConfirmText('');
+      setAdjustRubyConfirmOpen(false);
+      const fresh = await userService.getUserOverview(id);
+      setOverview(fresh);
+      loadAdminActions();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Ruby adjustment failed');
+    } finally {
+      setAdjustingRuby(false);
+    }
+  };
+
   const handleReconcile = async (orderId) => {
     if (!window.confirm(`Credit coins to this user for PayPal order ${orderId}?`)) return;
     try {
@@ -780,7 +891,7 @@ export default function UserDetails() {
   if (error || !overview) {
     return (
       <div className="max-w-3xl mx-auto p-6">
-        <Button variant="outline" onClick={() => navigate('/users')}>
+        <Button variant="outline" onClick={goBack}>
           <ArrowLeft className="size-4 mr-2" /> Back to users
         </Button>
         <Card className="mt-6">
@@ -809,7 +920,7 @@ export default function UserDetails() {
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate('/users')}>
+        <Button variant="ghost" onClick={goBack}>
           <ArrowLeft className="size-4 mr-2" /> Back to users
         </Button>
       </div>
@@ -1308,6 +1419,173 @@ export default function UserDetails() {
             </Card>
           ) : null}
 
+          {/* Admin ruby adjustment — super-admin only */}
+          {canAdjustCoins ? (
+            <Card className="border-rose-200">
+              <CardHeader>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      Admin ruby adjustment
+                      <Badge variant="outline" className="border-rose-400 text-rose-700 text-xs">
+                        super-admin only
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      Add or remove rubies with a reason. Every adjustment is logged
+                      (WalletTransaction + AdminActionLog) and notifies the user in-app and
+                      via push.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="adjust-ruby-direction"
+                      value="credit"
+                      checked={adjustRubyDirection === 'credit'}
+                      onChange={() => setAdjustRubyDirection('credit')}
+                    />
+                    <span className="text-green-700 font-medium">Credit (add rubies)</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="adjust-ruby-direction"
+                      value="debit"
+                      checked={adjustRubyDirection === 'debit'}
+                      onChange={() => setAdjustRubyDirection('debit')}
+                    />
+                    <span className="text-rose-700 font-medium">Debit (remove rubies)</span>
+                  </label>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground">
+                      Amount (rubies, max {MAX_ADJUST_RUBIES.toLocaleString()})
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max={MAX_ADJUST_RUBIES}
+                      step="1"
+                      placeholder="e.g. 100"
+                      value={adjustRubyAmount}
+                      onChange={(e) => setAdjustRubyAmount(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-end text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Preview</p>
+                      <p className="tabular-nums">
+                        {fmtNum(wallet.rubies)}
+                        {' → '}
+                        <span
+                          className={
+                            adjustRubyDirection === 'credit'
+                              ? 'text-green-700 font-semibold'
+                              : 'text-rose-700 font-semibold'
+                          }
+                        >
+                          {fmtNum(
+                            Number(wallet.rubies || 0) +
+                              (adjustRubyDirection === 'credit' ? 1 : -1) *
+                                (Number(adjustRubyAmount) || 0)
+                          )}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted-foreground">
+                    Reason (required, 10–500 chars) — visible to the user in their notification
+                  </label>
+                  <textarea
+                    className="mt-1 w-full rounded-md border border-gray-300 bg-white p-2 text-sm"
+                    rows={3}
+                    maxLength={500}
+                    placeholder="e.g. Manual payout correction for support ticket #5678"
+                    value={adjustRubyReason}
+                    onChange={(e) => setAdjustRubyReason(e.target.value)}
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {adjustRubyReason.trim().length}/500
+                  </p>
+                </div>
+
+                {adjustRubyValidationError ? (
+                  <p className="text-xs text-rose-700">{adjustRubyValidationError}</p>
+                ) : null}
+
+                {!adjustRubyConfirmOpen ? (
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={openAdjustRubyConfirm}
+                      disabled={Boolean(adjustRubyValidationError) || adjustingRuby}
+                    >
+                      Review & apply
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-rose-300 bg-rose-50 p-3 space-y-3">
+                    <p className="text-sm">
+                      You are about to{' '}
+                      <span className="font-semibold">
+                        {adjustRubyDirection === 'credit' ? 'CREDIT' : 'DEBIT'}{' '}
+                        {fmtNum(Number(adjustRubyAmount) || 0)} rubies
+                      </span>{' '}
+                      to/from <span className="font-semibold">@{user.username || user.email}</span>.
+                    </p>
+                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                      Reason: {adjustRubyReason.trim()}
+                    </p>
+                    <div>
+                      <label className="text-xs text-muted-foreground">
+                        Type <span className="font-mono font-semibold">CONFIRM</span> to proceed
+                      </label>
+                      <Input
+                        autoFocus
+                        value={adjustRubyConfirmText}
+                        onChange={(e) => setAdjustRubyConfirmText(e.target.value)}
+                        placeholder="CONFIRM"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setAdjustRubyConfirmOpen(false);
+                          setAdjustRubyConfirmText('');
+                        }}
+                        disabled={adjustingRuby}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={submitAdjustRubies}
+                        disabled={adjustRubyConfirmText !== 'CONFIRM' || adjustingRuby}
+                      >
+                        {adjustingRuby ? (
+                          <>
+                            <Loader2 className="size-4 animate-spin mr-1" /> Applying
+                          </>
+                        ) : (
+                          'Apply ruby adjustment'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
           {/* Admin activity log — visible to all admin levels, read-only */}
           <Card>
             <CardHeader>
@@ -1315,7 +1593,7 @@ export default function UserDetails() {
                 <div>
                   <CardTitle>Admin activity on this user</CardTitle>
                   <CardDescription>
-                    Append-only log of sensitive admin actions (currently: coin adjustments).
+                    Append-only log of sensitive admin actions (coin and ruby adjustments).
                   </CardDescription>
                 </div>
                 <Button
@@ -1433,6 +1711,7 @@ export default function UserDetails() {
                     <option value="live_gift_refund">live_gift_refund</option>
                     <option value="live_gift_reversal">live_gift_reversal</option>
                     <option value="admin_coin_adjustment">admin_coin_adjustment</option>
+                    <option value="admin_ruby_adjustment">admin_ruby_adjustment</option>
                     <option value="lifetime_rubies_reconcile">lifetime_rubies_reconcile</option>
                     <option value="conversion">conversion</option>
                     <option value="withdraw">withdraw</option>
@@ -1788,34 +2067,182 @@ export default function UserDetails() {
         <TabsContent value="streams" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Streaming summary</CardTitle>
+              <CardTitle>Stream earnings</CardTitle>
+              <CardDescription>
+                Filter by when the stream ended. Totals and the table below update for the selected
+                range; leave dates empty for all-time earnings.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-              <StatCard
-                icon={Radio}
-                label="Total streams"
-                value={fmtNum(stats.streamsCount)}
-                color="text-purple-600"
-              />
-              <StatCard
-                icon={Gem}
-                label="Total stream earnings"
-                value={`${fmtNum(stats.streamEarningsTotalRubies)} rubies`}
-                color="text-rose-600"
-              />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground mb-3">
-                Full stream-by-stream breakdown (gifts received, per-stream earnings,
-                gifter list) is on the Payout Analytics page for this user.
-              </p>
-              <Link to={`/streamers-rubies/${id}`}>
-                <Button variant="outline">
-                  Open in Payout Analytics
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-gray-50 p-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">From (stream ended)</label>
+                  <Input
+                    type="date"
+                    className="mt-1 w-[160px] bg-white"
+                    value={earningsStartDate}
+                    max={earningsEndDate || undefined}
+                    onChange={(e) => setEarningsStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">To</label>
+                  <Input
+                    type="date"
+                    className="mt-1 w-[160px] bg-white"
+                    value={earningsEndDate}
+                    min={earningsStartDate || undefined}
+                    onChange={(e) => setEarningsEndDate(e.target.value)}
+                  />
+                </div>
+                <Button size="sm" onClick={applyEarningsDateFilter} disabled={streamEarningsLoading}>
+                  Apply filter
                 </Button>
-              </Link>
+                {(appliedEarningsRange.start || appliedEarningsRange.end) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={clearEarningsDateFilter}
+                    disabled={streamEarningsLoading}
+                  >
+                    Clear
+                  </Button>
+                )}
+                {(appliedEarningsRange.start || appliedEarningsRange.end) && (
+                  <p className="text-xs text-muted-foreground">
+                    Showing streams that ended between{' '}
+                    <span className="font-medium">{appliedEarningsRange.start || '…'}</span> and{' '}
+                    <span className="font-medium">{appliedEarningsRange.end || '…'}</span>
+                  </p>
+                )}
+              </div>
+
+              {streamEarningsLoading && !streamEarnings ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="size-6 animate-spin text-gray-400" />
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <StatCard
+                      icon={Radio}
+                      label={
+                        appliedEarningsRange.start || appliedEarningsRange.end
+                          ? 'Streams (in range)'
+                          : 'Total streams'
+                      }
+                      value={fmtNum(streamEarnings?.summary?.streamsCount ?? stats.streamsCount)}
+                      color="text-purple-600"
+                    />
+                    <StatCard
+                      icon={Gem}
+                      label={
+                        appliedEarningsRange.start || appliedEarningsRange.end
+                          ? 'Rubies earned (in range)'
+                          : 'Total stream earnings'
+                      }
+                      value={`${fmtNum(streamEarnings?.summary?.totalRubiesFromStreams ?? stats.streamEarningsTotalRubies)} rubies`}
+                      color="text-rose-600"
+                    />
+                  </div>
+
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Stream</TableHead>
+                          <TableHead>Started</TableHead>
+                          <TableHead>Ended</TableHead>
+                          <TableHead className="text-right">Coins</TableHead>
+                          <TableHead className="text-right">Rubies</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(streamEarnings?.streams || []).length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                              No stream earnings in this range
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          (streamEarnings?.streams || []).map((st) => (
+                            <TableRow key={String(st.streamId)}>
+                              <TableCell>
+                                <div className="font-medium">{st.title || 'Live stream'}</div>
+                                <div className="text-xs text-muted-foreground">{String(st.streamId)}</div>
+                              </TableCell>
+                              <TableCell className="text-sm">{fmtDate(st.streamStartedAt)}</TableCell>
+                              <TableCell className="text-sm">{fmtDate(st.streamEndedAt)}</TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {fmtNum(st.totalCoinsReceived)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums font-medium text-rose-700">
+                                {fmtNum(st.streamerRubies)}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {(streamEarnings?.streamPagination?.totalPages || 0) > 1 ? (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Page {streamEarnings.streamPagination.page} of{' '}
+                        {streamEarnings.streamPagination.totalPages} (
+                        {fmtNum(streamEarnings.streamPagination.totalCount)} streams)
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={
+                            streamEarningsLoading ||
+                            Number(streamEarnings.streamPagination.page) <= 1
+                          }
+                          onClick={() =>
+                            loadStreamEarnings(
+                              Number(streamEarnings.streamPagination.page) - 1,
+                              appliedEarningsRange
+                            )
+                          }
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={
+                            streamEarningsLoading ||
+                            Number(streamEarnings.streamPagination.page) >=
+                              Number(streamEarnings.streamPagination.totalPages)
+                          }
+                          onClick={() =>
+                            loadStreamEarnings(
+                              Number(streamEarnings.streamPagination.page) + 1,
+                              appliedEarningsRange
+                            )
+                          }
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Per-stream gifters and gift rejection tools are on the full payout page.
+                </p>
+                <Link to={`/streamers-rubies/${id}`}>
+                  <Button variant="outline" size="sm">
+                    Open full payout analytics
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

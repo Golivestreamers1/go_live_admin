@@ -13,6 +13,7 @@ import { Button } from '../components/ui/button';
 import stabilizationService from '../services/stabilizationService';
 import { useStabilizationRealtime } from '../hooks/useStabilizationRealtime';
 import StabilizationLiveBadge from '../components/stabilization/StabilizationLiveBadge';
+import { formatNativeImagesLiveSubtitle } from '../utils/stabilizationLiveFacts';
 
 const roleBadgeClass = (role) =>
   role === 'streamer'
@@ -108,13 +109,13 @@ const NativeImagesMemoryLeak = () => {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Live devices</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">{summary?.activeDevices ?? '—'}</CardTitle>
+            <CardDescription>Users on live now</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {summary?.platformUsersOnLiveNow ?? '—'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            {summary
-              ? `${summary.streamers} streaming · ${summary.viewers} watching`
-              : 'Waiting for live activity…'}
+            {formatNativeImagesLiveSubtitle(summary)}
           </CardContent>
         </Card>
         <Card>

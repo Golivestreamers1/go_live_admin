@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { userService } from '../services/userService';
+import { useListQueryState } from '../hooks/useListQueryState';
+import { useNavigateWithReturn } from '../hooks/useListNavigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -33,11 +34,12 @@ import {
 import { toast } from 'sonner';
 
 const UserManagement = () => {
-  const navigate = useNavigate();
+  const { params, setQuery } = useListQueryState({ filterKeys: ['search', 'role'] });
+  const navigateWithReturn = useNavigateWithReturn();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRole, setSelectedRole] = useState('');
+  const [searchTerm, setSearchTerm] = useState(params.search);
+  const [selectedRole, setSelectedRole] = useState(params.role);
   const [pagination, setPagination] = useState({
     current: 1,
     total: 1,
@@ -68,22 +70,26 @@ const UserManagement = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    setSearchTerm(params.search);
+    setSelectedRole(params.role);
+  }, [params.search, params.role]);
 
+  useEffect(() => {
+    fetchUsers(params.page, params.search, params.role);
+  }, [params.page, params.search, params.role]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchUsers(1, searchTerm, selectedRole);
+    setQuery({ page: 1, search: searchTerm, role: selectedRole });
   };
 
   const handleRoleFilter = (role) => {
     setSelectedRole(role);
-    fetchUsers(1, searchTerm, role);
+    setQuery({ page: 1, role, search: searchTerm });
   };
 
   const handlePageChange = (newPage) => {
-    fetchUsers(newPage, searchTerm, selectedRole);
+    setQuery({ page: newPage });
   };
 
 
@@ -123,14 +129,12 @@ const UserManagement = () => {
       }
     }
     // Refresh the data to ensure consistency
-    fetchUsers(pagination.current, searchTerm, selectedRole);
+    fetchUsers(params.page, params.search, params.role);
   };
 
   const handleUserCreated = (newUser) => {
-    // Add new user to the beginning of the list
-    setUsers(prevUsers => [newUser, ...prevUsers]);
-    // Refresh the data to ensure consistency and update counts
-    fetchUsers(pagination.current, searchTerm, selectedRole);
+    setUsers((prevUsers) => [newUser, ...prevUsers]);
+    fetchUsers(params.page, params.search, params.role);
   };
 
   if (loading && users.length === 0) {
@@ -357,7 +361,7 @@ const UserManagement = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => navigate(`/users/${user._id}`)}
+                          onClick={() => navigateWithReturn(`/users/${user._id}`)}
                           title="Open full details page"
                         >
                           <ExternalLink className="w-4 h-4 mr-2" />

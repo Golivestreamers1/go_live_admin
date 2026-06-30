@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
+import { STABILIZATION_PING_INTERVAL_LABEL } from '../../constants/stabilizationTelemetry';
 import { appCurrentRamMb, appRamSourceLabel } from './liveDeviceShared';
 import StreamHealthPanel from './StreamHealthPanel';
 
@@ -23,7 +24,7 @@ function AppRamHero({ device }) {
       <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-6 text-center">
         <p className="text-sm font-medium text-gray-700">Go Live RAM usage</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Waiting for first ping (~5 sec). Rebuild app if this stays empty — native module required
+          Waiting for first ping ({STABILIZATION_PING_INTERVAL_LABEL}). Rebuild app if this stays empty — native module required
           for exact OS memory.
         </p>
       </div>
@@ -369,7 +370,7 @@ function hardwareBenefitCopy(device, stepCount, live) {
   if (!hasTelemetry) {
     return {
       value: 'Waiting for ping',
-      detail: 'Mic/camera state updates from the app (~5 sec pings, instant on admin via socket)',
+      detail: `Mic/camera state updates from the app (${STABILIZATION_PING_INTERVAL_LABEL} pings, instant on admin via socket)`,
       tone: 'rose',
     };
   }
@@ -492,7 +493,7 @@ function UsageAndBenefitSection({ device, stepCount = 8, live = true }) {
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                App disk scan pending — next live ping (~5 sec).
+                App disk scan pending — next live ping ({STABILIZATION_PING_INTERVAL_LABEL}).
               </p>
             )}
           </div>
@@ -513,7 +514,7 @@ function UsageAndBenefitSection({ device, stepCount = 8, live = true }) {
                 </p>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">App RAM on next ping (~5 sec).</p>
+              <p className="text-sm text-muted-foreground">App RAM on next ping ({STABILIZATION_PING_INTERVAL_LABEL}).</p>
             )}
             {hasAppProcessRam &&
             (Number(device.appImageRamMb) > 0 || Number(device.appLottieRamMb) > 0) ? (
@@ -560,7 +561,7 @@ function UsageAndBenefitSection({ device, stepCount = 8, live = true }) {
             />
           ) : (
             <p className="text-sm text-muted-foreground">
-              Storage pending — next ping (~5 sec).
+              Storage pending — next ping ({STABILIZATION_PING_INTERVAL_LABEL}).
             </p>
           )}
         </div>
@@ -829,7 +830,7 @@ function DualMemoryTimeline({ points, label = 'Live memory time series' }) {
       <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 text-center">
         <p className="text-sm font-medium text-gray-700">Collecting live samples…</p>
         <p className="max-w-sm text-xs text-muted-foreground">
-          Server stores each ping (~5 sec). Chart appears after 2+ samples while on stream.
+          Server stores each ping ({STABILIZATION_PING_INTERVAL_LABEL}). Chart appears after 2+ samples while on stream.
         </p>
       </div>
     );
@@ -979,7 +980,7 @@ function MemoryTimeline({ points, label = 'Session memory trend' }) {
       <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 text-center">
         <p className="text-sm font-medium text-gray-700">Collecting live samples…</p>
         <p className="max-w-sm text-xs text-muted-foreground">
-          Chart appears after 2+ pings from the device (~10 sec on stream at 5 sec interval).
+          Chart appears after 2+ pings from the device (~2 min on stream at {STABILIZATION_PING_INTERVAL_LABEL} interval).
         </p>
       </div>
     );
@@ -1242,7 +1243,7 @@ export function DeviceMemoryMetricsPanel({ device, historyPoints, subtitle, step
         >
           <p className="text-sm font-medium text-gray-700">Waiting for device metrics</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            First ping shortly after live opens (~5 sec interval).
+            First ping shortly after live opens ({STABILIZATION_PING_INTERVAL_LABEL} interval).
           </p>
         </div>
       )}

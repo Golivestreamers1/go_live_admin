@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { withdrawRequestService } from '../services/withdrawRequestService';
+import { useListQueryState } from '../hooks/useListQueryState';
+import { useNavigateWithReturn } from '../hooks/useListNavigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -25,11 +26,11 @@ import { Wallet, User, Check, X, Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const WithdrawRequests = () => {
-  const navigate = useNavigate();
+  const { params, setQuery } = useListQueryState({ filterKeys: ['status', 'search'] });
+  const navigateWithReturn = useNavigateWithReturn();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(params.search);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -69,20 +70,23 @@ const WithdrawRequests = () => {
   };
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    setSearch(params.search);
+  }, [params.search]);
+
+  useEffect(() => {
+    fetchRequests(params.page, params.status, params.search);
+  }, [params.page, params.status, params.search]);
 
   const handleStatusFilter = (status) => {
-    setStatusFilter(status);
-    fetchRequests(1, status, search);
+    setQuery({ page: 1, status, search: params.search });
   };
 
   const handlePageChange = (newPage) => {
-    fetchRequests(newPage, statusFilter, search);
+    setQuery({ page: newPage });
   };
 
   const handleSearch = () => {
-    fetchRequests(1, statusFilter, search);
+    setQuery({ page: 1, search, status: params.status });
   };
 
   const openApprove = (request) => {
@@ -111,7 +115,7 @@ const WithdrawRequests = () => {
       toast.error('Request details unavailable');
       return;
     }
-    navigate(`/withdraw-requests/${requestId}`);
+    navigateWithReturn(`/withdraw-requests/${requestId}`);
   };
 
   const handleConfirm = async () => {
@@ -130,7 +134,7 @@ const WithdrawRequests = () => {
         toast.success('Withdraw request deleted.');
       }
       closeDialog();
-      fetchRequests(pagination.page, statusFilter);
+      fetchRequests(pagination.page, params.status, params.search);
     } catch (error) {
       console.error('Action failed:', error);
       toast.error(error.response?.data?.message || error.message || 'Action failed');
@@ -197,7 +201,7 @@ const WithdrawRequests = () => {
             {['', 'pending', 'approved', 'rejected'].map((s) => (
               <Button
                 key={s}
-                variant={statusFilter === s ? 'default' : 'outline'}
+                variant={params.status === s ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => handleStatusFilter(s)}
               >

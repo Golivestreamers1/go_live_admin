@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { useListBack } from '../hooks/useListNavigation';
 import { fraudCascadeService } from '../services/fraudCascadeService';
 import {
   Card,
@@ -76,7 +77,7 @@ const renderUser = (userId, users) => {
 
 export default function FraudCascadeDetails() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const goBack = useListBack('/fraud-cascade');
   const [cascade, setCascade] = useState(null);
   const [loading, setLoading] = useState(true);
   const [undoing, setUndoing] = useState(false);
@@ -205,7 +206,7 @@ export default function FraudCascadeDetails() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/fraud-cascade')}>
+          <Button variant="ghost" size="sm" onClick={goBack}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to list
           </Button>
           <div>

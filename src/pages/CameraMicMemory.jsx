@@ -14,6 +14,7 @@ import { Button } from '../components/ui/button';
 import stabilizationService from '../services/stabilizationService';
 import { useStabilizationRealtime } from '../hooks/useStabilizationRealtime';
 import StabilizationLiveBadge from '../components/stabilization/StabilizationLiveBadge';
+import { formatPlatformLiveSubtitle } from '../utils/stabilizationLiveFacts';
 import {
   DeviceMemoryMetricsPanel,
   ProbeMetricsPanel,
@@ -138,9 +139,7 @@ const CameraMicMemory = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            {summary
-              ? `${summary.streamersLive} streaming · ${summary.viewersLive} watching`
-              : 'Waiting for live activity…'}
+            {formatPlatformLiveSubtitle(summary)}
           </CardContent>
         </Card>
         <Card>

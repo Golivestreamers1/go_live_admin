@@ -52,6 +52,62 @@ export const payoutAnalyticsService = {
     );
     return response.data.data;
   },
+
+  // Unassigned (unsettled) stream rubies — reconciliation + manual assignment.
+  async getStreamerUnassignedRubies(streamerId) {
+    const response = await api.get(
+      `/admin/payout-analytics/streamers/${streamerId}/unassigned-rubies`
+    );
+    return response.data.data;
+  },
+
+  async assignStreamRubies(streamerId, streamId, reason) {
+    const response = await api.post(
+      `/admin/payout-analytics/streamers/${streamerId}/streams/${streamId}/assign-rubies`,
+      { reason }
+    );
+    return response.data.data;
+  },
+
+  async assignAllStreamerRubies(streamerId, reason) {
+    const response = await api.post(
+      `/admin/payout-analytics/streamers/${streamerId}/assign-all-rubies`,
+      { reason }
+    );
+    return response.data.data;
+  },
+
+  // Transfer unassigned rubies (+ stream/gift records) to ANOTHER user by email.
+  async transferStreamRubies(streamerId, streamId, { email, reason }) {
+    const response = await api.post(
+      `/admin/payout-analytics/streamers/${streamerId}/streams/${streamId}/transfer-rubies`,
+      { email, reason }
+    );
+    return response.data.data;
+  },
+
+  async transferAllStreamerRubies(streamerId, { email, reason }) {
+    const response = await api.post(
+      `/admin/payout-analytics/streamers/${streamerId}/transfer-all-rubies`,
+      { email, reason }
+    );
+    return response.data.data;
+  },
+
+  async getFullWalletTransferPreview(streamerId) {
+    const response = await api.get(
+      `/admin/payout-analytics/streamers/${streamerId}/full-wallet-transfer-preview`
+    );
+    return response.data.data;
+  },
+
+  async transferFullUserWallet(streamerId, { email, reason }) {
+    const response = await api.post(
+      `/admin/payout-analytics/streamers/${streamerId}/transfer-full-wallet`,
+      { email, reason }
+    );
+    return response.data.data;
+  },
 };
 
 export default payoutAnalyticsService;
