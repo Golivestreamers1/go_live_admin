@@ -27,11 +27,17 @@ import { Gift, Plus, Pencil, Trash2, Image as ImageIcon, Upload, Clapperboard } 
 import { toast } from 'sonner';
 
 const GIFT_CATEGORIES = ["Popular", "Roses", "Special", "Guns", "New"];
+const WHEEL_TYPE_OPTIONS = [
+  { value: "", label: "Normal gift (send animation)" },
+  { value: "mystery", label: "Mystery wheel (host wins rubies)" },
+  { value: "gifter", label: "Gifter wheel (viewer wins coins)" },
+];
 
 const emptyGift = {
   name: '',
   coinValue: '',
   category: 'Popular',
+  wheelType: '',
   iconUrl: '',
   animationUrl: '',
   /** Raw Lottie JSON (Bodymovin) — from paste or .json file read in browser; stored in MongoDB. */
@@ -163,6 +169,7 @@ const GiftManagement = () => {
       animationDurationSec: msToDurationSecInput(gift.animationDurationMs),
       displayOrder: gift.displayOrder ?? 0,
       isActive: gift.isActive !== false,
+      wheelType: gift.wheelType ?? '',
     });
     setIconPreviewUrl(gift.iconUrl ?? '');
     setAnimationPreviewUrl(gift.animationUrl ?? '');
@@ -223,6 +230,7 @@ const GiftManagement = () => {
         })(),
         displayOrder: Number(form.displayOrder) || 0,
         isActive: form.isActive,
+        wheelType: form.wheelType?.trim() || null,
       };
       if (editingGift?._id) {
         await giftService.updateGift(editingGift._id, body);
@@ -431,7 +439,14 @@ const GiftManagement = () => {
                     </TableCell>
                     <TableCell className="font-medium">{g.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{g.category || 'Popular'}</Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="outline">{g.category || 'Popular'}</Badge>
+                        {g.wheelType ? (
+                          <Badge variant="secondary" className="w-fit capitalize">
+                            {g.wheelType} wheel
+                          </Badge>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>{g.coinValue}</TableCell>
                     <TableCell>{g.rubyValue ?? '—'}</TableCell>
@@ -522,6 +537,24 @@ const GiftManagement = () => {
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">Category determines how gifts are grouped in the app.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="wheelType">Live interaction</Label>
+              <select
+                id="wheelType"
+                value={form.wheelType || ''}
+                onChange={(e) => setForm((f) => ({ ...f, wheelType: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {WHEEL_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value || 'normal'} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Wheel gifts appear in the live gift panel like other gifts. Tapping them opens the spin wheel instead of sending a normal animation. Use coin value 1000 to match the current wheel cost.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="animationJson">Lottie animation (JSON)</Label>
