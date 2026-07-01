@@ -1221,6 +1221,12 @@ export default function UserDetails() {
                         </p>
                       </div>
                       <div>
+                        <p className="text-muted-foreground">spin_wheel_win</p>
+                        <p className="font-medium tabular-nums">
+                          +{fmtNum(lifetimeAudit.breakdown?.creditsByType?.spin_wheel_win?.rubies)}
+                        </p>
+                      </div>
+                      <div>
                         <p className="text-muted-foreground">Total credits</p>
                         <p className="font-medium tabular-nums">
                           +{fmtNum(lifetimeAudit.breakdown?.totalCredits)}
