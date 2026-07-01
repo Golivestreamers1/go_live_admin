@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Share2, Trophy, Gift, Sparkles } from 'lucide-react';
+import { Share2, Trophy, Gift, Sparkles, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Switch } from '../components/ui/switch';
@@ -11,6 +11,7 @@ const FeaturesAllowed = () => {
     contest: true,
     gifterWheel: true,
     mysteryWheel: true,
+    coinsWebsite: false,
   });
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -24,6 +25,7 @@ const FeaturesAllowed = () => {
         contest: data?.contest !== false,
         gifterWheel: data?.gifterWheel !== false,
         mysteryWheel: data?.mysteryWheel !== false,
+        coinsWebsite: data?.coinsWebsite === true,
       });
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to load feature settings');
@@ -99,6 +101,23 @@ const FeaturesAllowed = () => {
       );
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to update Mystery Wheel setting');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleCoinsWebsiteToggle = async (checked) => {
+    try {
+      setUpdating(true);
+      const updated = await featuresAllowedService.updateSettings({ coinsWebsite: checked });
+      setSettings((prev) => ({ ...prev, coinsWebsite: updated?.coinsWebsite === true }));
+      toast.success(
+        checked
+          ? 'Coins website enabled — users can buy coins via the website from the Wallet screen'
+          : 'Coins website disabled — the website purchase option is hidden in the app',
+      );
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update coins website setting');
     } finally {
       setUpdating(false);
     }
@@ -235,6 +254,38 @@ const FeaturesAllowed = () => {
         <CardContent>
           <p className="text-sm text-muted-foreground">
             Default is enabled. The viewer pays 1,000 coins to spin and the streamer receives the spin plus the landed prize as rubies.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-l-4 border-l-sky-500">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Globe className="h-5 w-5 text-sky-600" />
+                Show coins website
+              </CardTitle>
+              <CardDescription className="mt-1">
+                When on: the Wallet screen shows a &quot;Buy coins from website&quot; option that opens
+                coins.golivestreamers.com in an in-app browser.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-sm border">
+              <span className="text-sm font-medium">
+                {settings.coinsWebsite ? 'Enabled' : 'Disabled'}
+              </span>
+              <Switch
+                checked={settings.coinsWebsite === true}
+                onCheckedChange={handleCoinsWebsiteToggle}
+                disabled={loading || updating}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Default is disabled. In-app store packages remain available regardless of this setting.
           </p>
         </CardContent>
       </Card>
