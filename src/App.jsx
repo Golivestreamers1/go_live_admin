@@ -49,6 +49,7 @@ import FraudCascade from './pages/FraudCascade';
 import FraudCascadeDetails from './pages/FraudCascadeDetails';
 import IapManagement from './pages/IapManagement';
 import FeaturesAllowed from './pages/FeaturesAllowed';
+import AppUpdate from './pages/AppUpdate';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -589,6 +590,16 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout>
                   <FeaturesAllowed />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app-updates"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <AppUpdate />
                 </AdminLayout>
               </ProtectedRoute>
             }

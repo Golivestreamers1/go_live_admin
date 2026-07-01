@@ -43,6 +43,7 @@ import {
   Trophy,
   Radio,
   Send,
+  Smartphone,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -203,6 +204,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Features Allowed',
       href: '/features-allowed',
       icon: SlidersHorizontal,
+    },
+    {
+      name: 'App Updates',
+      href: '/app-updates',
+      icon: Smartphone,
     },
     // {
     //   name: 'QR Codes',
