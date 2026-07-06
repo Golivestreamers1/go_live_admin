@@ -389,11 +389,17 @@ const WithdrawRequests = () => {
               </p>
               {actionDialog.type !== 'delete' && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Admin notes (optional)</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    {actionDialog.type === 'approve' ? 'Approval note (optional)' : 'Admin notes (optional)'}
+                  </label>
                   <textarea
                     className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
                     rows={2}
-                    placeholder="Optional note for records"
+                    placeholder={
+                      actionDialog.type === 'approve'
+                        ? 'Why this payout was approved (saved on snapshot)'
+                        : 'Optional note for records'
+                    }
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
                   />

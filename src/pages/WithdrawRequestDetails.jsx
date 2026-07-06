@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useListBack, useNavigateWithReturn } from '../hooks/useListNavigation';
 import { toast } from 'sonner';
-import { ArrowLeft, Eye } from 'lucide-react';
+import { ArrowLeft, Eye, Lock } from 'lucide-react';
 import { withdrawRequestService } from '../services/withdrawRequestService';
 import payoutAnalyticsService from '../services/payoutAnalyticsService';
 import WithdrawAuditView from '../components/audit/WithdrawAuditView';
@@ -31,6 +31,7 @@ const WithdrawRequestDetails = () => {
   const [showAudit, setShowAudit] = useState(false);
   const [audit, setAudit] = useState(null);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [approvalSnapshot, setApprovalSnapshot] = useState(null);
 
   const STREAMS_PAGE_SIZE = 10;
   const PURCHASES_PAGE_SIZE = 10;
@@ -84,10 +85,30 @@ const WithdrawRequestDetails = () => {
     }
   };
 
+  const loadApprovalSnapshot = async () => {
+    if (!id) return;
+    try {
+      setAuditLoading(true);
+      const data = await withdrawRequestService.getRequestAuditSnapshot(id);
+      setApprovalSnapshot(data);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to load approval audit snapshot');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
   const handleSeeAudit = async () => {
     setShowAudit(true);
     if (!audit) await loadWithdrawAudit();
   };
+
+  const handleViewApprovalAudit = async () => {
+    setShowAudit(true);
+    if (!approvalSnapshot) await loadApprovalSnapshot();
+  };
+
+  const isFrozenAuditView = request?.status === 'approved' && showAudit;
 
   const formatCurrency = (value) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0);
@@ -129,7 +150,11 @@ const WithdrawRequestDetails = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Withdraw Request Details</h1>
           <p className="text-gray-600 mt-1">
-            {showAudit ? 'Accountability proof before payout.' : 'Basic checkout request information.'}
+            {showAudit
+              ? isFrozenAuditView
+                ? 'Frozen accountability record from approval.'
+                : 'Accountability proof before payout.'
+              : 'Basic checkout request information.'}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -141,6 +166,12 @@ const WithdrawRequestDetails = () => {
             <Button onClick={handleSeeAudit}>
               <Eye className="w-4 h-4 mr-2" />
               See Audit
+            </Button>
+          ) : null}
+          {request?.status === 'approved' && !showAudit ? (
+            <Button onClick={handleViewApprovalAudit}>
+              <Lock className="w-4 h-4 mr-2" />
+              View approval audit
             </Button>
           ) : null}
           {showAudit ? (
@@ -161,9 +192,10 @@ const WithdrawRequestDetails = () => {
         </Card>
       ) : showAudit ? (
         <WithdrawAuditView
-          audit={audit}
+          audit={request.status === 'approved' ? null : audit}
+          frozenSnapshot={request.status === 'approved' ? approvalSnapshot : null}
           loading={auditLoading}
-          onRefresh={loadWithdrawAudit}
+          onRefresh={request.status === 'approved' ? loadApprovalSnapshot : loadWithdrawAudit}
           userId={request.user?._id || request.user}
         />
       ) : (
