@@ -436,6 +436,7 @@ function ActivityPanel({ activity, loading, from, to, onChangeRange, onRefresh }
 const USER_DETAIL_TABS = [
   'overview',
   'wallet',
+  'ledger',
   'purchases',
   'streams',
   'activity',
@@ -470,6 +471,10 @@ export default function UserDetails() {
   const [walletTxPagination, setWalletTxPagination] = useState({ current: 1, total: 1, totalItems: 0 });
   const [walletTxLoading, setWalletTxLoading] = useState(false);
   const [walletTxType, setWalletTxType] = useState('');
+
+  const [ledgerRows, setLedgerRows] = useState([]);
+  const [ledgerPagination, setLedgerPagination] = useState({ current: 1, total: 1, totalItems: 0 });
+  const [ledgerLoading, setLedgerLoading] = useState(false);
 
   const [withdrawals, setWithdrawals] = useState([]);
   const [withdrawalsPagination, setWithdrawalsPagination] = useState({ current: 1, total: 1, totalItems: 0, status: '' });
@@ -600,6 +605,24 @@ export default function UserDetails() {
       toast.error(err?.response?.data?.message || 'Failed to load transactions');
     } finally {
       setWalletTxLoading(false);
+    }
+  };
+
+  const loadLedgerTimeline = async (page = 1) => {
+    try {
+      setLedgerLoading(true);
+      const data = await userService.getLedgerTimeline(id, { page, limit: 50 });
+      setLedgerRows(data.rows || []);
+      const p = data.pagination || {};
+      setLedgerPagination({
+        current: p.page || page,
+        total: p.totalPages || 1,
+        totalItems: p.total ?? 0,
+      });
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to load ledger');
+    } finally {
+      setLedgerLoading(false);
     }
   };
 
@@ -993,13 +1016,15 @@ export default function UserDetails() {
           if (v === 'wallet' && walletTx.length === 0) loadWalletTransactions(1);
           if (v === 'wallet' && !lifetimeAudit) loadLifetimeAudit();
           if (v === 'wallet' && adminActions.length === 0) loadAdminActions();
+          if (v === 'ledger' && ledgerRows.length === 0) loadLedgerTimeline(1);
           if (v === 'withdrawals' && withdrawals.length === 0) loadWithdrawals(1);
           if (v === 'activity' && !activity) loadActivity();
         }}
       >
-        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 md:grid-cols-9">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
+          <TabsTrigger value="ledger">Ledger</TabsTrigger>
           <TabsTrigger value="purchases">Purchases</TabsTrigger>
           <TabsTrigger value="streams">Streams</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -1854,6 +1879,121 @@ export default function UserDetails() {
                           size="sm"
                           disabled={walletTxLoading || walletTxPagination.current >= walletTxPagination.total}
                           onClick={() => loadWalletTransactions(walletTxPagination.current + 1)}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* LEDGER TAB — walletAudit timeline (read-only bank statement) */}
+        <TabsContent value="ledger" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Ledger timeline</CardTitle>
+                  <CardDescription>
+                    Bank-statement view from wallet transactions (newest first).{' '}
+                    {ledgerPagination.totalItems
+                      ? `${fmtNum(ledgerPagination.totalItems)} entries`
+                      : ''}
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadLedgerTimeline(ledgerPagination.current || 1)}
+                  disabled={ledgerLoading}
+                >
+                  {ledgerLoading ? <Loader2 className="size-4 animate-spin" /> : 'Refresh'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {ledgerLoading && ledgerRows.length === 0 ? (
+                <div className="flex justify-center p-6">
+                  <Loader2 className="size-5 animate-spin text-gray-400" />
+                </div>
+              ) : ledgerRows.length === 0 ? (
+                <p className="p-6 text-center text-sm text-muted-foreground">
+                  {ledgerPagination.totalItems === 0 ? 'No ledger entries yet' : 'Click Refresh to load'}
+                </p>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>When</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">Rubies</TableHead>
+                        <TableHead className="text-right">Coins</TableHead>
+                        <TableHead>Description</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {ledgerRows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {fmtDate(row.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="font-mono text-xs">
+                              {row.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell
+                            className={`text-right tabular-nums ${
+                              row.rubies < 0 ? 'text-red-600' : row.rubies > 0 ? 'text-green-600' : ''
+                            }`}
+                          >
+                            {row.rubies
+                              ? row.rubies > 0
+                                ? `+${fmtNum(row.rubies)}`
+                                : fmtNum(row.rubies)
+                              : '—'}
+                          </TableCell>
+                          <TableCell
+                            className={`text-right tabular-nums ${
+                              row.coins < 0 ? 'text-red-600' : row.coins > 0 ? 'text-green-600' : ''
+                            }`}
+                          >
+                            {row.coins
+                              ? row.coins > 0
+                                ? `+${fmtNum(row.coins)}`
+                                : fmtNum(row.coins)
+                              : '—'}
+                          </TableCell>
+                          <TableCell className="max-w-md truncate text-xs">{row.description || '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {ledgerPagination.total > 1 ? (
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Page {ledgerPagination.current} of {ledgerPagination.total} ·{' '}
+                        {fmtNum(ledgerPagination.totalItems)} total
+                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={ledgerLoading || ledgerPagination.current <= 1}
+                          onClick={() => loadLedgerTimeline(ledgerPagination.current - 1)}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={ledgerLoading || ledgerPagination.current >= ledgerPagination.total}
+                          onClick={() => loadLedgerTimeline(ledgerPagination.current + 1)}
                         >
                           Next
                         </Button>

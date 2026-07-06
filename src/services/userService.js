@@ -119,6 +119,18 @@ export const userService = {
     return response.data.data;
   },
 
+  async getLedgerTimeline(userId, { page = 1, limit = 50, types, from, to } = {}) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(types ? { types } : {}),
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+    });
+    const response = await api.get(`/admin/users/${userId}/ledger-timeline?${params}`);
+    return response.data.data;
+  },
+
   async reconcileLifetimeRubies(userId) {
     const response = await api.post(`/admin/users/${userId}/lifetime-rubies/reconcile`);
     return response.data.data;
