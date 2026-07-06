@@ -40,6 +40,16 @@ export const withdrawRequestService = {
     return response.data.data;
   },
 
+  async getRequestAuditEvents(id) {
+    const response = await api.get(`/admin/withdraw-requests/${id}/audit-events`);
+    return response.data.data;
+  },
+
+  async markPaypalSent(id) {
+    const response = await api.patch(`/admin/withdraw-requests/${id}/mark-paypal-sent`);
+    return response.data.data;
+  },
+
   async deleteRequest(id) {
     const response = await api.delete(`/admin/withdraw-requests/${id}`);
     return response.data;

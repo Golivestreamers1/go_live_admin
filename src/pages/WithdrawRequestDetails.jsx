@@ -6,6 +6,7 @@ import { ArrowLeft, Eye, Lock } from 'lucide-react';
 import { withdrawRequestService } from '../services/withdrawRequestService';
 import payoutAnalyticsService from '../services/payoutAnalyticsService';
 import WithdrawAuditView from '../components/audit/WithdrawAuditView';
+import WithdrawAuditTimeline from '../components/audit/WithdrawAuditTimeline';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -32,6 +33,9 @@ const WithdrawRequestDetails = () => {
   const [audit, setAudit] = useState(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [approvalSnapshot, setApprovalSnapshot] = useState(null);
+  const [auditTimeline, setAuditTimeline] = useState(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [markingPaypal, setMarkingPaypal] = useState(false);
 
   const STREAMS_PAGE_SIZE = 10;
   const PURCHASES_PAGE_SIZE = 10;
@@ -72,6 +76,38 @@ const WithdrawRequestDetails = () => {
     fetchDetails();
   }, [id]);
 
+  const loadAuditTimeline = async () => {
+    if (!id) return;
+    try {
+      setTimelineLoading(true);
+      const data = await withdrawRequestService.getRequestAuditEvents(id);
+      setAuditTimeline(data);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to load audit timeline');
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id && request) loadAuditTimeline();
+  }, [id, request?._id, request?.status]);
+
+  const handleMarkPaypalSent = async () => {
+    if (!id) return;
+    try {
+      setMarkingPaypal(true);
+      const data = await withdrawRequestService.markPaypalSent(id);
+      if (data?.timeline) setAuditTimeline(data.timeline);
+      else await loadAuditTimeline();
+      toast.success('PayPal marked as sent');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to mark PayPal sent');
+    } finally {
+      setMarkingPaypal(false);
+    }
+  };
+
   const loadWithdrawAudit = async () => {
     if (!id) return;
     try {
@@ -101,6 +137,7 @@ const WithdrawRequestDetails = () => {
   const handleSeeAudit = async () => {
     setShowAudit(true);
     if (!audit) await loadWithdrawAudit();
+    await loadAuditTimeline();
   };
 
   const handleViewApprovalAudit = async () => {
@@ -191,13 +228,23 @@ const WithdrawRequestDetails = () => {
           <CardContent className="py-10 text-center text-gray-500">Request not found</CardContent>
         </Card>
       ) : showAudit ? (
-        <WithdrawAuditView
-          audit={request.status === 'approved' ? null : audit}
-          frozenSnapshot={request.status === 'approved' ? approvalSnapshot : null}
-          loading={auditLoading}
-          onRefresh={request.status === 'approved' ? loadApprovalSnapshot : loadWithdrawAudit}
-          userId={request.user?._id || request.user}
-        />
+        <div className="space-y-4">
+          <WithdrawAuditTimeline
+            timeline={auditTimeline}
+            loading={timelineLoading}
+            onRefresh={loadAuditTimeline}
+            onMarkPaypalSent={handleMarkPaypalSent}
+            markingPaypal={markingPaypal}
+            canMarkPaypal={request.status === 'approved'}
+          />
+          <WithdrawAuditView
+            audit={request.status === 'approved' ? null : audit}
+            frozenSnapshot={request.status === 'approved' ? approvalSnapshot : null}
+            loading={auditLoading}
+            onRefresh={request.status === 'approved' ? loadApprovalSnapshot : loadWithdrawAudit}
+            userId={request.user?._id || request.user}
+          />
+        </div>
       ) : (
         <>
           <Card>
@@ -256,6 +303,15 @@ const WithdrawRequestDetails = () => {
               </div>
             </CardContent>
           </Card>
+
+          <WithdrawAuditTimeline
+            timeline={auditTimeline}
+            loading={timelineLoading}
+            onRefresh={loadAuditTimeline}
+            onMarkPaypalSent={handleMarkPaypalSent}
+            markingPaypal={markingPaypal}
+            canMarkPaypal={request.status === 'approved'}
+          />
 
           <Card>
             <CardHeader>
