@@ -28,6 +28,12 @@ export const withdrawRequestService = {
     return response.data.data;
   },
 
+  /** Full accountability packet for "See Audit" (read-only). */
+  async getRequestAudit(id) {
+    const response = await api.get(`/admin/withdraw-requests/${id}/audit`);
+    return response.data.data;
+  },
+
   async deleteRequest(id) {
     const response = await api.delete(`/admin/withdraw-requests/${id}`);
     return response.data;

@@ -42,6 +42,9 @@ export default function EarningsSummaryPanel({
   reconciling,
   onRefresh,
   onReconcile,
+  allowReconcile = true,
+  title = 'Earnings & integrity',
+  description = 'Ledger-backed earnings summary, spendable balance drift, and integrity flags with numeric evidence.',
 }) {
   const confidence = integrityCheck?.confidence || '—';
   const balance = integrityCheck?.balance;
@@ -54,7 +57,7 @@ export default function EarningsSummaryPanel({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle>Earnings &amp; integrity</CardTitle>
+              <CardTitle>{title}</CardTitle>
               {integrityCheck ? (
                 <Badge
                   variant="outline"
@@ -66,23 +69,24 @@ export default function EarningsSummaryPanel({
               ) : null}
             </div>
             <CardDescription>
-              Ledger-backed earnings summary, spendable balance drift, and integrity flags with
-              numeric evidence.
+              {description}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : 'Refresh'}
             </Button>
-            <Button size="sm" onClick={onReconcile} disabled={reconciling || !canReconcile}>
-              {reconciling ? (
-                <>
-                  <Loader2 className="size-4 animate-spin mr-1" /> Reconciling
-                </>
-              ) : (
-                'Reconcile lifetime'
-              )}
-            </Button>
+            {allowReconcile ? (
+              <Button size="sm" onClick={onReconcile} disabled={reconciling || !canReconcile}>
+                {reconciling ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin mr-1" /> Reconciling
+                  </>
+                ) : (
+                  'Reconcile lifetime'
+                )}
+              </Button>
+            ) : null}
           </div>
         </div>
       </CardHeader>

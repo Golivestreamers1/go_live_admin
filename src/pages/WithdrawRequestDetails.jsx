@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useListBack, useNavigateWithReturn } from '../hooks/useListNavigation';
 import { toast } from 'sonner';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye } from 'lucide-react';
 import { withdrawRequestService } from '../services/withdrawRequestService';
 import payoutAnalyticsService from '../services/payoutAnalyticsService';
+import WithdrawAuditView from '../components/audit/WithdrawAuditView';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -27,6 +28,9 @@ const WithdrawRequestDetails = () => {
   const [streamStats, setStreamStats] = useState(null);
   const [streamsPage, setStreamsPage] = useState(1);
   const [purchasesPage, setPurchasesPage] = useState(1);
+  const [showAudit, setShowAudit] = useState(false);
+  const [audit, setAudit] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const STREAMS_PAGE_SIZE = 10;
   const PURCHASES_PAGE_SIZE = 10;
@@ -67,6 +71,24 @@ const WithdrawRequestDetails = () => {
     fetchDetails();
   }, [id]);
 
+  const loadWithdrawAudit = async () => {
+    if (!id) return;
+    try {
+      setAuditLoading(true);
+      const data = await withdrawRequestService.getRequestAudit(id);
+      setAudit(data);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to load withdraw audit');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const handleSeeAudit = async () => {
+    setShowAudit(true);
+    if (!audit) await loadWithdrawAudit();
+  };
+
   const formatCurrency = (value) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0);
 
@@ -103,15 +125,30 @@ const WithdrawRequestDetails = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Withdraw Request Details</h1>
-          <p className="text-gray-600 mt-1">Basic checkout request information.</p>
+          <p className="text-gray-600 mt-1">
+            {showAudit ? 'Accountability proof before payout.' : 'Basic checkout request information.'}
+          </p>
         </div>
-        <Button variant="outline" onClick={goBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={goBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          {request?.status === 'pending' && !showAudit ? (
+            <Button onClick={handleSeeAudit}>
+              <Eye className="w-4 h-4 mr-2" />
+              See Audit
+            </Button>
+          ) : null}
+          {showAudit ? (
+            <Button variant="secondary" onClick={() => setShowAudit(false)}>
+              Back to request details
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {loading ? (
@@ -122,6 +159,13 @@ const WithdrawRequestDetails = () => {
         <Card>
           <CardContent className="py-10 text-center text-gray-500">Request not found</CardContent>
         </Card>
+      ) : showAudit ? (
+        <WithdrawAuditView
+          audit={audit}
+          loading={auditLoading}
+          onRefresh={loadWithdrawAudit}
+          userId={request.user?._id || request.user}
+        />
       ) : (
         <>
           <Card>
