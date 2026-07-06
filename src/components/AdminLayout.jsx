@@ -38,6 +38,7 @@ import {
   LifeBuoy,
   Bell,
   AlertTriangle,
+  ShieldAlert,
   Share2,
   SlidersHorizontal,
   Trophy,
@@ -143,6 +144,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Withdraw Requests',
       href: '/withdraw-requests',
       icon: ArrowDownToLine,
+    },
+    {
+      name: 'Integrity',
+      href: '/integrity',
+      icon: ShieldAlert,
     },
     {
       name: 'Streamers & rubies',
