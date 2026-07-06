@@ -22,6 +22,7 @@ import {
   Smartphone,
   UserPlus,
 } from 'lucide-react';
+import EarningsSummaryPanel from '../components/audit/EarningsSummaryPanel';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { Button } from '../components/ui/button';
@@ -515,7 +516,8 @@ export default function UserDetails() {
   const [reconciling, setReconciling] = useState(false);
 
   const [lifetimeAudit, setLifetimeAudit] = useState(null);
-  const [lifetimeAuditLoading, setLifetimeAuditLoading] = useState(false);
+  const [integrityCheck, setIntegrityCheck] = useState(null);
+  const [walletAuditLoading, setWalletAuditLoading] = useState(false);
   const [lifetimeReconciling, setLifetimeReconciling] = useState(false);
 
   // Coin-adjust state (super-admin only).
@@ -738,15 +740,19 @@ export default function UserDetails() {
     }
   };
 
-  const loadLifetimeAudit = async () => {
+  const loadWalletAudit = async () => {
     try {
-      setLifetimeAuditLoading(true);
-      const data = await userService.getLifetimeRubiesAudit(id);
-      setLifetimeAudit(data);
+      setWalletAuditLoading(true);
+      const [lifetime, integrity] = await Promise.all([
+        userService.getLifetimeRubiesAudit(id),
+        userService.getIntegrityCheck(id),
+      ]);
+      setLifetimeAudit(lifetime);
+      setIntegrityCheck(integrity);
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to load lifetime rubies audit');
+      toast.error(err?.response?.data?.message || 'Failed to load wallet audit');
     } finally {
-      setLifetimeAuditLoading(false);
+      setWalletAuditLoading(false);
     }
   };
 
@@ -772,7 +778,7 @@ export default function UserDetails() {
       } else {
         toast.success(`Reconciled: ${fmtNum(result.before)} → ${fmtNum(result.after)}`);
       }
-      await loadLifetimeAudit();
+      await loadWalletAudit();
       const fresh = await userService.getUserOverview(id);
       setOverview(fresh);
     } catch (err) {
@@ -1028,7 +1034,7 @@ export default function UserDetails() {
           setActiveTab(v);
           if (v === 'purchases' && purchases.length === 0) loadPurchases(1);
           if (v === 'wallet' && walletTx.length === 0) loadWalletTransactions(1);
-          if (v === 'wallet' && !lifetimeAudit) loadLifetimeAudit();
+          if (v === 'wallet' && !lifetimeAudit) loadWalletAudit();
           if (v === 'wallet' && adminActions.length === 0) loadAdminActions();
           if (v === 'ledger' && ledgerRows.length === 0) loadLedgerTimeline(1);
           if (v === 'withdrawals' && withdrawals.length === 0) loadWithdrawals(1);
@@ -1137,163 +1143,14 @@ export default function UserDetails() {
             <StatCard icon={Trophy} label="Lifetime Rubies" value={fmtNum(wallet.lifetimeRubies)} color="text-gray-700" />
           </div>
 
-          <Card>
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <CardTitle>Lifetime Rubies audit</CardTitle>
-                  <CardDescription>
-                    Stored on user vs. ledger-computed expected value. Reconcile snaps the
-                    stored value to the ledger total — no free-form input.
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={loadLifetimeAudit}
-                    disabled={lifetimeAuditLoading}
-                  >
-                    {lifetimeAuditLoading ? <Loader2 className="size-4 animate-spin" /> : 'Refresh'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleLifetimeReconcile}
-                    disabled={
-                      lifetimeReconciling ||
-                      !lifetimeAudit ||
-                      lifetimeAudit.lifetimeRubies?.diff === 0
-                    }
-                  >
-                    {lifetimeReconciling ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin mr-1" /> Reconciling
-                      </>
-                    ) : (
-                      'Reconcile to ledger'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {lifetimeAuditLoading && !lifetimeAudit ? (
-                <div className="flex justify-center p-6">
-                  <Loader2 className="size-5 animate-spin text-gray-400" />
-                </div>
-              ) : !lifetimeAudit ? (
-                <p className="p-6 text-center text-sm text-muted-foreground">
-                  Click Refresh to load the audit.
-                </p>
-              ) : (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-md border p-3">
-                      <p className="text-xs text-muted-foreground">Stored (user.lifetimeRubies)</p>
-                      <p className="mt-1 text-xl font-bold text-gray-800 tabular-nums">
-                        {fmtNum(lifetimeAudit.lifetimeRubies?.stored)}
-                      </p>
-                    </div>
-                    <div className="rounded-md border p-3">
-                      <p className="text-xs text-muted-foreground">Expected (from ledger)</p>
-                      <p className="mt-1 text-xl font-bold text-blue-700 tabular-nums">
-                        {fmtNum(lifetimeAudit.lifetimeRubies?.expected)}
-                      </p>
-                    </div>
-                    <div
-                      className={`rounded-md border p-3 ${
-                        lifetimeAudit.lifetimeRubies?.diff === 0
-                          ? 'bg-green-50'
-                          : lifetimeAudit.lifetimeRubies?.diff > 0
-                            ? 'bg-amber-50'
-                            : 'bg-rose-50'
-                      }`}
-                    >
-                      <p className="text-xs text-muted-foreground">Diff (stored − expected)</p>
-                      <p
-                        className={`mt-1 text-xl font-bold tabular-nums ${
-                          lifetimeAudit.lifetimeRubies?.diff === 0
-                            ? 'text-green-700'
-                            : lifetimeAudit.lifetimeRubies?.diff > 0
-                              ? 'text-amber-700'
-                              : 'text-rose-700'
-                        }`}
-                      >
-                        {lifetimeAudit.lifetimeRubies?.diff > 0 ? '+' : ''}
-                        {fmtNum(lifetimeAudit.lifetimeRubies?.diff)}
-                      </p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {lifetimeAudit.lifetimeRubies?.diff === 0
-                          ? 'In sync'
-                          : lifetimeAudit.lifetimeRubies?.diff > 0
-                            ? 'Inflated — rejections happened after settlement without decrementing lifetime'
-                            : 'Under-counted — ledger shows more credits than stored'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-semibold mb-2">Breakdown</p>
-                    <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4 text-xs">
-                      <div>
-                        <p className="text-muted-foreground">stream_earnings</p>
-                        <p className="font-medium tabular-nums">
-                          +{fmtNum(lifetimeAudit.breakdown?.creditsByType?.stream_earnings?.rubies)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">conversion</p>
-                        <p className="font-medium tabular-nums">
-                          +{fmtNum(lifetimeAudit.breakdown?.creditsByType?.conversion?.rubies)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">gift_received</p>
-                        <p className="font-medium tabular-nums">
-                          +{fmtNum(lifetimeAudit.breakdown?.creditsByType?.gift_received?.rubies)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">referral</p>
-                        <p className="font-medium tabular-nums">
-                          +{fmtNum(lifetimeAudit.breakdown?.creditsByType?.referral?.rubies)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Total credits</p>
-                        <p className="font-medium tabular-nums">
-                          +{fmtNum(lifetimeAudit.breakdown?.totalCredits)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">
-                          Post-settlement reversals ({lifetimeAudit.breakdown?.postSettlementReversalsCount || 0})
-                        </p>
-                        <p className="font-medium tabular-nums text-rose-700">
-                          −{fmtNum(lifetimeAudit.breakdown?.postSettlementReversalsTotal)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">
-                          Pre-settlement reversals ({lifetimeAudit.breakdown?.preSettlementReversalsCount || 0})
-                        </p>
-                        <p className="font-medium tabular-nums">
-                          ignored
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">= Expected</p>
-                        <p className="font-semibold tabular-nums text-blue-700">
-                          {fmtNum(lifetimeAudit.lifetimeRubies?.expected)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <EarningsSummaryPanel
+            lifetimeAudit={lifetimeAudit}
+            integrityCheck={integrityCheck}
+            loading={walletAuditLoading}
+            reconciling={lifetimeReconciling}
+            onRefresh={loadWalletAudit}
+            onReconcile={handleLifetimeReconcile}
+          />
 
           {/* Admin coin adjustment — super-admin only */}
           {canAdjustCoins ? (

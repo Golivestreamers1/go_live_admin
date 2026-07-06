@@ -131,6 +131,11 @@ export const userService = {
     return response.data.data;
   },
 
+  async getIntegrityCheck(userId) {
+    const response = await api.get(`/admin/users/${userId}/integrity-check`);
+    return response.data.data;
+  },
+
   async reconcileLifetimeRubies(userId) {
     const response = await api.post(`/admin/users/${userId}/lifetime-rubies/reconcile`);
     return response.data.data;
