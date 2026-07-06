@@ -475,6 +475,9 @@ export default function UserDetails() {
   const [ledgerRows, setLedgerRows] = useState([]);
   const [ledgerPagination, setLedgerPagination] = useState({ current: 1, total: 1, totalItems: 0 });
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerTypeFilter, setLedgerTypeFilter] = useState('');
+  const [ledgerFrom, setLedgerFrom] = useState('');
+  const [ledgerTo, setLedgerTo] = useState('');
 
   const [withdrawals, setWithdrawals] = useState([]);
   const [withdrawalsPagination, setWithdrawalsPagination] = useState({ current: 1, total: 1, totalItems: 0, status: '' });
@@ -608,10 +611,21 @@ export default function UserDetails() {
     }
   };
 
-  const loadLedgerTimeline = async (page = 1) => {
+  const loadLedgerTimeline = async (page = 1, overrides = {}) => {
     try {
       setLedgerLoading(true);
-      const data = await userService.getLedgerTimeline(id, { page, limit: 50 });
+      const type =
+        overrides.type !== undefined ? overrides.type : ledgerTypeFilter;
+      const from =
+        overrides.from !== undefined ? overrides.from : ledgerFrom;
+      const to = overrides.to !== undefined ? overrides.to : ledgerTo;
+      const data = await userService.getLedgerTimeline(id, {
+        page,
+        limit: 50,
+        ...(type ? { types: type } : {}),
+        ...(from ? { from } : {}),
+        ...(to ? { to } : {}),
+      });
       setLedgerRows(data.rows || []);
       const p = data.pagination || {};
       setLedgerPagination({
@@ -1905,14 +1919,76 @@ export default function UserDetails() {
                       : ''}
                   </CardDescription>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => loadLedgerTimeline(ledgerPagination.current || 1)}
-                  disabled={ledgerLoading}
-                >
-                  {ledgerLoading ? <Loader2 className="size-4 animate-spin" /> : 'Refresh'}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm"
+                    value={ledgerTypeFilter}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setLedgerTypeFilter(v);
+                      loadLedgerTimeline(1, { type: v });
+                    }}
+                    disabled={ledgerLoading}
+                  >
+                    <option value="">All types</option>
+                    <option value="stream_earnings">stream_earnings</option>
+                    <option value="spin_wheel_win">spin_wheel_win</option>
+                    <option value="referral">referral</option>
+                    <option value="withdraw">withdraw</option>
+                    <option value="conversion">conversion</option>
+                    <option value="purchase">purchase</option>
+                    <option value="live_gift_sent">live_gift_sent</option>
+                    <option value="live_gift_received">live_gift_received</option>
+                    <option value="live_gift_reversal">live_gift_reversal</option>
+                  </select>
+                  <input
+                    type="date"
+                    className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm"
+                    value={ledgerFrom}
+                    onChange={(e) => setLedgerFrom(e.target.value)}
+                    disabled={ledgerLoading}
+                    aria-label="From date"
+                  />
+                  <input
+                    type="date"
+                    className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm"
+                    value={ledgerTo}
+                    onChange={(e) => setLedgerTo(e.target.value)}
+                    disabled={ledgerLoading}
+                    aria-label="To date"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadLedgerTimeline(1)}
+                    disabled={ledgerLoading}
+                  >
+                    Apply dates
+                  </Button>
+                  {(ledgerTypeFilter || ledgerFrom || ledgerTo) ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setLedgerTypeFilter('');
+                        setLedgerFrom('');
+                        setLedgerTo('');
+                        loadLedgerTimeline(1, { type: '', from: '', to: '' });
+                      }}
+                      disabled={ledgerLoading}
+                    >
+                      Clear
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadLedgerTimeline(ledgerPagination.current || 1)}
+                    disabled={ledgerLoading}
+                  >
+                    {ledgerLoading ? <Loader2 className="size-4 animate-spin" /> : 'Refresh'}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -1930,7 +2006,7 @@ export default function UserDetails() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>When</TableHead>
-                        <TableHead>Type</TableHead>
+                        <TableHead>Label</TableHead>
                         <TableHead className="text-right">Rubies</TableHead>
                         <TableHead className="text-right">Coins</TableHead>
                         <TableHead>Description</TableHead>
@@ -1943,7 +2019,11 @@ export default function UserDetails() {
                             {fmtDate(row.createdAt)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="font-mono text-xs">
+                            <p className="text-sm font-medium">{row.label || row.type}</p>
+                            {row.subtitle ? (
+                              <p className="text-xs text-muted-foreground">{row.subtitle}</p>
+                            ) : null}
+                            <Badge variant="outline" className="mt-1 font-mono text-[10px]">
                               {row.type}
                             </Badge>
                           </TableCell>
