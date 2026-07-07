@@ -149,6 +149,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Integrity',
       href: '/integrity',
       icon: ShieldAlert,
+      pathMatch: 'prefix',
     },
     {
       name: 'Streamers & rubies',

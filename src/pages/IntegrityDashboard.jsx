@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
 import integrityService from '../services/integrityService';
+import IntegritySubNav from '../components/integrity/IntegritySubNav';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -81,6 +82,8 @@ export default function IntegrityDashboard() {
 
   return (
     <div className="space-y-6">
+      <IntegritySubNav />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
