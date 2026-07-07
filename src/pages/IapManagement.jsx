@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { iapService } from '../services/iapService';
+import { useListQueryState } from '../hooks/useListQueryState';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -59,20 +60,23 @@ const formatDate = (dateString) => {
   }
 };
 
+const PAGE_LIMIT = 20;
+
 const IapManagement = () => {
-  const [activeTab, setActiveTab] = useState('audit');
+  const { params, setQuery } = useListQueryState({
+    filterKeys: ['tab', 'platform', 'status', 'mode', 'skuMismatch'],
+  });
+  const activeTab = params.tab || 'audit';
+  const selectedPlatform = params.platform || 'all';
+  const selectedStatus = params.status || 'all';
+  const selectedMode = params.mode || 'all';
+  const skuMismatchOnly = params.skuMismatch === '1';
   const [transactions, setTransactions] = useState([]);
   const [packages, setPackages] = useState([]);
   const [settings, setSettings] = useState({ strictMode: true });
   const [loading, setLoading] = useState(true);
   const [updatingSettings, setUpdatingSettings] = useState(false);
-  
-  // Filters for Audit
-  const [selectedPlatform, setSelectedPlatform] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedMode, setSelectedMode] = useState('all');
-  const [skuMismatchOnly, setSkuMismatchOnly] = useState(false);
-  
+
   // Package Dialog
   const [isPackageDialogOpen, setIsPackageDialogOpen] = useState(false);
   const [currentPackage, setCurrentPackage] = useState(null);
@@ -90,29 +94,37 @@ const IapManagement = () => {
 
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 20,
+    limit: PAGE_LIMIT,
     total: 0,
     pages: 1,
+    totalPages: 1,
   });
 
-  const fetchData = async (page = 1) => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       if (activeTab === 'audit') {
         const [settingsData, transData] = await Promise.all([
           iapService.getSettings(),
           iapService.getTransactions({
-            page,
-            limit: pagination.limit,
+            page: params.page,
+            limit: PAGE_LIMIT,
             platform: selectedPlatform !== 'all' ? selectedPlatform : undefined,
             status: selectedStatus !== 'all' ? selectedStatus : undefined,
             verificationMode: selectedMode !== 'all' ? selectedMode : undefined,
             skuMismatch: skuMismatchOnly || undefined,
-          })
+          }),
         ]);
         setSettings(settingsData);
         setTransactions(transData.transactions);
-        setPagination(transData.pagination);
+        const p = transData.pagination || {};
+        setPagination({
+          page: Number(p.page) || params.page,
+          limit: Number(p.limit) || PAGE_LIMIT,
+          total: Number(p.total) || 0,
+          pages: Number(p.pages ?? p.totalPages) || 1,
+          totalPages: Number(p.pages ?? p.totalPages) || 1,
+        });
       } else {
         const packagesData = await iapService.getPackages();
         setPackages(packagesData);
@@ -123,11 +135,22 @@ const IapManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    activeTab,
+    params.page,
+    selectedPlatform,
+    selectedStatus,
+    selectedMode,
+    skuMismatchOnly,
+  ]);
 
   useEffect(() => {
     fetchData();
-  }, [activeTab, selectedPlatform, selectedStatus, selectedMode, skuMismatchOnly]);
+  }, [fetchData]);
+
+  const handlePageChange = (newPage) => {
+    setQuery({ page: newPage });
+  };
 
   const handleToggleStrictMode = async (checked) => {
     try {
@@ -232,14 +255,18 @@ const IapManagement = () => {
               <Plus className="h-4 w-4 mr-2" /> Add Package
             </Button>
           )}
-          <Button onClick={() => fetchData(pagination.page)} variant="outline" disabled={loading}>
+          <Button onClick={fetchData} variant="outline" disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(tab) => setQuery({ tab, page: 1 })}
+        className="w-full"
+      >
         <TabsList className="bg-indigo-50/50 p-1">
           <TabsTrigger value="audit" className="data-[state=active]:bg-white data-[state=active]:text-indigo-900">
             <ShieldCheck className="w-4 h-4 mr-2" /> Audit Ledger
@@ -285,7 +312,10 @@ const IapManagement = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Platform</label>
-                  <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+                  <Select
+                    value={selectedPlatform}
+                    onValueChange={(v) => setQuery({ page: 1, platform: v === 'all' ? '' : v })}
+                  >
                     <SelectItem value="all">All Platforms</SelectItem>
                     <SelectItem value="ios">iOS (App Store)</SelectItem>
                     <SelectItem value="android">Android (Play Store)</SelectItem>
@@ -293,7 +323,10 @@ const IapManagement = () => {
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">Verification Mode</label>
-                  <Select value={selectedMode} onValueChange={setSelectedMode}>
+                  <Select
+                    value={selectedMode}
+                    onValueChange={(v) => setQuery({ page: 1, mode: v === 'all' ? '' : v })}
+                  >
                     <SelectItem value="all">All Modes</SelectItem>
                     <SelectItem value="authoritative">Authoritative Only</SelectItem>
                     <SelectItem value="degraded">Degraded Only</SelectItem>
@@ -301,7 +334,10 @@ const IapManagement = () => {
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">Status</label>
-                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <Select
+                    value={selectedStatus}
+                    onValueChange={(v) => setQuery({ page: 1, status: v === 'all' ? '' : v })}
+                  >
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
@@ -312,7 +348,9 @@ const IapManagement = () => {
                   <Button 
                     variant={skuMismatchOnly ? "destructive" : "outline"}
                     className="w-full flex items-center justify-center gap-2"
-                    onClick={() => setSkuMismatchOnly(!skuMismatchOnly)}
+                    onClick={() =>
+                      setQuery({ page: 1, skuMismatch: skuMismatchOnly ? '' : '1' })
+                    }
                   >
                     <AlertTriangle className="w-4 h-4" />
                     SKU Mismatches Only
@@ -386,30 +424,41 @@ const IapManagement = () => {
                 </TableBody>
               </Table>
 
-              {/* Pagination */}
-              {pagination.pages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {transactions.length} of {pagination.total} entries
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" size="sm" 
-                      disabled={pagination.page === 1}
-                      onClick={() => fetchData(pagination.page - 1)}
-                    >
-                      <ChevronLeft className="h-4 w-4" /> Previous
-                    </Button>
-                    <Button 
-                      variant="outline" size="sm"
-                      disabled={pagination.page === pagination.pages}
-                      onClick={() => fetchData(pagination.page + 1)}
-                    >
-                      Next <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <div className="text-sm text-gray-500">
+                  {(() => {
+                    const pageNum = Number(pagination.page) || 1;
+                    const pageLimit = Number(pagination.limit) || 20;
+                    const totalCount = Number(pagination.total) || 0;
+                    const from = totalCount === 0 ? 0 : (pageNum - 1) * pageLimit + 1;
+                    const to = totalCount === 0 ? 0 : Math.min(pageNum * pageLimit, totalCount);
+                    return `Showing ${from} to ${to} of ${totalCount} transactions`;
+                  })()}
                 </div>
-              )}
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pagination.page <= 1 || loading}
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" /> Previous
+                  </Button>
+                  <span className="text-sm text-gray-500">
+                    Page {pagination.page} of {pagination.totalPages || pagination.pages || 1}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      pagination.page >= (pagination.totalPages || pagination.pages || 1) || loading
+                    }
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                  >
+                    Next <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
