@@ -8,6 +8,7 @@ import ReconciliationBusinessView, {
   TechnicalDetailsToggle,
 } from '../components/reconciliation/ReconciliationBusinessView';
 import ReconciliationTechnicalView from '../components/reconciliation/ReconciliationTechnicalView';
+import ReconciliationHistoryTrend from '../components/reconciliation/ReconciliationHistoryTrend';
 import { Button } from '../components/ui/button';
 import {
   loadSavedView,
@@ -19,6 +20,8 @@ export default function PlatformReconciliation() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyDays] = useState(30);
   const [technicalOpen, setTechnicalOpen] = useState(() => {
     const urlView = new URLSearchParams(window.location.search).get('view');
     if (urlView === RECONCILIATION_VIEW.TECHNICAL) return true;
@@ -30,14 +33,18 @@ export default function PlatformReconciliation() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const summary = await reconciliationService.getSummary({ fleetScan: false });
+      const [summary, historyData] = await Promise.all([
+        reconciliationService.getSummary({ fleetScan: false }),
+        reconciliationService.getHistory(historyDays),
+      ]);
       setData(summary);
+      setHistory(historyData.snapshots || []);
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to load platform reconciliation');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [historyDays]);
 
   useEffect(() => {
     load();
@@ -127,6 +134,8 @@ export default function PlatformReconciliation() {
             onShowTechnical={showTechnicalDetails}
             onInvestigate={investigateIssue}
           />
+
+          <ReconciliationHistoryTrend snapshots={history} days={historyDays} />
 
           <TechnicalDetailsToggle
             expanded={technicalOpen}
