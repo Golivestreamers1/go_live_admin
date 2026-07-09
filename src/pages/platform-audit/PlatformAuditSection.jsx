@@ -16,6 +16,7 @@ import FraudReversalsAuditPage from './FraudReversalsAuditPage';
 import ReconciliationAuditPage from './ReconciliationAuditPage';
 import UserBalanceExplorerPage from './UserBalanceExplorerPage';
 import InvestigationPage from './InvestigationPage';
+import AuditLogsPage from './AuditLogsPage';
 
 const LEDGER_PATHS = {
   '/platform-audit/coin-ledger': 'coin',
@@ -32,6 +33,7 @@ const DATE_FILTER_PATHS = new Set([
   '/platform-audit/referrals',
   '/platform-audit/admin-actions',
   '/platform-audit/fraud',
+  '/platform-audit/logs',
 ]);
 
 const PlatformAuditSection = () => {
@@ -55,6 +57,7 @@ const PlatformAuditSection = () => {
   const isReconciliationAudit = pathname === '/platform-audit/reconciliation';
   const isBalanceExplorer = pathname === '/platform-audit/balance-explorer';
   const isInvestigation = pathname === '/platform-audit/investigation';
+  const isAuditLogs = pathname === '/platform-audit/logs';
   const showDateToolbar = DATE_FILTER_PATHS.has(pathname);
 
   const toolbar = showDateToolbar ? (
@@ -99,6 +102,8 @@ const PlatformAuditSection = () => {
     content = <UserBalanceExplorerPage />;
   } else if (isInvestigation) {
     content = <InvestigationPage />;
+  } else if (isAuditLogs) {
+    content = <AuditLogsPage dateRange={dateRange} />;
   } else {
     content = (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">

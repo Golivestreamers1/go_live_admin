@@ -147,7 +147,7 @@ const PlatformAuditDashboard = ({ dateRange }) => {
       icon: alertCount > 0 ? AlertTriangle : Activity,
       status: alertCount === 0 ? 'pass' : alertCount > 5 ? 'critical' : 'warning',
       href: '/platform-audit/logs',
-      linkLabel: 'View audit logs',
+      linkLabel: 'Manage alerts',
     },
   ];
 
@@ -209,7 +209,7 @@ const PlatformAuditDashboard = ({ dateRange }) => {
           alerts={dashboard?.activeAlerts}
           loading={loading}
           detailHref="/platform-audit/logs"
-          detailLabel="View audit logs"
+          detailLabel="Manage alerts"
         />
       </section>
 

@@ -17,6 +17,7 @@ const SOURCE_LABELS = {
   reconciliation: 'Reconciliation',
   integrity: 'Integrity scan',
   admin: 'Admin action',
+  operation: 'Audit operation',
 };
 
 const AuditLogsTable = ({ data, loading, detailHref, detailLabel }) => {

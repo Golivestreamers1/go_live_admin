@@ -97,7 +97,25 @@ const platformAuditService = {
     return response.data.data;
   },
 
-  getAuditLogs: (params) => api.get('/admin/platform-audit/audit-logs', { params }),
+  getAuditLogs: async (params) => {
+    const response = await api.get('/admin/platform-audit/audit-logs', { params });
+    return response.data.data;
+  },
+
+  getAlerts: async (params) => {
+    const response = await api.get('/admin/platform-audit/alerts', { params });
+    return response.data.data;
+  },
+
+  getAlert: async (id) => {
+    const response = await api.get(`/admin/platform-audit/alerts/${id}`);
+    return response.data.data;
+  },
+
+  updateAlert: async (id, payload) => {
+    const response = await api.patch(`/admin/platform-audit/alerts/${id}`, payload);
+    return response.data.data;
+  },
 
   getSettings: () => api.get('/admin/platform-audit/settings'),
 
