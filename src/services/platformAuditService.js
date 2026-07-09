@@ -117,6 +117,38 @@ const platformAuditService = {
     return response.data.data;
   },
 
+  generateReport: async (payload) => {
+    const response = await api.post('/admin/platform-audit/reports/generate', payload);
+    return response.data.data;
+  },
+
+  listReports: async (params) => {
+    const response = await api.get('/admin/platform-audit/reports', { params });
+    return response.data.data;
+  },
+
+  getReport: async (id) => {
+    const response = await api.get(`/admin/platform-audit/reports/${id}`);
+    return response.data.data;
+  },
+
+  downloadReportCsv: async (id, title = 'report') => {
+    const response = await api.get(`/admin/platform-audit/reports/${id}/download`, {
+      params: { format: 'csv' },
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const safeTitle = String(title).replace(/[^a-z0-9-_]+/gi, '-').toLowerCase();
+    link.download = `${safeTitle}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
   getSettings: () => api.get('/admin/platform-audit/settings'),
 
   updateSettings: (payload) => api.patch('/admin/platform-audit/settings', payload),

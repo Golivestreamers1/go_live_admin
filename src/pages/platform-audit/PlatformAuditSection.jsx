@@ -17,6 +17,7 @@ import ReconciliationAuditPage from './ReconciliationAuditPage';
 import UserBalanceExplorerPage from './UserBalanceExplorerPage';
 import InvestigationPage from './InvestigationPage';
 import AuditLogsPage from './AuditLogsPage';
+import AuditReportsPage from './AuditReportsPage';
 
 const LEDGER_PATHS = {
   '/platform-audit/coin-ledger': 'coin',
@@ -34,6 +35,7 @@ const DATE_FILTER_PATHS = new Set([
   '/platform-audit/admin-actions',
   '/platform-audit/fraud',
   '/platform-audit/logs',
+  '/platform-audit/reports',
 ]);
 
 const PlatformAuditSection = () => {
@@ -58,6 +60,7 @@ const PlatformAuditSection = () => {
   const isBalanceExplorer = pathname === '/platform-audit/balance-explorer';
   const isInvestigation = pathname === '/platform-audit/investigation';
   const isAuditLogs = pathname === '/platform-audit/logs';
+  const isAuditReports = pathname === '/platform-audit/reports';
   const showDateToolbar = DATE_FILTER_PATHS.has(pathname);
 
   const toolbar = showDateToolbar ? (
@@ -72,7 +75,7 @@ const PlatformAuditSection = () => {
         <Button variant="outline" size="sm" disabled title="Advanced filters on each page">
           Filters
         </Button>
-        <Button size="sm" disabled title="Coming in Phase 7">
+        <Button size="sm" disabled={pathname !== '/platform-audit/reports'} title="Use Audit Reports page to export">
           Export Report
         </Button>
       </div>
@@ -104,6 +107,8 @@ const PlatformAuditSection = () => {
     content = <InvestigationPage />;
   } else if (isAuditLogs) {
     content = <AuditLogsPage dateRange={dateRange} />;
+  } else if (isAuditReports) {
+    content = <AuditReportsPage dateRange={dateRange} />;
   } else {
     content = (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
