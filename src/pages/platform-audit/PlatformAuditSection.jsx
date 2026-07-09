@@ -12,6 +12,7 @@ import StreamSettlementAuditPage from './StreamSettlementAuditPage';
 import WithdrawalAuditPage from './WithdrawalAuditPage';
 import ReferralAuditPage from './ReferralAuditPage';
 import AdminActionsAuditPage from './AdminActionsAuditPage';
+import FraudReversalsAuditPage from './FraudReversalsAuditPage';
 
 const LEDGER_PATHS = {
   '/platform-audit/coin-ledger': 'coin',
@@ -27,6 +28,7 @@ const DATE_FILTER_PATHS = new Set([
   '/platform-audit/withdrawals',
   '/platform-audit/referrals',
   '/platform-audit/admin-actions',
+  '/platform-audit/fraud',
 ]);
 
 const PlatformAuditSection = () => {
@@ -46,6 +48,7 @@ const PlatformAuditSection = () => {
   const isWithdrawalAudit = pathname === '/platform-audit/withdrawals';
   const isReferralAudit = pathname === '/platform-audit/referrals';
   const isAdminActionsAudit = pathname === '/platform-audit/admin-actions';
+  const isFraudAudit = pathname === '/platform-audit/fraud';
   const showDateToolbar = DATE_FILTER_PATHS.has(pathname);
 
   const toolbar = showDateToolbar ? (
@@ -82,6 +85,8 @@ const PlatformAuditSection = () => {
     content = <ReferralAuditPage dateRange={dateRange} />;
   } else if (isAdminActionsAudit) {
     content = <AdminActionsAuditPage dateRange={dateRange} />;
+  } else if (isFraudAudit) {
+    content = <FraudReversalsAuditPage dateRange={dateRange} />;
   } else {
     content = (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
