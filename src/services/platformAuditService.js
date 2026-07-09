@@ -47,7 +47,17 @@ const platformAuditService = {
     return response.data.data;
   },
 
-  getReferrals: (params) => api.get('/admin/platform-audit/referrals', { params }),
+  getReferrals: async (params) => {
+    const response = await api.get('/admin/platform-audit/referrals', { params });
+    return response.data.data;
+  },
+
+  getReferralDetail: async (id, recordType) => {
+    const response = await api.get(`/admin/platform-audit/referrals/${id}`, {
+      params: recordType ? { recordType } : undefined,
+    });
+    return response.data.data;
+  },
 
   getAdminActions: (params) => api.get('/admin/platform-audit/admin-actions', { params }),
 
