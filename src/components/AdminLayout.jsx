@@ -40,6 +40,20 @@ import {
   Share2,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
+import { PLATFORM_AUDIT_NAV } from '../config/platformAuditNav';
+
+const PLATFORM_AUDIT_MENU_KEY = 'adminSidebar.platformAuditOpen';
+
+function readPlatformAuditMenuOpen(fallback) {
+  try {
+    const saved = sessionStorage.getItem(PLATFORM_AUDIT_MENU_KEY);
+    if (saved === 'true') return true;
+    if (saved === 'false') return false;
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
 
 const AdminLayout = ({ children, user, onLogout }) => {
   const location = useLocation();
@@ -56,15 +70,42 @@ const AdminLayout = ({ children, user, onLogout }) => {
   const isOnEcommercePage = ecommercePaths.includes(location.pathname);
   const [ecommerceMenuOpen, setEcommerceMenuOpen] = React.useState(isOnEcommercePage);
 
-  // Update menu state when route changes
+  const isOnPlatformAuditPage =
+    location.pathname === '/platform-audit' || location.pathname.startsWith('/platform-audit/');
+  const [platformAuditMenuOpen, setPlatformAuditMenuOpenState] = React.useState(() =>
+    readPlatformAuditMenuOpen(isOnPlatformAuditPage)
+  );
+  const setPlatformAuditMenuOpen = React.useCallback((value) => {
+    setPlatformAuditMenuOpenState((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      try {
+        sessionStorage.setItem(PLATFORM_AUDIT_MENU_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+  const prevPathRef = React.useRef(location.pathname);
+
+  // Auto-expand grouped menus when entering their section (not when user manually collapsed).
   React.useEffect(() => {
-    if (isOnSubscriptionPage && !subscriptionMenuOpen) {
+    const prev = prevPathRef.current;
+    prevPathRef.current = location.pathname;
+
+    if (isOnSubscriptionPage) {
       setSubscriptionMenuOpen(true);
     }
-    if (isOnEcommercePage && !ecommerceMenuOpen) {
+    if (isOnEcommercePage) {
       setEcommerceMenuOpen(true);
     }
-  }, [location.pathname, isOnSubscriptionPage, subscriptionMenuOpen, isOnEcommercePage, ecommerceMenuOpen]);
+
+    const wasOnPlatformAudit =
+      prev === '/platform-audit' || prev.startsWith('/platform-audit/');
+    if (isOnPlatformAuditPage && !wasOnPlatformAudit) {
+      setPlatformAuditMenuOpen(true);
+    }
+  }, [location.pathname, isOnSubscriptionPage, isOnEcommercePage, isOnPlatformAuditPage]);
 
   // Poll open-ticket count for the sidebar badge
   const [openTicketCount, setOpenTicketCount] = React.useState(0);
@@ -88,6 +129,17 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Dashboard',
       href: '/',
       icon: LayoutDashboard,
+    },
+    {
+      name: 'Platform Audit',
+      icon: Shield,
+      isGroup: true,
+      groupKey: 'platform-audit',
+      children: PLATFORM_AUDIT_NAV.map(({ name, href, icon }) => ({
+        name,
+        href,
+        icon,
+      })),
     },
     {
       name: 'User Management',
@@ -274,7 +326,22 @@ const AdminLayout = ({ children, user, onLogout }) => {
     }
   };
 
-  const isActive = (path) => location.pathname === path;
+  const isPlatformAuditChildActive = (href) => {
+    if (href === '/platform-audit') {
+      return location.pathname === '/platform-audit';
+    }
+    return location.pathname === href || location.pathname.startsWith(`${href}/`);
+  };
+
+  const isGroupActive = (children, groupKey) => {
+    if (groupKey === 'platform-audit') {
+      return isOnPlatformAuditPage;
+    }
+    return children.some(
+      (child) =>
+        location.pathname === child.href || location.pathname.startsWith(`${child.href}/`)
+    );
+  };
 
   const isNavItemActive = (item) => {
     if (item.pathMatch === 'prefix') {
@@ -285,8 +352,73 @@ const AdminLayout = ({ children, user, onLogout }) => {
     return location.pathname === item.href;
   };
 
-  const isGroupActive = (children) => {
-    return children.some(child => location.pathname === child.href);
+  const handlePlatformAuditHeaderClick = (onNavigate) => {
+    if (isOnPlatformAuditPage) {
+      setPlatformAuditMenuOpen((open) => !open);
+    } else {
+      setPlatformAuditMenuOpen(true);
+      navigate('/platform-audit');
+    }
+    onNavigate?.();
+  };
+
+  const renderGroupHeader = (item, Icon, isMenuOpen, toggleMenu, onNavigate) => {
+    const groupActive = isGroupActive(item.children, item.groupKey);
+    const isPlatformAudit = item.groupKey === 'platform-audit';
+
+    if (isPlatformAudit) {
+      return (
+        <button
+          type="button"
+          onClick={() => handlePlatformAuditHeaderClick(onNavigate)}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium ${
+            groupActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+        >
+          <div className="flex items-center space-x-3 min-w-0">
+            <Icon className="w-4 h-4 shrink-0" />
+            <span className="truncate">{item.name}</span>
+          </div>
+          {isMenuOpen ? (
+            <ChevronDown className="w-4 h-4 shrink-0" />
+          ) : (
+            <ChevronRight className="w-4 h-4 shrink-0" />
+          )}
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={toggleMenu}
+        className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium ${
+          groupActive
+            ? 'bg-primary/10 text-primary'
+            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+        }`}
+      >
+        <div className="flex items-center space-x-3">
+          <Icon className="w-4 h-4" />
+          <span>{item.name}</span>
+        </div>
+        {isMenuOpen ? (
+          <ChevronDown className="w-4 h-4" />
+        ) : (
+          <ChevronRight className="w-4 h-4" />
+        )}
+      </button>
+    );
+  };
+
+  const getGroupMenuState = (groupKey) => {
+    if (groupKey === 'ecommerce') {
+      return [ecommerceMenuOpen, () => setEcommerceMenuOpen(!ecommerceMenuOpen)];
+    }
+    if (groupKey === 'platform-audit') {
+      return [platformAuditMenuOpen, () => setPlatformAuditMenuOpen((open) => !open)];
+    }
+    return [subscriptionMenuOpen, () => setSubscriptionMenuOpen(!subscriptionMenuOpen)];
   };
 
   return (
@@ -306,41 +438,26 @@ const AdminLayout = ({ children, user, onLogout }) => {
               const Icon = item.icon;
 
               if (item.isGroup) {
-                const isMenuOpen = item.groupKey === 'ecommerce' ? ecommerceMenuOpen : subscriptionMenuOpen;
-                const toggleMenu = item.groupKey === 'ecommerce'
-                  ? () => setEcommerceMenuOpen(!ecommerceMenuOpen)
-                  : () => setSubscriptionMenuOpen(!subscriptionMenuOpen);
+                const [isMenuOpen, toggleMenu] = getGroupMenuState(item.groupKey);
 
                 return (
                   <div key={item.name} className="space-y-1">
-                    <button
-                      onClick={toggleMenu}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium ${
-                        isGroupActive(item.children)
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Icon className="w-4 h-4" />
-                        <span>{item.name}</span>
-                      </div>
-                      {isMenuOpen ? (
-                        <ChevronDown className="w-4 h-4" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4" />
-                      )}
-                    </button>
+                    {renderGroupHeader(item, Icon, isMenuOpen, toggleMenu, () => setSidebarOpen(false))}
                     {isMenuOpen && (
                       <div className="ml-4 space-y-1">
                         {item.children.map((child) => {
                           const ChildIcon = child.icon;
+                          const childActive =
+                            item.groupKey === 'platform-audit'
+                              ? isPlatformAuditChildActive(child.href)
+                              : location.pathname === child.href ||
+                                location.pathname.startsWith(`${child.href}/`);
                           return (
                             <Link
                               key={child.name}
                               to={child.href}
                               className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium ${
-                                isActive(child.href)
+                                childActive
                                   ? 'bg-primary text-primary-foreground'
                                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                               }`}
@@ -393,41 +510,26 @@ const AdminLayout = ({ children, user, onLogout }) => {
             const Icon = item.icon;
 
             if (item.isGroup) {
-              const isMenuOpen = item.groupKey === 'ecommerce' ? ecommerceMenuOpen : subscriptionMenuOpen;
-              const toggleMenu = item.groupKey === 'ecommerce'
-                ? () => setEcommerceMenuOpen(!ecommerceMenuOpen)
-                : () => setSubscriptionMenuOpen(!subscriptionMenuOpen);
+              const [isMenuOpen, toggleMenu] = getGroupMenuState(item.groupKey);
 
               return (
                 <div key={item.name} className="space-y-1">
-                  <button
-                    onClick={toggleMenu}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium ${
-                      isGroupActive(item.children)
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Icon className="w-4 h-4" />
-                      <span>{item.name}</span>
-                    </div>
-                    {isMenuOpen ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                  </button>
+                  {renderGroupHeader(item, Icon, isMenuOpen, toggleMenu)}
                   {isMenuOpen && (
                     <div className="ml-4 space-y-1">
                       {item.children.map((child) => {
                         const ChildIcon = child.icon;
+                        const childActive =
+                          item.groupKey === 'platform-audit'
+                            ? isPlatformAuditChildActive(child.href)
+                            : location.pathname === child.href ||
+                              location.pathname.startsWith(`${child.href}/`);
                         return (
                           <Link
                             key={child.name}
                             to={child.href}
                             className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium ${
-                              isActive(child.href)
+                              childActive
                                 ? 'bg-primary text-primary-foreground'
                                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                             }`}
