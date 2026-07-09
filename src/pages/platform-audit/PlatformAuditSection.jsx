@@ -1,30 +1,58 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { Button } from '../../components/ui/button';
 import PlatformAuditLayout from '../../components/platform-audit/PlatformAuditLayout';
+import PlatformAuditDateRange from '../../components/platform-audit/PlatformAuditDateRange';
+import { getDefaultDateRange } from '../../components/platform-audit/formatters';
 import { getPlatformAuditPageMeta } from '../../config/platformAuditNav';
+import PlatformAuditDashboard from './PlatformAuditDashboard';
 
 const PlatformAuditSection = () => {
   const { pathname } = useLocation();
   const meta = getPlatformAuditPageMeta(pathname);
+  const [dateRange, setDateRange] = useState(getDefaultDateRange);
+  const [activePreset, setActivePreset] = useState('7d');
 
   if (!meta) {
     return null;
   }
 
-  return (
-    <PlatformAuditLayout
-      title={meta.name}
-      subtitle={meta.description}
-    >
-      <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
-        <p className="text-sm font-medium text-gray-900">Coming soon</p>
-        <p className="mt-2 text-sm text-gray-500">
-          {meta.name} will be built in the Platform Audit module rollout.
-        </p>
-        <p className="mt-4 text-xs text-gray-400">
-          Backend audit engine is active — UI landing in upcoming phases.
-        </p>
+  const isDashboard = pathname === '/platform-audit';
+
+  const toolbar = isDashboard ? (
+    <div className="flex flex-col items-stretch gap-2 sm:items-end">
+      <PlatformAuditDateRange
+        value={dateRange}
+        onChange={setDateRange}
+        activePreset={activePreset}
+        onPresetChange={setActivePreset}
+      />
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant="outline" size="sm" disabled title="Advanced filters in a later phase">
+          Filters
+        </Button>
+        <Button size="sm" disabled title="Coming in Phase 7">
+          Export Report
+        </Button>
       </div>
+    </div>
+  ) : null;
+
+  return (
+    <PlatformAuditLayout title={meta.name} subtitle={meta.description} toolbar={toolbar}>
+      {isDashboard ? (
+        <PlatformAuditDashboard dateRange={dateRange} />
+      ) : (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
+          <p className="text-sm font-medium text-gray-900">Coming soon</p>
+          <p className="mt-2 text-sm text-gray-500">
+            {meta.name} will be built in the Platform Audit module rollout.
+          </p>
+          <p className="mt-4 text-xs text-gray-400">
+            Backend audit engine is active — UI landing in upcoming phases.
+          </p>
+        </div>
+      )}
     </PlatformAuditLayout>
   );
 };

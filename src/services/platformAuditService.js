@@ -2,9 +2,15 @@ import api from './api';
 
 /** Platform Audit API client — new `/admin/platform-audit/*` endpoints (Phase 2+). */
 const platformAuditService = {
-  health: () => api.get('/admin/platform-audit/health'),
+  health: async () => {
+    const response = await api.get('/admin/platform-audit/health');
+    return response.data.data;
+  },
 
-  getDashboard: (params) => api.get('/admin/platform-audit/dashboard', { params }),
+  getDashboard: async (params) => {
+    const response = await api.get('/admin/platform-audit/dashboard', { params });
+    return response.data.data;
+  },
 
   getCoinLedger: (params) => api.get('/admin/platform-audit/coin-ledger', { params }),
 
