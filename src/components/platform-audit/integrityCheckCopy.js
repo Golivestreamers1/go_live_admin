@@ -1,5 +1,15 @@
 import { formatNumber } from './formatters';
 
+export const INTEGRITY_CHECK_LINKS = {
+  I1_COIN_STOCK: '/platform-audit/coin-ledger',
+  I2_RUBY_STOCK: '/platform-audit/ruby-ledger',
+  I3_REFERENTIAL: '/platform-audit/investigation',
+  E3_UNSETTLED_GIFTS: '/platform-audit/stream-settlements',
+  E4_GIFT_SETTLEMENT: '/platform-audit/stream-settlements',
+  E5_CONVERSION: '/platform-audit/coin-ledger',
+  W1_SPIN_WHEEL: '/platform-audit/coin-ledger',
+};
+
 /** Plain-language labels for admin-facing integrity checks. */
 export const INTEGRITY_CHECK_LABELS = {
   I1_COIN_STOCK: 'Coins on platform match records',

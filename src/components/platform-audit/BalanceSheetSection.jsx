@@ -2,9 +2,10 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import DistributionDonut from './DistributionDonut';
+import SectionDetailLink from './SectionDetailLink';
 import { formatNumber } from './formatters';
 
-const BalanceSheetSection = ({ data, loading }) => {
+const BalanceSheetSection = ({ data, loading, detailHref, detailLabel }) => {
   if (loading) {
     return (
       <Card>
@@ -35,7 +36,12 @@ const BalanceSheetSection = ({ data, loading }) => {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Economic Balance Sheet</CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base">Economic Balance Sheet</CardTitle>
+          {!loading && detailHref ? (
+            <SectionDetailLink href={detailHref} label={detailLabel} />
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-2 gap-3 text-center text-sm">
@@ -80,6 +86,8 @@ const BalanceSheetSection = ({ data, loading }) => {
 BalanceSheetSection.propTypes = {
   data: PropTypes.object,
   loading: PropTypes.bool,
+  detailHref: PropTypes.string,
+  detailLabel: PropTypes.string,
 };
 
 export default BalanceSheetSection;

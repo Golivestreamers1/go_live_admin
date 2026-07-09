@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../ui/card';
 import AuditStatusBadge from './AuditStatusBadge';
 
@@ -10,9 +11,11 @@ const PlatformAuditMetricCard = ({
   icon: Icon,
   status,
   loading,
+  href,
+  linkLabel = 'Open',
 }) => {
-  return (
-    <Card>
+  const content = (
+    <Card className={href ? 'h-full transition-shadow hover:shadow-md' : undefined}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -35,9 +38,22 @@ const PlatformAuditMetricCard = ({
             <AuditStatusBadge status={status} />
           </div>
         ) : null}
+        {href && !loading ? (
+          <p className="mt-3 text-xs font-medium text-primary">{linkLabel} →</p>
+        ) : null}
       </CardContent>
     </Card>
   );
+
+  if (href && !loading) {
+    return (
+      <Link to={href} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 };
 
 PlatformAuditMetricCard.propTypes = {
@@ -47,6 +63,8 @@ PlatformAuditMetricCard.propTypes = {
   icon: PropTypes.elementType,
   status: PropTypes.string,
   loading: PropTypes.bool,
+  href: PropTypes.string,
+  linkLabel: PropTypes.string,
 };
 
 export default PlatformAuditMetricCard;

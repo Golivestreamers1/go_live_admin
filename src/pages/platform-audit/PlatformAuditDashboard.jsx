@@ -85,6 +85,8 @@ const PlatformAuditDashboard = ({ dateRange }) => {
         : 'Platform reconciliation score',
       icon: HeartPulse,
       status: auditScore?.status,
+      href: '/platform-audit/reconciliation',
+      linkLabel: 'View reconciliation',
     },
     {
       key: 'coins-purchased',
@@ -95,6 +97,8 @@ const PlatformAuditDashboard = ({ dateRange }) => {
         : 'Lifetime coin purchases',
       icon: Coins,
       status: integrity?.coinLedger?.status,
+      href: '/platform-audit/purchases',
+      linkLabel: 'View purchase audit',
     },
     {
       key: 'rubies-generated',
@@ -105,6 +109,8 @@ const PlatformAuditDashboard = ({ dateRange }) => {
         : 'Stream, referral, and conversion inflows',
       icon: Gem,
       status: integrity?.rubyLedger?.status,
+      href: '/platform-audit/ruby-ledger',
+      linkLabel: 'View ruby ledger',
     },
     {
       key: 'total-withdrawn',
@@ -120,6 +126,8 @@ const PlatformAuditDashboard = ({ dateRange }) => {
           : integrity?.withdrawalProcessing?.pending > 0
             ? 'warning'
             : 'pass',
+      href: '/platform-audit/withdrawals',
+      linkLabel: 'View withdrawal audit',
     },
     {
       key: 'active-users',
@@ -128,6 +136,8 @@ const PlatformAuditDashboard = ({ dateRange }) => {
       subtitle: 'Users active in the last 30 days',
       icon: Users,
       status: null,
+      href: '/platform-audit/balance-explorer',
+      linkLabel: 'Explore balances',
     },
     {
       key: 'audit-alerts',
@@ -136,6 +146,8 @@ const PlatformAuditDashboard = ({ dateRange }) => {
       subtitle: alertCount === 0 ? 'No open audit alerts' : 'Open issues requiring review',
       icon: alertCount > 0 ? AlertTriangle : Activity,
       status: alertCount === 0 ? 'pass' : alertCount > 5 ? 'critical' : 'warning',
+      href: '/platform-audit/logs',
+      linkLabel: 'View audit logs',
     },
   ];
 
@@ -152,32 +164,68 @@ const PlatformAuditDashboard = ({ dateRange }) => {
               icon={card.icon}
               status={card.status}
               loading={loading}
+              href={card.href}
+              linkLabel={card.linkLabel}
             />
           ))}
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <LedgerSummaryPanel variant="coin" data={coinLedger} loading={loading} />
-        <LedgerSummaryPanel variant="ruby" data={rubyLedger} loading={loading} />
+        <LedgerSummaryPanel
+          variant="coin"
+          data={coinLedger}
+          loading={loading}
+          detailHref="/platform-audit/coin-ledger"
+          detailLabel="Open coin ledger"
+        />
+        <LedgerSummaryPanel
+          variant="ruby"
+          data={rubyLedger}
+          loading={loading}
+          detailHref="/platform-audit/ruby-ledger"
+          detailLabel="Open ruby ledger"
+        />
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <BalanceSheetSection data={dashboard?.balanceSheet} loading={loading} />
+        <BalanceSheetSection
+          data={dashboard?.balanceSheet}
+          loading={loading}
+          detailHref="/platform-audit/reconciliation"
+          detailLabel="View reconciliation"
+        />
         <IntegrityOverview
           data={dashboard?.integrityChecks}
           auditScore={auditScore}
           loading={loading}
+          detailHref="/platform-audit/reconciliation"
+          detailLabel="Full reconciliation"
         />
       </section>
 
       <section>
-        <ActiveAlertsPanel alerts={dashboard?.activeAlerts} loading={loading} />
+        <ActiveAlertsPanel
+          alerts={dashboard?.activeAlerts}
+          loading={loading}
+          detailHref="/platform-audit/logs"
+          detailLabel="View audit logs"
+        />
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <AuditLogsTable data={dashboard?.auditLogs} loading={loading} />
-        <TransactionCategoriesTable data={dashboard?.transactionCategories} loading={loading} />
+        <AuditLogsTable
+          data={dashboard?.auditLogs}
+          loading={loading}
+          detailHref="/platform-audit/logs"
+          detailLabel="All audit logs"
+        />
+        <TransactionCategoriesTable
+          data={dashboard?.transactionCategories}
+          loading={loading}
+          detailHref="/platform-audit/coin-ledger"
+          detailLabel="Browse ledger"
+        />
       </section>
     </div>
   );

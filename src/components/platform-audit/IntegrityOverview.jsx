@@ -8,8 +8,10 @@ import {
   getConfidenceLabel,
   getPlainSummary,
   INTEGRITY_CHECK_LABELS,
+  INTEGRITY_CHECK_LINKS,
   SUMMARY_PILL_LABELS,
 } from './integrityCheckCopy';
+import SectionDetailLink from './SectionDetailLink';
 
 const STATUS_ICON = {
   pass: CheckCircle2,
@@ -25,7 +27,7 @@ const STATUS_ICON_CLASS = {
   not_applicable: 'text-gray-400',
 };
 
-const IntegrityOverview = ({ data, auditScore, loading }) => {
+const IntegrityOverview = ({ data, auditScore, loading, detailHref, detailLabel }) => {
   if (loading) {
     return (
       <Card>
@@ -55,12 +57,17 @@ const IntegrityOverview = ({ data, auditScore, loading }) => {
                 : ''}
             </p>
           </div>
-          {auditScore ? (
-            <div className="text-right">
-              <p className="text-2xl font-bold text-gray-900">{auditScore.percentage}%</p>
-              <AuditStatusBadge status={auditScore.status} />
-            </div>
-          ) : null}
+          <div className="flex flex-col items-end gap-1">
+            {auditScore ? (
+              <div className="text-right">
+                <p className="text-2xl font-bold text-gray-900">{auditScore.percentage}%</p>
+                <AuditStatusBadge status={auditScore.status} />
+              </div>
+            ) : null}
+            {!loading && detailHref ? (
+              <SectionDetailLink href={detailHref} label={detailLabel} />
+            ) : null}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -82,6 +89,7 @@ const IntegrityOverview = ({ data, auditScore, loading }) => {
             const iconClass = STATUS_ICON_CLASS[check.status] ?? 'text-gray-500';
             const label = INTEGRITY_CHECK_LABELS[check.id] ?? check.name;
             const description = getPlainSummary(check);
+            const checkHref = INTEGRITY_CHECK_LINKS[check.id];
 
             return (
               <li key={check.id} className="flex items-start gap-3 px-3 py-2.5">
@@ -94,6 +102,11 @@ const IntegrityOverview = ({ data, auditScore, loading }) => {
                   <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                     {description}
                   </p>
+                  {checkHref ? (
+                    <div className="mt-1.5">
+                      <SectionDetailLink href={checkHref} label="View details" />
+                    </div>
+                  ) : null}
                 </div>
               </li>
             );
@@ -108,6 +121,8 @@ IntegrityOverview.propTypes = {
   data: PropTypes.object,
   auditScore: PropTypes.object,
   loading: PropTypes.bool,
+  detailHref: PropTypes.string,
+  detailLabel: PropTypes.string,
 };
 
 export default IntegrityOverview;

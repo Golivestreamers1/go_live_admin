@@ -4,6 +4,7 @@ import { Coins, Gem } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import AuditStatusBadge from './AuditStatusBadge';
 import LedgerBalanceCheck from './LedgerBalanceCheck';
+import SectionDetailLink from './SectionDetailLink';
 import { formatNumber } from './formatters';
 
 const COIN_INTRODUCED = [
@@ -52,7 +53,7 @@ FlowRows.propTypes = {
   data: PropTypes.object,
 };
 
-const LedgerSummaryPanel = ({ variant, data, loading }) => {
+const LedgerSummaryPanel = ({ variant, data, loading, detailHref, detailLabel }) => {
   const isCoin = variant === 'coin';
   const Icon = isCoin ? Coins : Gem;
   const inflow = isCoin ? data?.introduced : data?.generated;
@@ -67,14 +68,19 @@ const LedgerSummaryPanel = ({ variant, data, loading }) => {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <Icon className="h-4 w-4 text-primary" />
             <CardTitle className="text-base">{isCoin ? 'Coin Ledger' : 'Ruby Ledger'}</CardTitle>
           </div>
-          {!loading && reconciliation ? (
-            <AuditStatusBadge status={reconciled ? 'pass' : reconciliation.ledgerStatus ?? 'failed'} />
-          ) : null}
+          <div className="flex flex-col items-end gap-1">
+            {!loading && reconciliation ? (
+              <AuditStatusBadge status={reconciled ? 'pass' : reconciliation.ledgerStatus ?? 'failed'} />
+            ) : null}
+            {!loading && detailHref ? (
+              <SectionDetailLink href={detailHref} label={detailLabel} />
+            ) : null}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -126,6 +132,8 @@ LedgerSummaryPanel.propTypes = {
   variant: PropTypes.oneOf(['coin', 'ruby']).isRequired,
   data: PropTypes.object,
   loading: PropTypes.bool,
+  detailHref: PropTypes.string,
+  detailLabel: PropTypes.string,
 };
 
 export default LedgerSummaryPanel;

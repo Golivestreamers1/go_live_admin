@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '../ui/table';
 import AuditStatusBadge from './AuditStatusBadge';
+import SectionDetailLink from './SectionDetailLink';
 import { formatDateTime } from './formatters';
 
 const SOURCE_LABELS = {
@@ -18,13 +19,18 @@ const SOURCE_LABELS = {
   admin: 'Admin action',
 };
 
-const AuditLogsTable = ({ data, loading }) => {
+const AuditLogsTable = ({ data, loading, detailHref, detailLabel }) => {
   const logs = data?.logs ?? [];
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Recent Audit Logs</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">Recent Audit Logs</CardTitle>
+          {!loading && detailHref ? (
+            <SectionDetailLink href={detailHref} label={detailLabel} />
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -86,6 +92,8 @@ const AuditLogsTable = ({ data, loading }) => {
 AuditLogsTable.propTypes = {
   data: PropTypes.object,
   loading: PropTypes.bool,
+  detailHref: PropTypes.string,
+  detailLabel: PropTypes.string,
 };
 
 export default AuditLogsTable;

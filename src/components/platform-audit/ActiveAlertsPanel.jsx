@@ -2,16 +2,22 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Bell } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import SectionDetailLink from './SectionDetailLink';
 
-const ActiveAlertsPanel = ({ alerts, loading }) => {
+const ActiveAlertsPanel = ({ alerts, loading, detailHref, detailLabel }) => {
   const items = alerts ?? [];
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Bell className="h-4 w-4 text-primary" />
-          <CardTitle className="text-base">Active Alerts</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-primary" />
+            <CardTitle className="text-base">Active Alerts</CardTitle>
+          </div>
+          {!loading && detailHref ? (
+            <SectionDetailLink href={detailHref} label={detailLabel} />
+          ) : null}
         </div>
       </CardHeader>
       <CardContent>
@@ -41,6 +47,8 @@ const ActiveAlertsPanel = ({ alerts, loading }) => {
 ActiveAlertsPanel.propTypes = {
   alerts: PropTypes.array,
   loading: PropTypes.bool,
+  detailHref: PropTypes.string,
+  detailLabel: PropTypes.string,
 };
 
 export default ActiveAlertsPanel;

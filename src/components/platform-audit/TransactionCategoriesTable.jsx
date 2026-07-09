@@ -11,14 +11,20 @@ import {
   TableRow,
 } from '../ui/table';
 import { formatNumber } from './formatters';
+import SectionDetailLink from './SectionDetailLink';
 
-const TransactionCategoriesTable = ({ data, loading }) => {
+const TransactionCategoriesTable = ({ data, loading, detailHref, detailLabel }) => {
   const categories = data?.categories ?? [];
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Top Transaction Categories</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">Top Transaction Categories</CardTitle>
+          {!loading && detailHref ? (
+            <SectionDetailLink href={detailHref} label={detailLabel} />
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -81,6 +87,8 @@ const TransactionCategoriesTable = ({ data, loading }) => {
 TransactionCategoriesTable.propTypes = {
   data: PropTypes.object,
   loading: PropTypes.bool,
+  detailHref: PropTypes.string,
+  detailLabel: PropTypes.string,
 };
 
 export default TransactionCategoriesTable;
