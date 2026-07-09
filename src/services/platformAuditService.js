@@ -32,7 +32,15 @@ const platformAuditService = {
     return response.data.data;
   },
 
-  getStreamSettlements: (params) => api.get('/admin/platform-audit/stream-settlements', { params }),
+  getStreamSettlements: async (params) => {
+    const response = await api.get('/admin/platform-audit/stream-settlements', { params });
+    return response.data.data;
+  },
+
+  getStreamSettlementDetail: async (streamId) => {
+    const response = await api.get(`/admin/platform-audit/stream-settlements/${streamId}`);
+    return response.data.data;
+  },
 
   getWithdrawals: (params) => api.get('/admin/platform-audit/withdrawals', { params }),
 

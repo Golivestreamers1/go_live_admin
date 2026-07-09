@@ -8,6 +8,7 @@ import { getPlatformAuditPageMeta } from '../../config/platformAuditNav';
 import PlatformAuditDashboard from './PlatformAuditDashboard';
 import LedgerDetailPage from './LedgerDetailPage';
 import PurchaseAuditPage from './PurchaseAuditPage';
+import StreamSettlementAuditPage from './StreamSettlementAuditPage';
 
 const LEDGER_PATHS = {
   '/platform-audit/coin-ledger': 'coin',
@@ -19,6 +20,7 @@ const DATE_FILTER_PATHS = new Set([
   '/platform-audit/coin-ledger',
   '/platform-audit/ruby-ledger',
   '/platform-audit/purchases',
+  '/platform-audit/stream-settlements',
 ]);
 
 const PlatformAuditSection = () => {
@@ -34,6 +36,7 @@ const PlatformAuditSection = () => {
   const isDashboard = pathname === '/platform-audit';
   const ledgerVariant = LEDGER_PATHS[pathname];
   const isPurchaseAudit = pathname === '/platform-audit/purchases';
+  const isStreamSettlementAudit = pathname === '/platform-audit/stream-settlements';
   const showDateToolbar = DATE_FILTER_PATHS.has(pathname);
 
   const toolbar = showDateToolbar ? (
@@ -62,6 +65,8 @@ const PlatformAuditSection = () => {
     content = <LedgerDetailPage variant={ledgerVariant} dateRange={dateRange} />;
   } else if (isPurchaseAudit) {
     content = <PurchaseAuditPage dateRange={dateRange} />;
+  } else if (isStreamSettlementAudit) {
+    content = <StreamSettlementAuditPage dateRange={dateRange} />;
   } else {
     content = (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
