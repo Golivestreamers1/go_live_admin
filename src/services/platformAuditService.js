@@ -42,7 +42,10 @@ const platformAuditService = {
     return response.data.data;
   },
 
-  getWithdrawals: (params) => api.get('/admin/platform-audit/withdrawals', { params }),
+  getWithdrawals: async (params) => {
+    const response = await api.get('/admin/platform-audit/withdrawals', { params });
+    return response.data.data;
+  },
 
   getReferrals: (params) => api.get('/admin/platform-audit/referrals', { params }),
 
