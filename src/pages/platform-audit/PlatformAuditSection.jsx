@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Download } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -44,6 +44,20 @@ const DATE_FILTER_PATHS = new Set([
 
 const PlatformAuditSection = () => {
   const { pathname } = useLocation();
+
+  // Alert investigate links may use API-style paths — redirect to real UI routes.
+  const balanceProofMatch = pathname.match(/^\/platform-audit\/users\/([^/]+)\/balance-proof$/);
+  if (balanceProofMatch) {
+    return <Navigate to={`/platform-audit/balance-explorer?userId=${balanceProofMatch[1]}`} replace />;
+  }
+
+  const streamDetailMatch = pathname.match(/^\/platform-audit\/stream-settlements\/([^/]+)$/);
+  if (streamDetailMatch) {
+    return (
+      <Navigate to={`/platform-audit/stream-settlements?streamId=${streamDetailMatch[1]}`} replace />
+    );
+  }
+
   const meta = getPlatformAuditPageMeta(pathname);
   const [dateRange, setDateRange] = useState(getDefaultDateRange);
   const [activePreset, setActivePreset] = useState('7d');

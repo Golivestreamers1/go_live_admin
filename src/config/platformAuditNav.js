@@ -40,6 +40,14 @@ export const PLATFORM_AUDIT_PATHS = PLATFORM_AUDIT_NAV.map((item) => item.href);
 export function getPlatformAuditPageMeta(pathname) {
   const exact = PLATFORM_AUDIT_NAV.find((item) => item.href === pathname);
   if (exact) return exact;
+
+  if (/^\/platform-audit\/users\/[^/]+\/balance-proof$/.test(pathname)) {
+    return PLATFORM_AUDIT_NAV.find((item) => item.href === '/platform-audit/balance-explorer');
+  }
+  if (/^\/platform-audit\/stream-settlements\/[^/]+$/.test(pathname)) {
+    return PLATFORM_AUDIT_NAV.find((item) => item.href === '/platform-audit/stream-settlements');
+  }
+
   if (pathname.startsWith('/platform-audit')) {
     return PLATFORM_AUDIT_NAV[0];
   }

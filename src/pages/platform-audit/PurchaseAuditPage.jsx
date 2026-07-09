@@ -33,6 +33,13 @@ const PurchaseAuditPage = ({ dateRange }) => {
   const [paymentStatus, setPaymentStatus] = useState('all');
   const [selectedPurchase, setSelectedPurchase] = useState(null);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('paymentStatus')) {
+      setPaymentStatus(params.get('paymentStatus'));
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);

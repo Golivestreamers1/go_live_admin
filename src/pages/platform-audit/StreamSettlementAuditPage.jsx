@@ -38,6 +38,17 @@ const StreamSettlementAuditPage = ({ dateRange }) => {
   const [settlementStatus, setSettlementStatus] = useState('all');
   const [selectedStream, setSelectedStream] = useState(null);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const streamId = params.get('streamId');
+    if (!streamId) return;
+
+    platformAuditService
+      .getStreamSettlementDetail(streamId)
+      .then(setSelectedStream)
+      .catch((err) => console.error('Failed to load stream from alert link:', err));
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
