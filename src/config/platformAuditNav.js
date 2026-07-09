@@ -18,7 +18,7 @@ import {
 
 /** Platform Audit sidebar + route definitions (single source of truth). */
 export const PLATFORM_AUDIT_NAV = [
-  { name: 'Dashboard', href: '/platform-audit', icon: LayoutDashboard, description: 'High-level platform integrity overview.' },
+  { name: 'Audit Overview', href: '/platform-audit', icon: LayoutDashboard, description: 'High-level platform integrity overview.' },
   { name: 'Coin Ledger', href: '/platform-audit/coin-ledger', icon: Coins, description: 'Complete audit trail for all Coin activity.' },
   { name: 'Ruby Ledger', href: '/platform-audit/ruby-ledger', icon: Gem, description: 'Complete audit trail for all Ruby activity.' },
   { name: 'Purchase Audit', href: '/platform-audit/purchases', icon: ShoppingCart, description: 'Verify purchases across IAP and PayPal.' },

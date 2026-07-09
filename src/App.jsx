@@ -41,7 +41,6 @@ import FraudCascade from './pages/FraudCascade';
 import FraudCascadeDetails from './pages/FraudCascadeDetails';
 import IapManagement from './pages/IapManagement';
 import PlatformAuditSection from './pages/platform-audit/PlatformAuditSection';
-import { PLATFORM_AUDIT_NAV } from './config/platformAuditNav';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -490,19 +489,16 @@ function App() {
             }
           />
 
-          {PLATFORM_AUDIT_NAV.map(({ href }) => (
-            <Route
-              key={href}
-              path={href}
-              element={
-                <ProtectedRoute>
-                  <AdminLayout user={user} onLogout={handleLogout}>
-                    <PlatformAuditSection />
-                  </AdminLayout>
-                </ProtectedRoute>
-              }
-            />
-          ))}
+          <Route
+            path="/platform-audit/*"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PlatformAuditSection />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/fraud-cascade/:id"
