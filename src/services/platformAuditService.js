@@ -82,9 +82,15 @@ const platformAuditService = {
     return response.data.data;
   },
 
-  searchUsers: (q) => api.get('/admin/platform-audit/users/search', { params: { q } }),
+  searchUsers: async (q) => {
+    const response = await api.get('/admin/platform-audit/users/search', { params: { q } });
+    return response.data.data;
+  },
 
-  getBalanceProof: (userId) => api.get(`/admin/platform-audit/users/${userId}/balance-proof`),
+  getBalanceProof: async (userId) => {
+    const response = await api.get(`/admin/platform-audit/users/${userId}/balance-proof`);
+    return response.data.data;
+  },
 
   investigate: (q) => api.get('/admin/platform-audit/investigate', { params: { q } }),
 
