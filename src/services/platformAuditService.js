@@ -12,9 +12,15 @@ const platformAuditService = {
     return response.data.data;
   },
 
-  getCoinLedger: (params) => api.get('/admin/platform-audit/coin-ledger', { params }),
+  getCoinLedger: async (params) => {
+    const response = await api.get('/admin/platform-audit/coin-ledger', { params });
+    return response.data.data;
+  },
 
-  getRubyLedger: (params) => api.get('/admin/platform-audit/ruby-ledger', { params }),
+  getRubyLedger: async (params) => {
+    const response = await api.get('/admin/platform-audit/ruby-ledger', { params });
+    return response.data.data;
+  },
 
   getPurchases: (params) => api.get('/admin/platform-audit/purchases', { params }),
 

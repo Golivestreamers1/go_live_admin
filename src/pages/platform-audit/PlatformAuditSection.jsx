@@ -6,6 +6,12 @@ import PlatformAuditDateRange from '../../components/platform-audit/PlatformAudi
 import { getDefaultDateRange } from '../../components/platform-audit/formatters';
 import { getPlatformAuditPageMeta } from '../../config/platformAuditNav';
 import PlatformAuditDashboard from './PlatformAuditDashboard';
+import LedgerDetailPage from './LedgerDetailPage';
+
+const LEDGER_PATHS = {
+  '/platform-audit/coin-ledger': 'coin',
+  '/platform-audit/ruby-ledger': 'ruby',
+};
 
 const PlatformAuditSection = () => {
   const { pathname } = useLocation();
@@ -18,8 +24,10 @@ const PlatformAuditSection = () => {
   }
 
   const isDashboard = pathname === '/platform-audit';
+  const ledgerVariant = LEDGER_PATHS[pathname];
+  const showDateToolbar = isDashboard || Boolean(ledgerVariant);
 
-  const toolbar = isDashboard ? (
+  const toolbar = showDateToolbar ? (
     <div className="flex flex-col items-stretch gap-2 sm:items-end">
       <PlatformAuditDateRange
         value={dateRange}
@@ -38,21 +46,28 @@ const PlatformAuditSection = () => {
     </div>
   ) : null;
 
+  let content;
+  if (isDashboard) {
+    content = <PlatformAuditDashboard dateRange={dateRange} />;
+  } else if (ledgerVariant) {
+    content = <LedgerDetailPage variant={ledgerVariant} dateRange={dateRange} />;
+  } else {
+    content = (
+      <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
+        <p className="text-sm font-medium text-gray-900">Coming soon</p>
+        <p className="mt-2 text-sm text-gray-500">
+          {meta.name} will be built in the Platform Audit module rollout.
+        </p>
+        <p className="mt-4 text-xs text-gray-400">
+          Backend audit engine is active — UI landing in upcoming phases.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <PlatformAuditLayout title={meta.name} subtitle={meta.description} toolbar={toolbar}>
-      {isDashboard ? (
-        <PlatformAuditDashboard dateRange={dateRange} />
-      ) : (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
-          <p className="text-sm font-medium text-gray-900">Coming soon</p>
-          <p className="mt-2 text-sm text-gray-500">
-            {meta.name} will be built in the Platform Audit module rollout.
-          </p>
-          <p className="mt-4 text-xs text-gray-400">
-            Backend audit engine is active — UI landing in upcoming phases.
-          </p>
-        </div>
-      )}
+      {content}
     </PlatformAuditLayout>
   );
 };
