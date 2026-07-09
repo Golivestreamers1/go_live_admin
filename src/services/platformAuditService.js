@@ -149,9 +149,38 @@ const platformAuditService = {
     window.URL.revokeObjectURL(url);
   },
 
-  getSettings: () => api.get('/admin/platform-audit/settings'),
+  getSettings: async () => {
+    const response = await api.get('/admin/platform-audit/settings');
+    return response.data.data;
+  },
 
-  updateSettings: (payload) => api.patch('/admin/platform-audit/settings', payload),
+  updateSettings: async (payload) => {
+    const response = await api.patch('/admin/platform-audit/settings', payload);
+    return response.data.data;
+  },
+
+  /** Quick platform-economy CSV export from dashboard (Phase 7.4). */
+  exportDashboardReport: async (dateRange) => {
+    const payload = { type: 'platform-economy' };
+    if (dateRange?.from) payload.from = dateRange.from;
+    if (dateRange?.to) payload.to = dateRange.to;
+    const gen = await api.post('/admin/platform-audit/reports/generate', payload);
+    const report = gen.data.data;
+    const response = await api.get(`/admin/platform-audit/reports/${report.id}/download`, {
+      params: { format: 'csv' },
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'platform-economy.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    return report;
+  },
 };
 
 export default platformAuditService;

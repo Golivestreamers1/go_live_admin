@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Download } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import PlatformAuditLayout from '../../components/platform-audit/PlatformAuditLayout';
 import PlatformAuditDateRange from '../../components/platform-audit/PlatformAuditDateRange';
 import { getDefaultDateRange } from '../../components/platform-audit/formatters';
 import { getPlatformAuditPageMeta } from '../../config/platformAuditNav';
+import platformAuditService from '../../services/platformAuditService';
 import PlatformAuditDashboard from './PlatformAuditDashboard';
 import LedgerDetailPage from './LedgerDetailPage';
 import PurchaseAuditPage from './PurchaseAuditPage';
@@ -18,6 +21,7 @@ import UserBalanceExplorerPage from './UserBalanceExplorerPage';
 import InvestigationPage from './InvestigationPage';
 import AuditLogsPage from './AuditLogsPage';
 import AuditReportsPage from './AuditReportsPage';
+import AuditSettingsPage from './AuditSettingsPage';
 
 const LEDGER_PATHS = {
   '/platform-audit/coin-ledger': 'coin',
@@ -43,6 +47,7 @@ const PlatformAuditSection = () => {
   const meta = getPlatformAuditPageMeta(pathname);
   const [dateRange, setDateRange] = useState(getDefaultDateRange);
   const [activePreset, setActivePreset] = useState('7d');
+  const [exporting, setExporting] = useState(false);
 
   if (!meta) {
     return null;
@@ -61,7 +66,21 @@ const PlatformAuditSection = () => {
   const isInvestigation = pathname === '/platform-audit/investigation';
   const isAuditLogs = pathname === '/platform-audit/logs';
   const isAuditReports = pathname === '/platform-audit/reports';
+  const isAuditSettings = pathname === '/platform-audit/settings';
   const showDateToolbar = DATE_FILTER_PATHS.has(pathname);
+
+  const handleDashboardExport = async () => {
+    try {
+      setExporting(true);
+      await platformAuditService.exportDashboardReport(dateRange);
+      toast.success('Platform economy report downloaded');
+    } catch (err) {
+      console.error('Dashboard export failed:', err);
+      toast.error('Failed to export report');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const toolbar = showDateToolbar ? (
     <div className="flex flex-col items-stretch gap-2 sm:items-end">
@@ -75,8 +94,14 @@ const PlatformAuditSection = () => {
         <Button variant="outline" size="sm" disabled title="Advanced filters on each page">
           Filters
         </Button>
-        <Button size="sm" disabled={pathname !== '/platform-audit/reports'} title="Use Audit Reports page to export">
-          Export Report
+        <Button
+          size="sm"
+          disabled={!isDashboard || exporting}
+          onClick={handleDashboardExport}
+          title={isDashboard ? 'Export platform economy CSV for current date range' : 'Available on Audit Overview'}
+        >
+          <Download className={`mr-2 h-4 w-4 ${exporting ? 'animate-pulse' : ''}`} />
+          {exporting ? 'Exporting…' : 'Export Report'}
         </Button>
       </div>
     </div>
@@ -109,6 +134,8 @@ const PlatformAuditSection = () => {
     content = <AuditLogsPage dateRange={dateRange} />;
   } else if (isAuditReports) {
     content = <AuditReportsPage dateRange={dateRange} />;
+  } else if (isAuditSettings) {
+    content = <AuditSettingsPage />;
   } else {
     content = (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
