@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 
 const STATUS_STYLES = {
   pass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  verified: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   warning: 'border-amber-200 bg-amber-50 text-amber-700',
   attention: 'border-amber-200 bg-amber-50 text-amber-700',
@@ -14,6 +15,7 @@ const STATUS_STYLES = {
 
 const STATUS_LABELS = {
   pass: 'OK',
+  verified: 'Verified',
   healthy: 'Healthy',
   warning: 'Review',
   attention: 'Review',

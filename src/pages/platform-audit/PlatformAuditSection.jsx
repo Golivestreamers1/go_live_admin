@@ -7,11 +7,19 @@ import { getDefaultDateRange } from '../../components/platform-audit/formatters'
 import { getPlatformAuditPageMeta } from '../../config/platformAuditNav';
 import PlatformAuditDashboard from './PlatformAuditDashboard';
 import LedgerDetailPage from './LedgerDetailPage';
+import PurchaseAuditPage from './PurchaseAuditPage';
 
 const LEDGER_PATHS = {
   '/platform-audit/coin-ledger': 'coin',
   '/platform-audit/ruby-ledger': 'ruby',
 };
+
+const DATE_FILTER_PATHS = new Set([
+  '/platform-audit',
+  '/platform-audit/coin-ledger',
+  '/platform-audit/ruby-ledger',
+  '/platform-audit/purchases',
+]);
 
 const PlatformAuditSection = () => {
   const { pathname } = useLocation();
@@ -25,7 +33,8 @@ const PlatformAuditSection = () => {
 
   const isDashboard = pathname === '/platform-audit';
   const ledgerVariant = LEDGER_PATHS[pathname];
-  const showDateToolbar = isDashboard || Boolean(ledgerVariant);
+  const isPurchaseAudit = pathname === '/platform-audit/purchases';
+  const showDateToolbar = DATE_FILTER_PATHS.has(pathname);
 
   const toolbar = showDateToolbar ? (
     <div className="flex flex-col items-stretch gap-2 sm:items-end">
@@ -36,7 +45,7 @@ const PlatformAuditSection = () => {
         onPresetChange={setActivePreset}
       />
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button variant="outline" size="sm" disabled title="Advanced filters in a later phase">
+        <Button variant="outline" size="sm" disabled title="Advanced filters on each page">
           Filters
         </Button>
         <Button size="sm" disabled title="Coming in Phase 7">
@@ -51,6 +60,8 @@ const PlatformAuditSection = () => {
     content = <PlatformAuditDashboard dateRange={dateRange} />;
   } else if (ledgerVariant) {
     content = <LedgerDetailPage variant={ledgerVariant} dateRange={dateRange} />;
+  } else if (isPurchaseAudit) {
+    content = <PurchaseAuditPage dateRange={dateRange} />;
   } else {
     content = (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">

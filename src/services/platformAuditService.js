@@ -22,7 +22,15 @@ const platformAuditService = {
     return response.data.data;
   },
 
-  getPurchases: (params) => api.get('/admin/platform-audit/purchases', { params }),
+  getPurchases: async (params) => {
+    const response = await api.get('/admin/platform-audit/purchases', { params });
+    return response.data.data;
+  },
+
+  getPurchaseDetail: async (id) => {
+    const response = await api.get(`/admin/platform-audit/purchases/${id}`);
+    return response.data.data;
+  },
 
   getStreamSettlements: (params) => api.get('/admin/platform-audit/stream-settlements', { params }),
 
