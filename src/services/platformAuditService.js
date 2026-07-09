@@ -59,7 +59,15 @@ const platformAuditService = {
     return response.data.data;
   },
 
-  getAdminActions: (params) => api.get('/admin/platform-audit/admin-actions', { params }),
+  getAdminActions: async (params) => {
+    const response = await api.get('/admin/platform-audit/admin-actions', { params });
+    return response.data.data;
+  },
+
+  getAdminActionDetail: async (id) => {
+    const response = await api.get(`/admin/platform-audit/admin-actions/${id}`);
+    return response.data.data;
+  },
 
   getFraud: (params) => api.get('/admin/platform-audit/fraud', { params }),
 
