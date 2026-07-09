@@ -92,7 +92,10 @@ const platformAuditService = {
     return response.data.data;
   },
 
-  investigate: (q) => api.get('/admin/platform-audit/investigate', { params: { q } }),
+  investigate: async (q) => {
+    const response = await api.get('/admin/platform-audit/investigate', { params: { q } });
+    return response.data.data;
+  },
 
   getAuditLogs: (params) => api.get('/admin/platform-audit/audit-logs', { params }),
 

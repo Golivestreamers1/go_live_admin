@@ -15,6 +15,7 @@ import AdminActionsAuditPage from './AdminActionsAuditPage';
 import FraudReversalsAuditPage from './FraudReversalsAuditPage';
 import ReconciliationAuditPage from './ReconciliationAuditPage';
 import UserBalanceExplorerPage from './UserBalanceExplorerPage';
+import InvestigationPage from './InvestigationPage';
 
 const LEDGER_PATHS = {
   '/platform-audit/coin-ledger': 'coin',
@@ -53,6 +54,7 @@ const PlatformAuditSection = () => {
   const isFraudAudit = pathname === '/platform-audit/fraud';
   const isReconciliationAudit = pathname === '/platform-audit/reconciliation';
   const isBalanceExplorer = pathname === '/platform-audit/balance-explorer';
+  const isInvestigation = pathname === '/platform-audit/investigation';
   const showDateToolbar = DATE_FILTER_PATHS.has(pathname);
 
   const toolbar = showDateToolbar ? (
@@ -95,6 +97,8 @@ const PlatformAuditSection = () => {
     content = <ReconciliationAuditPage />;
   } else if (isBalanceExplorer) {
     content = <UserBalanceExplorerPage />;
+  } else if (isInvestigation) {
+    content = <InvestigationPage />;
   } else {
     content = (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
