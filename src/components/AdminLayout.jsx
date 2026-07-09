@@ -40,6 +40,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
+import { PLATFORM_AUDIT_NAV } from '../config/platformAuditNav';
 
 const AdminLayout = ({ children, user, onLogout }) => {
   const location = useLocation();
@@ -56,6 +57,10 @@ const AdminLayout = ({ children, user, onLogout }) => {
   const isOnEcommercePage = ecommercePaths.includes(location.pathname);
   const [ecommerceMenuOpen, setEcommerceMenuOpen] = React.useState(isOnEcommercePage);
 
+  const isOnPlatformAuditPage =
+    location.pathname === '/platform-audit' || location.pathname.startsWith('/platform-audit/');
+  const [platformAuditMenuOpen, setPlatformAuditMenuOpen] = React.useState(isOnPlatformAuditPage);
+
   // Update menu state when route changes
   React.useEffect(() => {
     if (isOnSubscriptionPage && !subscriptionMenuOpen) {
@@ -64,7 +69,10 @@ const AdminLayout = ({ children, user, onLogout }) => {
     if (isOnEcommercePage && !ecommerceMenuOpen) {
       setEcommerceMenuOpen(true);
     }
-  }, [location.pathname, isOnSubscriptionPage, subscriptionMenuOpen, isOnEcommercePage, ecommerceMenuOpen]);
+    if (isOnPlatformAuditPage && !platformAuditMenuOpen) {
+      setPlatformAuditMenuOpen(true);
+    }
+  }, [location.pathname, isOnSubscriptionPage, subscriptionMenuOpen, isOnEcommercePage, ecommerceMenuOpen, isOnPlatformAuditPage, platformAuditMenuOpen]);
 
   // Poll open-ticket count for the sidebar badge
   const [openTicketCount, setOpenTicketCount] = React.useState(0);
@@ -88,6 +96,17 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Dashboard',
       href: '/',
       icon: LayoutDashboard,
+    },
+    {
+      name: 'Platform Audit',
+      icon: Shield,
+      isGroup: true,
+      groupKey: 'platform-audit',
+      children: PLATFORM_AUDIT_NAV.map(({ name, href, icon }) => ({
+        name,
+        href,
+        icon,
+      })),
     },
     {
       name: 'User Management',
@@ -286,7 +305,22 @@ const AdminLayout = ({ children, user, onLogout }) => {
   };
 
   const isGroupActive = (children) => {
-    return children.some(child => location.pathname === child.href);
+    return children.some((child) => {
+      if (child.href === '/platform-audit') {
+        return location.pathname === '/platform-audit';
+      }
+      return location.pathname === child.href || location.pathname.startsWith(`${child.href}/`);
+    });
+  };
+
+  const getGroupMenuState = (groupKey) => {
+    if (groupKey === 'ecommerce') {
+      return [ecommerceMenuOpen, () => setEcommerceMenuOpen(!ecommerceMenuOpen)];
+    }
+    if (groupKey === 'platform-audit') {
+      return [platformAuditMenuOpen, () => setPlatformAuditMenuOpen(!platformAuditMenuOpen)];
+    }
+    return [subscriptionMenuOpen, () => setSubscriptionMenuOpen(!subscriptionMenuOpen)];
   };
 
   return (
@@ -306,10 +340,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
               const Icon = item.icon;
 
               if (item.isGroup) {
-                const isMenuOpen = item.groupKey === 'ecommerce' ? ecommerceMenuOpen : subscriptionMenuOpen;
-                const toggleMenu = item.groupKey === 'ecommerce'
-                  ? () => setEcommerceMenuOpen(!ecommerceMenuOpen)
-                  : () => setSubscriptionMenuOpen(!subscriptionMenuOpen);
+                const [isMenuOpen, toggleMenu] = getGroupMenuState(item.groupKey);
 
                 return (
                   <div key={item.name} className="space-y-1">
@@ -335,12 +366,16 @@ const AdminLayout = ({ children, user, onLogout }) => {
                       <div className="ml-4 space-y-1">
                         {item.children.map((child) => {
                           const ChildIcon = child.icon;
+                          const childActive =
+                            child.href === '/platform-audit'
+                              ? location.pathname === '/platform-audit'
+                              : location.pathname === child.href || location.pathname.startsWith(`${child.href}/`);
                           return (
                             <Link
                               key={child.name}
                               to={child.href}
                               className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium ${
-                                isActive(child.href)
+                                childActive
                                   ? 'bg-primary text-primary-foreground'
                                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                               }`}
@@ -393,10 +428,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
             const Icon = item.icon;
 
             if (item.isGroup) {
-              const isMenuOpen = item.groupKey === 'ecommerce' ? ecommerceMenuOpen : subscriptionMenuOpen;
-              const toggleMenu = item.groupKey === 'ecommerce'
-                ? () => setEcommerceMenuOpen(!ecommerceMenuOpen)
-                : () => setSubscriptionMenuOpen(!subscriptionMenuOpen);
+              const [isMenuOpen, toggleMenu] = getGroupMenuState(item.groupKey);
 
               return (
                 <div key={item.name} className="space-y-1">
@@ -422,12 +454,16 @@ const AdminLayout = ({ children, user, onLogout }) => {
                     <div className="ml-4 space-y-1">
                       {item.children.map((child) => {
                         const ChildIcon = child.icon;
+                        const childActive =
+                          child.href === '/platform-audit'
+                            ? location.pathname === '/platform-audit'
+                            : location.pathname === child.href || location.pathname.startsWith(`${child.href}/`);
                         return (
                           <Link
                             key={child.name}
                             to={child.href}
                             className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium ${
-                              isActive(child.href)
+                              childActive
                                 ? 'bg-primary text-primary-foreground'
                                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                             }`}
