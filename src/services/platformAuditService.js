@@ -72,9 +72,15 @@ const platformAuditService = {
   getFraud: (params) => api.get('/admin/platform-audit/fraud', { params }),
 
   /** Uses existing reconciliation API until platform-audit proxy is added. */
-  getReconciliationSummary: () => api.get('/admin/reconciliation/summary'),
+  getReconciliationSummary: async () => {
+    const response = await api.get('/admin/reconciliation/summary');
+    return response.data.data;
+  },
 
-  getReconciliationHistory: (params) => api.get('/admin/reconciliation/history', { params }),
+  getReconciliationHistory: async (params) => {
+    const response = await api.get('/admin/reconciliation/history', { params });
+    return response.data.data;
+  },
 
   searchUsers: (q) => api.get('/admin/platform-audit/users/search', { params: { q } }),
 
