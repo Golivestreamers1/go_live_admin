@@ -21,12 +21,19 @@ import {
   Gift,
 } from 'lucide-react';
 import { userService } from '../services/userService';
+import { iconRecruiterService } from '../services/iconRecruiterService';
 import { toast } from 'sonner';
 
 const SIGNUP_EMAIL_REGEX =
   /^[a-z0-9](?:[a-z0-9._%+-]*[a-z0-9])?@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;
 
-export const CreateUserDialog = ({ isOpen, onClose, onUserCreated }) => {
+export const CreateUserDialog = ({
+  isOpen,
+  onClose,
+  onUserCreated,
+  variant = 'default',
+}) => {
+  const isIconRecruiterRegister = variant === 'icon-recruiter-verified';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -93,17 +100,36 @@ export const CreateUserDialog = ({ isOpen, onClose, onUserCreated }) => {
 
     try {
       setLoading(true);
-      const result = await userService.registerUser({
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-        referralCode: formData.referralCode,
-      });
+      const result = isIconRecruiterRegister
+        ? await iconRecruiterService.registerVerifiedUser({
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            password: formData.password,
+            referralCode: formData.referralCode,
+          })
+        : await userService.registerUser({
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            password: formData.password,
+            referralCode: formData.referralCode,
+          });
 
-      toast.success(result.message || 'User registered successfully');
-      toast.info('Verification OTP has been sent to the user email.', {
-        duration: 8000,
-      });
+      toast.success(
+        result.message ||
+          (isIconRecruiterRegister
+            ? 'User registered and verified'
+            : 'User registered successfully')
+      );
+      if (!isIconRecruiterRegister) {
+        toast.info('Verification OTP has been sent to the user email.', {
+          duration: 8000,
+        });
+      } else {
+        toast.info(
+          'User is verified. Recruiters can invite them within 48 hours.',
+          { duration: 8000 }
+        );
+      }
 
       if (onUserCreated && result.data) {
         onUserCreated(result.data);
@@ -134,8 +160,9 @@ export const CreateUserDialog = ({ isOpen, onClose, onUserCreated }) => {
             Register User
           </DialogTitle>
           <DialogDescription>
-            Creates an app account via the public register API. The user will
-            receive an OTP email to verify their account.
+            {isIconRecruiterRegister
+              ? 'Creates a verified app account for icon recruiter host invites. No OTP email is sent.'
+              : 'Creates an app account via the public register API. The user will receive an OTP email to verify their account.'}
           </DialogDescription>
         </DialogHeader>
 

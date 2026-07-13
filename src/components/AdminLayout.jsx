@@ -31,6 +31,7 @@ import {
   DollarSign,
   ArrowDownToLine,
   Sparkles,
+  UserPlus,
   ShieldHalf,
   Crown,
   ImageIcon,
@@ -108,6 +109,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Sponsored creators',
       href: '/sponsored-creators',
       icon: Sparkles,
+    },
+    {
+      name: 'Icon Recruiter',
+      href: '/icon-recruiter',
+      icon: UserPlus,
     },
     {
       name: 'Top Spenders',

@@ -12,6 +12,7 @@ import CameraMicMemory from './pages/CameraMicMemory';
 import UserManagement from './pages/UserManagement';
 import UserDetails from './pages/UserDetails';
 import SponsoredCreators from './pages/SponsoredCreators';
+import IconRecruiterApplications from './pages/IconRecruiterApplications';
 import Settings from './pages/Settings';
 import AdminLogin from './pages/AdminLogin';
 import PackageManagement from './pages/PackageManagement';
@@ -216,6 +217,17 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <SponsoredCreators />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/icon-recruiter"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <IconRecruiterApplications />
                 </AdminLayout>
               </ProtectedRoute>
             }
