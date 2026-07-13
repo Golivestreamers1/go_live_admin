@@ -28,6 +28,85 @@ import { toast } from 'sonner';
 
 const GIFT_CATEGORIES = ["Popular", "Roses", "Special", "Guns", "New"];
 
+const PRIZE_RECIPIENTS = [
+  { value: 'streamer', label: 'Streamer' },
+  { value: 'viewer', label: 'Viewer' },
+];
+const PRIZE_CURRENCIES = [
+  { value: 'rubies', label: 'Rubies' },
+  { value: 'coins', label: 'Coins' },
+];
+const DEFAULT_SEGMENT_COLORS = ['#F97316', '#22C55E', '#3B82F6', '#A855F7', '#EC4899', '#EAB308'];
+const WHEEL_THEME_FIELDS = [
+  { key: 'pointerColor', label: 'Pointer' },
+  { key: 'centerColor', label: 'Center' },
+  { key: 'textColor', label: 'Text' },
+  { key: 'ringColor', label: 'Ring' },
+  { key: 'backgroundColor', label: 'Background' },
+];
+
+const makeWheelSegment = (i = 0) => ({
+  label: '',
+  value: '',
+  chancePercent: '',
+  color: DEFAULT_SEGMENT_COLORS[i % DEFAULT_SEGMENT_COLORS.length],
+});
+
+const makeEmptyWheel = () => ({
+  name: '',
+  cost: '',
+  prizeRecipient: 'streamer',
+  prizeCurrency: 'rubies',
+  minTierCreditsZero: false,
+  segments: [makeWheelSegment(0), makeWheelSegment(1)],
+  theme: { pointerColor: '', centerColor: '', textColor: '', ringColor: '', backgroundColor: '' },
+  displayOrder: 0,
+  isActive: true,
+});
+
+/** Live preview: equal-arc pie of the wheel segments, colored by tier. */
+function WheelPreview({ segments, theme }) {
+  const segs = (segments || []).filter((s) => s != null);
+  const n = Math.max(segs.length, 1);
+  const stops = segs
+    .map((s, i) => {
+      const color = (s.color || '').trim() || DEFAULT_SEGMENT_COLORS[i % DEFAULT_SEGMENT_COLORS.length];
+      const from = ((i / n) * 100).toFixed(2);
+      const to = (((i + 1) / n) * 100).toFixed(2);
+      return `${color} ${from}% ${to}%`;
+    })
+    .join(', ');
+  const ring = (theme?.ringColor || '').trim() || '#1f2937';
+  const center = (theme?.centerColor || '').trim() || '#ffffff';
+  const pointer = (theme?.pointerColor || '').trim() || '#ef4444';
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative h-40 w-40">
+        <div
+          className="absolute left-1/2 top-0 z-10 h-0 w-0 -translate-x-1/2"
+          style={{
+            borderLeft: '8px solid transparent',
+            borderRight: '8px solid transparent',
+            borderTop: `14px solid ${pointer}`,
+          }}
+        />
+        <div
+          className="h-40 w-40 rounded-full"
+          style={{
+            background: segs.length ? `conic-gradient(${stops})` : '#e5e7eb',
+            border: `4px solid ${ring}`,
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border"
+          style={{ background: center }}
+        />
+      </div>
+      <span className="text-xs text-muted-foreground">Preview (segments shown at equal size)</span>
+    </div>
+  );
+}
+
 const emptyGift = {
   name: '',
   coinValue: '',
@@ -120,6 +199,10 @@ const GiftManagement = () => {
   const [animationPreviewUrl, setAnimationPreviewUrl] = useState('');
   const animationFileRef = React.useRef(null);
   const lottieJsonFileRef = React.useRef(null);
+  const [wheelDialogOpen, setWheelDialogOpen] = useState(false);
+  const [editingWheel, setEditingWheel] = useState(null);
+  const [wheelForm, setWheelForm] = useState(() => makeEmptyWheel());
+  const [wheelSubmitting, setWheelSubmitting] = useState(false);
 
   const fetchGifts = async () => {
     try {
@@ -343,13 +426,144 @@ const GiftManagement = () => {
     try {
       setDeleteLoading(true);
       await giftService.deleteGift(deleteTarget._id);
-      toast.success('Gift deleted');
+      toast.success(deleteTarget.type === 'wheel' ? 'Wheel deleted' : 'Gift deleted');
       setDeleteTarget(null);
       fetchGifts();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete gift');
+      toast.error(err.response?.data?.message || 'Failed to delete');
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const openCreateWheel = () => {
+    setEditingWheel(null);
+    setWheelForm(makeEmptyWheel());
+    setWheelDialogOpen(true);
+  };
+
+  const openEditWheel = (gift) => {
+    const w = gift.wheel || {};
+    const segments = Array.isArray(w.segments) && w.segments.length
+      ? w.segments.map((s, i) => ({
+          label: s.label ?? '',
+          value: s.value ?? '',
+          chancePercent: s.chancePercent ?? '',
+          color: s.color || DEFAULT_SEGMENT_COLORS[i % DEFAULT_SEGMENT_COLORS.length],
+        }))
+      : [makeWheelSegment(0), makeWheelSegment(1)];
+    setEditingWheel(gift);
+    setWheelForm({
+      name: gift.name ?? '',
+      cost: w.cost ?? gift.coinValue ?? '',
+      prizeRecipient: w.prizeRecipient === 'viewer' ? 'viewer' : 'streamer',
+      prizeCurrency: w.prizeCurrency === 'coins' ? 'coins' : 'rubies',
+      minTierCreditsZero: !!w.minTierCreditsZero,
+      segments,
+      theme: {
+        pointerColor: w.theme?.pointerColor ?? '',
+        centerColor: w.theme?.centerColor ?? '',
+        textColor: w.theme?.textColor ?? '',
+        ringColor: w.theme?.ringColor ?? '',
+        backgroundColor: w.theme?.backgroundColor ?? '',
+      },
+      displayOrder: gift.displayOrder ?? 0,
+      isActive: gift.isActive !== false,
+    });
+    setWheelDialogOpen(true);
+  };
+
+  const closeWheelDialog = () => {
+    setWheelDialogOpen(false);
+    setEditingWheel(null);
+    setWheelForm(makeEmptyWheel());
+  };
+
+  const handleEditRow = (gift) => (gift.type === 'wheel' ? openEditWheel(gift) : openEdit(gift));
+
+  const updateSegment = (idx, patch) => {
+    setWheelForm((f) => ({
+      ...f,
+      segments: f.segments.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
+    }));
+  };
+
+  const addSegment = () => {
+    setWheelForm((f) => ({ ...f, segments: [...f.segments, makeWheelSegment(f.segments.length)] }));
+  };
+
+  const removeSegment = (idx) => {
+    setWheelForm((f) => ({
+      ...f,
+      segments: f.segments.length > 1 ? f.segments.filter((_, i) => i !== idx) : f.segments,
+    }));
+  };
+
+  const wheelChanceSum = wheelForm.segments.reduce(
+    (acc, s) => acc + (Number(s.chancePercent) || 0),
+    0,
+  );
+
+  const handleWheelSubmit = async (e) => {
+    e.preventDefault();
+    const name = String(wheelForm.name).trim();
+    const cost = Number(wheelForm.cost);
+    if (!name) {
+      toast.error('Wheel name is required');
+      return;
+    }
+    if (isNaN(cost) || cost < 0) {
+      toast.error('Spin cost must be a non-negative number');
+      return;
+    }
+    const segments = wheelForm.segments
+      .map((s) => ({
+        label: String(s.label || '').trim() || undefined,
+        value: Number(s.value),
+        chancePercent: Number(s.chancePercent),
+        color: String(s.color || '').trim() || undefined,
+      }))
+      .filter((s) => Number.isFinite(s.value) && s.value >= 0 && Number.isFinite(s.chancePercent) && s.chancePercent > 0);
+    if (segments.length === 0) {
+      toast.error('Add at least one segment with a prize value and a win chance.');
+      return;
+    }
+    const theme = {};
+    for (const { key } of WHEEL_THEME_FIELDS) {
+      const v = String(wheelForm.theme[key] || '').trim();
+      if (v) theme[key] = v;
+    }
+    try {
+      setWheelSubmitting(true);
+      const body = {
+        name,
+        coinValue: cost,
+        category: 'Special',
+        type: 'wheel',
+        displayOrder: Number(wheelForm.displayOrder) || 0,
+        isActive: wheelForm.isActive,
+        wheel: {
+          cost,
+          prizeRecipient: wheelForm.prizeRecipient,
+          prizeCurrency: wheelForm.prizeCurrency,
+          minTierCreditsZero: !!wheelForm.minTierCreditsZero,
+          segments,
+          theme: Object.keys(theme).length ? theme : undefined,
+        },
+      };
+      if (editingWheel?._id) {
+        await giftService.updateGift(editingWheel._id, body);
+        toast.success('Wheel updated');
+      } else {
+        await giftService.createGift(body);
+        toast.success('Wheel created');
+      }
+      closeWheelDialog();
+      fetchGifts();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save wheel');
+    } finally {
+      setWheelSubmitting(false);
     }
   };
 
@@ -366,10 +580,16 @@ const GiftManagement = () => {
               <strong>Send animation</strong> (Lottie or GIF) is what plays on the live screen when someone sends this gift. Optional <strong>icon</strong> is a small image in the gift strip; if you only upload an animation, the app uses it everywhere.
             </CardDescription>
           </div>
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add gift
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={openCreateWheel}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add wheel
+            </Button>
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add gift
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -429,9 +649,19 @@ const GiftManagement = () => {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{g.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {g.name}
+                        {g.type === 'wheel' && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {g.wheel?.prizeRecipient === 'viewer' ? 'Viewer' : 'Streamer'}{' '}
+                            {g.wheel?.prizeCurrency === 'coins' ? 'coins' : 'rubies'} wheel
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{g.category || 'Popular'}</Badge>
+                      <Badge variant="outline">{g.type === 'wheel' ? 'Wheel' : g.category || 'Popular'}</Badge>
                     </TableCell>
                     <TableCell>{g.coinValue}</TableCell>
                     <TableCell>{g.rubyValue ?? '—'}</TableCell>
@@ -449,7 +679,7 @@ const GiftManagement = () => {
                         variant="ghost"
                         size="sm"
                         className="mr-1"
-                        onClick={() => openEdit(g)}
+                        onClick={() => handleEditRow(g)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -729,6 +959,227 @@ const GiftManagement = () => {
               </Button>
               <Button type="submit" disabled={submitting}>
                 {submitting ? 'Saving...' : editingGift ? 'Update' : 'Create'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create / Edit wheel dialog */}
+      <Dialog open={wheelDialogOpen} onOpenChange={(open) => !open && closeWheelDialog()}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingWheel ? 'Edit wheel' : 'Add wheel'}</DialogTitle>
+            <DialogDescription>
+              A wheel is a gift the viewer taps to spin. The viewer always pays the spin cost; the
+              landed prize is credited to the chosen recipient in the chosen currency.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleWheelSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="wheelName">Name *</Label>
+                <Input
+                  id="wheelName"
+                  value={wheelForm.name}
+                  onChange={(e) => setWheelForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Mystery Wheel"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wheelCost">Spin cost (coins) *</Label>
+                <Input
+                  id="wheelCost"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={wheelForm.cost}
+                  onChange={(e) => setWheelForm((f) => ({ ...f, cost: e.target.value }))}
+                  placeholder="e.g. 1000"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="prizeRecipient">Prize goes to *</Label>
+                <select
+                  id="prizeRecipient"
+                  value={wheelForm.prizeRecipient}
+                  onChange={(e) => setWheelForm((f) => ({ ...f, prizeRecipient: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {PRIZE_RECIPIENTS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="prizeCurrency">Prize currency *</Label>
+                <select
+                  id="prizeCurrency"
+                  value={wheelForm.prizeCurrency}
+                  onChange={(e) => setWheelForm((f) => ({ ...f, prizeCurrency: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {PRIZE_CURRENCIES.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Streamer + rubies = today's Mystery Wheel. Viewer + coins = today's Gifter Wheel.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="minTierCreditsZero"
+                checked={wheelForm.minTierCreditsZero}
+                onChange={(e) => setWheelForm((f) => ({ ...f, minTierCreditsZero: e.target.checked }))}
+                className="rounded border-input"
+              />
+              <Label htmlFor="minTierCreditsZero" className="cursor-pointer">
+                Landing at or below the spin cost pays the winner nothing
+              </Label>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto]">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Segments *</Label>
+                  <span
+                    className={`text-xs tabular-nums ${
+                      Math.abs(wheelChanceSum - 100) < 0.5 ? 'text-green-600' : 'text-amber-600'
+                    }`}
+                  >
+                    Chances total {wheelChanceSum.toFixed(2)}%
+                  </span>
+                </div>
+                {wheelForm.segments.map((s, idx) => (
+                  <div key={idx} className="flex items-end gap-2">
+                    <div className="w-10 space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Color</Label>
+                      <input
+                        type="color"
+                        value={s.color || DEFAULT_SEGMENT_COLORS[idx % DEFAULT_SEGMENT_COLORS.length]}
+                        onChange={(e) => updateSegment(idx, { color: e.target.value })}
+                        className="h-9 w-10 rounded border border-input bg-background p-0.5"
+                      />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Label</Label>
+                      <Input
+                        value={s.label}
+                        onChange={(e) => updateSegment(idx, { label: e.target.value })}
+                        placeholder="optional"
+                      />
+                    </div>
+                    <div className="w-24 space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Prize value</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={s.value}
+                        onChange={(e) => updateSegment(idx, { value: e.target.value })}
+                        placeholder="1000"
+                      />
+                    </div>
+                    <div className="w-24 space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Chance %</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={s.chancePercent}
+                        onChange={(e) => updateSegment(idx, { chancePercent: e.target.value })}
+                        placeholder="94.3"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeSegment(idx)}
+                      disabled={wheelForm.segments.length <= 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={addSegment}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add segment
+                </Button>
+              </div>
+              <div className="flex items-start justify-center pt-6">
+                <WheelPreview segments={wheelForm.segments} theme={wheelForm.theme} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Wheel colors (optional)</Label>
+              <div className="flex flex-wrap gap-4">
+                {WHEEL_THEME_FIELDS.map(({ key, label }) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">{label}</Label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="color"
+                        value={wheelForm.theme[key] || '#000000'}
+                        onChange={(e) =>
+                          setWheelForm((f) => ({ ...f, theme: { ...f.theme, [key]: e.target.value } }))
+                        }
+                        className="h-9 w-10 rounded border border-input bg-background p-0.5"
+                      />
+                      {wheelForm.theme[key] ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="px-1 text-xs"
+                          onClick={() =>
+                            setWheelForm((f) => ({ ...f, theme: { ...f.theme, [key]: '' } }))
+                          }
+                        >
+                          Clear
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="wheelDisplayOrder">Display order</Label>
+                <Input
+                  id="wheelDisplayOrder"
+                  type="number"
+                  min={0}
+                  value={wheelForm.displayOrder}
+                  onChange={(e) => setWheelForm((f) => ({ ...f, displayOrder: e.target.value }))}
+                />
+              </div>
+              <div className="flex items-end gap-2 pb-2">
+                <input
+                  type="checkbox"
+                  id="wheelIsActive"
+                  checked={wheelForm.isActive}
+                  onChange={(e) => setWheelForm((f) => ({ ...f, isActive: e.target.checked }))}
+                  className="rounded border-input"
+                />
+                <Label htmlFor="wheelIsActive" className="cursor-pointer">Active (show in app gift list)</Label>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeWheelDialog}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={wheelSubmitting}>
+                {wheelSubmitting ? 'Saving...' : editingWheel ? 'Update' : 'Create'}
               </Button>
             </DialogFooter>
           </form>
