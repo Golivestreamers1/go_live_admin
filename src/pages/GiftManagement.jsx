@@ -28,6 +28,9 @@ import { toast } from 'sonner';
 
 const GIFT_CATEGORIES = ["Popular", "Roses", "Special", "Guns", "New"];
 
+const GATED_GIFT_CATEGORIES = ["Crown", "Sponsor"];
+const WHEEL_CATEGORIES = GIFT_CATEGORIES.filter((c) => !GATED_GIFT_CATEGORIES.includes(c));
+
 const PRIZE_RECIPIENTS = [
   { value: 'streamer', label: 'Streamer' },
   { value: 'viewer', label: 'Viewer' },
@@ -55,6 +58,7 @@ const makeWheelSegment = (i = 0) => ({
 const makeEmptyWheel = () => ({
   name: '',
   cost: '',
+  category: 'Special',
   prizeRecipient: 'streamer',
   prizeCurrency: 'rubies',
   minTierCreditsZero: false,
@@ -456,6 +460,7 @@ const GiftManagement = () => {
     setWheelForm({
       name: gift.name ?? '',
       cost: w.cost ?? gift.coinValue ?? '',
+      category: GIFT_CATEGORIES.includes(gift.category) ? gift.category : 'Special',
       prizeRecipient: w.prizeRecipient === 'viewer' ? 'viewer' : 'streamer',
       prizeCurrency: w.prizeCurrency === 'coins' ? 'coins' : 'rubies',
       minTierCreditsZero: !!w.minTierCreditsZero,
@@ -538,6 +543,7 @@ const GiftManagement = () => {
       const body = {
         name,
         coinValue: cost,
+        category: WHEEL_CATEGORIES.includes(wheelForm.category) ? wheelForm.category : 'Special',
         category: 'Special',
         type: 'wheel',
         displayOrder: Number(wheelForm.displayOrder) || 0,
@@ -1152,6 +1158,23 @@ const GiftManagement = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="wheelCategory">Category *</Label>
+                <select
+                  id="wheelCategory"
+                  value={wheelForm.category}
+                  onChange={(e) => setWheelForm((f) => ({ ...f, category: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  required
+                >
+                  {WHEEL_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Which gift tab this wheel appears under in the app.</p>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="wheelDisplayOrder">Display order</Label>
                 <Input
