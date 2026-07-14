@@ -26,7 +26,33 @@ import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { Gift, Plus, Pencil, Trash2, Image as ImageIcon, Upload, Clapperboard } from 'lucide-react';
 import { toast } from 'sonner';
 
-const GIFT_CATEGORIES = ["Popular", "Roses", "Special", "Guns", "New"];
+const GIFT_CATEGORIES = ["Popular", "Roses", "Special", "Guns", "New", "Crown", "Sponsor"];
+
+/**
+ * Gated categories. Gifts in these tabs are still SHOWN to everyone in the app, but appear
+ * with a lock and are disabled unless the sender qualifies. Enforced server-side on send.
+ */
+const GATED_CATEGORIES = ["Crown", "Sponsor"];
+
+/** Crown tiers — must match CROWN_TIER_LABELS in the backend (giftAccess.service.js). */
+const CROWN_TIERS = [
+  { value: 1, label: "Bronze Crown" },
+  { value: 2, label: "Silver Crown" },
+  { value: 3, label: "Gold Crown" },
+  { value: 4, label: "Ruby Crown" },
+];
+
+/** Sponsor gate — who can send a "Sponsor" gift. */
+const GIFT_ROLES = [
+  { value: "sponsored", label: "Sponsored creators only" },
+  { value: "icon_creator", label: "Icon Creators only" },
+  { value: "either", label: "Sponsored OR Icon Creator" },
+];
+
+const crownTierLabel = (tier) =>
+  CROWN_TIERS.find((t) => Number(t.value) === Number(tier))?.label ?? null;
+const giftRoleLabel = (role) =>
+  GIFT_ROLES.find((r) => r.value === role)?.label ?? null;
 
 const PRIZE_RECIPIENTS = [
   { value: 'streamer', label: 'Streamer' },
@@ -111,6 +137,11 @@ const emptyGift = {
   name: '',
   coinValue: '',
   category: 'Popular',
+  /** Crown gate — only used when category === 'Crown'. Hierarchical: a user with a higher
+   *  tier can also send lower-tier gifts (Gold unlocks Bronze + Silver + Gold). */
+  requiredCrownTier: '',
+  /** Sponsor gate — only used when category === 'Sponsor'. */
+  requiredRole: '',
   iconUrl: '',
   animationUrl: '',
   /** Raw Lottie JSON (Bodymovin) — from paste or .json file read in browser; stored in MongoDB. */
@@ -236,6 +267,8 @@ const GiftManagement = () => {
       name: gift.name ?? '',
       coinValue: gift.coinValue ?? '',
       category: gift.category ?? 'Popular',
+      requiredCrownTier: gift.requiredCrownTier != null ? String(gift.requiredCrownTier) : '',
+      requiredRole: gift.requiredRole ?? '',
       iconUrl: gift.iconUrl ?? '',
       animationUrl: gift.animationUrl ?? '',
       animationJson: typeof gift.animationJson === 'string' ? gift.animationJson : '',
@@ -287,12 +320,29 @@ const GiftManagement = () => {
       toast.error('Add a Lottie JSON, a send animation URL/upload, and/or an icon — at least one is required.');
       return;
     }
+    /** Gated categories need their unlock rule, otherwise nobody could ever send the gift. */
+    if (form.category === 'Crown' && !form.requiredCrownTier) {
+      toast.error('Crown gifts need a required crown tier (Bronze / Silver / Gold / Ruby).');
+      return;
+    }
+    if (form.category === 'Sponsor' && !form.requiredRole) {
+      toast.error('Sponsor gifts need a required status (Sponsored / Icon Creator / Either).');
+      return;
+    }
     try {
       setSubmitting(true);
       const body = {
         name,
         coinValue,
         category: form.category || 'Popular',
+        /** Always send both (null when not applicable) so switching a gift OUT of a gated
+         *  category clears its old gate instead of leaving it silently locked. */
+        requiredCrownTier:
+          form.category === 'Crown' && form.requiredCrownTier
+            ? Number(form.requiredCrownTier)
+            : null,
+        requiredRole:
+          form.category === 'Sponsor' && form.requiredRole ? form.requiredRole : null,
         iconUrl: iconT || undefined,
         animationUrl: animT || undefined,
         animationJson: animJsonT || null,
@@ -661,7 +711,20 @@ const GiftManagement = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{g.type === 'wheel' ? 'Wheel' : g.category || 'Popular'}</Badge>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant="outline">{g.type === 'wheel' ? 'Wheel' : g.category || 'Popular'}</Badge>
+                        {/* Unlock rule for gated gifts — so admins can see at a glance who can send it. */}
+                        {g.requiredCrownTier ? (
+                          <Badge variant="secondary" className="text-[10px] font-medium">
+                            🔒 {crownTierLabel(g.requiredCrownTier) ?? `Tier ${g.requiredCrownTier}`}+
+                          </Badge>
+                        ) : null}
+                        {g.requiredRole ? (
+                          <Badge variant="secondary" className="text-[10px] font-medium">
+                            🔒 {giftRoleLabel(g.requiredRole) ?? g.requiredRole}
+                          </Badge>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>{g.coinValue}</TableCell>
                     <TableCell>{g.rubyValue ?? '—'}</TableCell>
@@ -748,11 +811,70 @@ const GiftManagement = () => {
                 {GIFT_CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
+                    {GATED_CATEGORIES.includes(cat) ? ' 🔒' : ''}
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-muted-foreground">Category determines how gifts are grouped in the app.</p>
+              <p className="text-xs text-muted-foreground">
+                Category determines how gifts are grouped in the app.{' '}
+                <strong>Crown</strong> and <strong>Sponsor</strong> are <em>gated</em>: everyone
+                still sees the gift, but it shows a lock and is disabled unless the sender
+                qualifies (enforced server-side).
+              </p>
             </div>
+
+            {/* ——— Crown gate ——— */}
+            {form.category === 'Crown' && (
+              <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+                <Label htmlFor="requiredCrownTier">Required crown tier *</Label>
+                <select
+                  id="requiredCrownTier"
+                  value={form.requiredCrownTier}
+                  onChange={(e) => setForm((f) => ({ ...f, requiredCrownTier: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  required
+                >
+                  <option value="">Select a crown tier…</option>
+                  {CROWN_TIERS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Minimum crown needed to send this gift. <strong>Hierarchical</strong> — a user
+                  with a higher crown can also send lower-tier gifts (e.g. a <em>Gold</em> user can
+                  send Bronze, Silver and Gold gifts, but not Ruby). The app groups Crown gifts
+                  into a section per tier.
+                </p>
+              </div>
+            )}
+
+            {/* ——— Sponsor / Icon Creator gate ——— */}
+            {form.category === 'Sponsor' && (
+              <div className="space-y-2 rounded-md border border-violet-500/40 bg-violet-500/5 p-3">
+                <Label htmlFor="requiredRole">Required status *</Label>
+                <select
+                  id="requiredRole"
+                  value={form.requiredRole}
+                  onChange={(e) => setForm((f) => ({ ...f, requiredRole: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  required
+                >
+                  <option value="">Select who can send this…</option>
+                  {GIFT_ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Who is allowed to send this gift. Checked against the user&apos;s{' '}
+                  <code className="text-xs">sponsoredActive</code> /{' '}
+                  <code className="text-xs">iconRecruiterActive</code> status.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="animationJson">Lottie animation (JSON)</Label>
               <p className="text-xs text-muted-foreground">
