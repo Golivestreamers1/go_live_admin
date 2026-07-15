@@ -62,6 +62,7 @@ const makeEmptyWheel = () => ({
   prizeRecipient: 'streamer',
   prizeCurrency: 'rubies',
   minTierCreditsZero: false,
+  creditsZeroThreshold: '',
   segments: [makeWheelSegment(0), makeWheelSegment(1)],
   theme: { pointerColor: '', centerColor: '', textColor: '', ringColor: '', backgroundColor: '' },
   displayOrder: 0,
@@ -464,6 +465,7 @@ const GiftManagement = () => {
       prizeRecipient: w.prizeRecipient === 'viewer' ? 'viewer' : 'streamer',
       prizeCurrency: w.prizeCurrency === 'coins' ? 'coins' : 'rubies',
       minTierCreditsZero: !!w.minTierCreditsZero,
+      creditsZeroThreshold: Number(w.creditsZeroThreshold) > 0 ? Number(w.creditsZeroThreshold) : '',
       segments,
       theme: {
         pointerColor: w.theme?.pointerColor ?? '',
@@ -544,7 +546,6 @@ const GiftManagement = () => {
         name,
         coinValue: cost,
         category: WHEEL_CATEGORIES.includes(wheelForm.category) ? wheelForm.category : 'Special',
-        category: 'Special',
         type: 'wheel',
         displayOrder: Number(wheelForm.displayOrder) || 0,
         isActive: wheelForm.isActive,
@@ -553,6 +554,7 @@ const GiftManagement = () => {
           prizeRecipient: wheelForm.prizeRecipient,
           prizeCurrency: wheelForm.prizeCurrency,
           minTierCreditsZero: !!wheelForm.minTierCreditsZero,
+          creditsZeroThreshold: Number(wheelForm.creditsZeroThreshold) > 0 ? Number(wheelForm.creditsZeroThreshold) : 0,
           segments,
           theme: Object.keys(theme).length ? theme : undefined,
         },
@@ -1036,17 +1038,36 @@ const GiftManagement = () => {
             <p className="text-xs text-muted-foreground">
               Streamer + rubies = today's Mystery Wheel. Viewer + coins = today's Gifter Wheel.
             </p>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="minTierCreditsZero"
-                checked={wheelForm.minTierCreditsZero}
-                onChange={(e) => setWheelForm((f) => ({ ...f, minTierCreditsZero: e.target.checked }))}
-                className="rounded border-input"
-              />
-              <Label htmlFor="minTierCreditsZero" className="cursor-pointer">
-                Landing at or below the spin cost pays the winner nothing
-              </Label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="minTierCreditsZero"
+                  checked={wheelForm.minTierCreditsZero}
+                  onChange={(e) => setWheelForm((f) => ({ ...f, minTierCreditsZero: e.target.checked }))}
+                  className="rounded border-input"
+                />
+                <Label htmlFor="minTierCreditsZero" className="cursor-pointer">
+                  Landing at or below the spin cost pays the winner nothing
+                </Label>
+              </div>
+              {wheelForm.minTierCreditsZero ? (
+                <div className="ml-6 space-y-1">
+                  <Label htmlFor="creditsZeroThreshold">Wins at or below this value pay nothing</Label>
+                  <Input
+                    id="creditsZeroThreshold"
+                    type="number"
+                    min={0}
+                    placeholder="Leave blank to use the spin cost"
+                    value={wheelForm.creditsZeroThreshold}
+                    onChange={(e) => setWheelForm((f) => ({ ...f, creditsZeroThreshold: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    e.g. 1000 → a win of 1000 or less credits 0; only wins above 1000 are paid out.
+                    Only applies when the prize goes to the viewer (Gifter Wheel).
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto]">
