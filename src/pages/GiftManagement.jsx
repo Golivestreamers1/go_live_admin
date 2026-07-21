@@ -149,11 +149,19 @@ const emptyGift = {
   requiredRole: '',
   iconUrl: '',
   animationUrl: '',
+  /** Transparent + audio — HEVC .mov for iOS live hero. */
+  videoUrlIos: '',
+  /** Transparent + audio — WebM / animated WebP / MP4 for Android live hero. */
+  videoUrlAndroid: '',
+  /** Stacked luma-matte MP4 — RGB top / alpha bottom; one file for iOS + Android. */
+  videoUrlLumaMatte: '',
   /** Raw Lottie JSON (Bodymovin) — from paste or .json file read in browser; stored in MongoDB. */
   animationJson: '',
   animationDurationMs: null,
   /** Admin-facing seconds (converted to ms on save). */
   animationDurationSec: '',
+  /** Live hero height — % of screen (0.8 = 80%, or enter 80). Empty = app default. Width is always full screen. */
+  heroHeightPercent: '',
   displayOrder: 0,
   isActive: true,
 };
@@ -177,12 +185,38 @@ const formatDurationLabel = (ms) => {
   return sec >= 10 ? `${sec.toFixed(1)} s` : `${sec < 1 ? sec.toFixed(2) : sec.toFixed(1)} s`;
 };
 
-/** Table / picker preview: icon first; else static animation (GIF/WebP/PNG), not Lottie JSON / MP4. */
+const formatHeroPercentForInput = (pct) => {
+  if (pct == null || Number(pct) <= 0) return '';
+  return String(pct);
+};
+
+/** Accept 0.5 (50%) or 50 — store as percent 0.01–100. */
+const parseHeroPercentInput = (value) => {
+  if (value === '' || value == null) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const pct = n <= 1 ? n * 100 : n;
+  return Math.min(100, Math.max(0.01, pct));
+};
+
+/** Table icon column: static icon/GIF first; else hero video when there is no separate icon. */
 function giftStripPreviewSrc(g) {
   const icon = g?.iconUrl?.trim();
   if (icon) return icon;
   const anim = g?.animationUrl?.trim();
   if (anim && !/\.json($|\?)/i.test(anim) && !isVideoAnimationUrl(anim)) return anim;
+  return giftHeroPreviewSrc(g);
+}
+
+function giftHeroPreviewSrc(g) {
+  const luma = g?.videoUrlLumaMatte?.trim();
+  if (luma) return luma;
+  const ios = g?.videoUrlIos?.trim();
+  const android = g?.videoUrlAndroid?.trim();
+  if (ios) return ios;
+  if (android) return android;
+  const anim = g?.animationUrl?.trim();
+  if (anim) return anim;
   return null;
 }
 
@@ -234,6 +268,15 @@ const GiftManagement = () => {
   const [uploadingAnimation, setUploadingAnimation] = useState(false);
   const [animationPreviewUrl, setAnimationPreviewUrl] = useState('');
   const animationFileRef = React.useRef(null);
+  const [uploadingIosVideo, setUploadingIosVideo] = useState(false);
+  const [uploadingAndroidVideo, setUploadingAndroidVideo] = useState(false);
+  const [uploadingLumaMatteVideo, setUploadingLumaMatteVideo] = useState(false);
+  const [iosVideoPreviewUrl, setIosVideoPreviewUrl] = useState('');
+  const [androidVideoPreviewUrl, setAndroidVideoPreviewUrl] = useState('');
+  const [lumaMatteVideoPreviewUrl, setLumaMatteVideoPreviewUrl] = useState('');
+  const iosVideoFileRef = React.useRef(null);
+  const androidVideoFileRef = React.useRef(null);
+  const lumaMatteVideoFileRef = React.useRef(null);
   const lottieJsonFileRef = React.useRef(null);
   const [wheelDialogOpen, setWheelDialogOpen] = useState(false);
   const [editingWheel, setEditingWheel] = useState(null);
@@ -263,6 +306,9 @@ const GiftManagement = () => {
     setForm({ ...emptyGift });
     setIconPreviewUrl('');
     setAnimationPreviewUrl('');
+    setIosVideoPreviewUrl('');
+    setAndroidVideoPreviewUrl('');
+    setLumaMatteVideoPreviewUrl('');
     setDialogOpen(true);
   };
 
@@ -276,17 +322,24 @@ const GiftManagement = () => {
       requiredRole: gift.requiredRole ?? '',
       iconUrl: gift.iconUrl ?? '',
       animationUrl: gift.animationUrl ?? '',
+      videoUrlIos: gift.videoUrlIos ?? '',
+      videoUrlAndroid: gift.videoUrlAndroid ?? '',
+      videoUrlLumaMatte: gift.videoUrlLumaMatte ?? '',
       animationJson: typeof gift.animationJson === 'string' ? gift.animationJson : '',
       animationDurationMs:
         typeof gift.animationDurationMs === 'number' && gift.animationDurationMs > 0
           ? gift.animationDurationMs
           : null,
       animationDurationSec: msToDurationSecInput(gift.animationDurationMs),
+      heroHeightPercent: formatHeroPercentForInput(gift.heroHeightPercent),
       displayOrder: gift.displayOrder ?? 0,
       isActive: gift.isActive !== false,
     });
     setIconPreviewUrl(gift.iconUrl ?? '');
     setAnimationPreviewUrl(gift.animationUrl ?? '');
+    setIosVideoPreviewUrl(gift.videoUrlIos ?? '');
+    setAndroidVideoPreviewUrl(gift.videoUrlAndroid ?? '');
+    setLumaMatteVideoPreviewUrl(gift.videoUrlLumaMatte ?? '');
     setDialogOpen(true);
   };
 
@@ -296,6 +349,9 @@ const GiftManagement = () => {
     setForm({ ...emptyGift });
     setIconPreviewUrl('');
     setAnimationPreviewUrl('');
+    setIosVideoPreviewUrl('');
+    setAndroidVideoPreviewUrl('');
+    setLumaMatteVideoPreviewUrl('');
   };
 
   const handleSubmit = async (e) => {
@@ -312,6 +368,9 @@ const GiftManagement = () => {
     }
     const iconT = form.iconUrl?.trim() || '';
     const animT = form.animationUrl?.trim() || '';
+    const videoIosT = form.videoUrlIos?.trim() || '';
+    const videoAndroidT = form.videoUrlAndroid?.trim() || '';
+    const videoLumaT = form.videoUrlLumaMatte?.trim() || '';
     const animJsonT = form.animationJson?.trim() || '';
     if (animJsonT) {
       try {
@@ -321,8 +380,8 @@ const GiftManagement = () => {
         return;
       }
     }
-    if (!iconT && !animT && !animJsonT) {
-      toast.error('Add a Lottie JSON, a send animation URL/upload, and/or an icon — at least one is required.');
+    if (!iconT && !animT && !animJsonT && !videoIosT && !videoAndroidT && !videoLumaT) {
+      toast.error('Add Lottie JSON, luma-matte / platform videos, a GIF/image animation, and/or an icon — at least one is required.');
       return;
     }
     /** Gated categories need their unlock rule, otherwise nobody could ever send the gift. */
@@ -350,6 +409,9 @@ const GiftManagement = () => {
           form.category === 'Sponsor' && form.requiredRole ? form.requiredRole : null,
         iconUrl: iconT || undefined,
         animationUrl: animT || undefined,
+        videoUrlIos: videoIosT || null,
+        videoUrlAndroid: videoAndroidT || null,
+        videoUrlLumaMatte: videoLumaT || null,
         animationJson: animJsonT || null,
         animationDurationMs: (() => {
           const fromSec = parseDurationSecToMs(form.animationDurationSec);
@@ -359,6 +421,8 @@ const GiftManagement = () => {
           }
           return null;
         })(),
+        heroWidthPercent: null,
+        heroHeightPercent: parseHeroPercentInput(form.heroHeightPercent),
         displayOrder: Number(form.displayOrder) || 0,
         isActive: form.isActive,
       };
@@ -446,6 +510,87 @@ const GiftManagement = () => {
     } finally {
       setUploadingAnimation(false);
       if (animationFileRef.current) animationFileRef.current.value = '';
+    }
+  };
+
+  const handleUploadLumaMatteVideo = async (e) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    const name = file.name?.toLowerCase() ?? '';
+    if (!name.endsWith('.mp4')) {
+      toast.error('Luma-matte gift video must be a stacked MP4 — upload a .mp4 file.');
+      return;
+    }
+    try {
+      setUploadingLumaMatteVideo(true);
+      const result = await giftService.uploadAnimation(file);
+      const url = result?.url ?? result;
+      if (url) {
+        setForm((f) => ({
+          ...f,
+          videoUrlLumaMatte: url,
+          animationDurationMs:
+            typeof result?.animationDurationMs === 'number' && result.animationDurationMs > 0
+              ? result.animationDurationMs
+              : f.animationDurationMs,
+          animationDurationSec:
+            typeof result?.animationDurationMs === 'number' && result.animationDurationMs > 0
+              ? msToDurationSecInput(result.animationDurationMs)
+              : f.animationDurationSec,
+        }));
+        setLumaMatteVideoPreviewUrl(result?.previewUrl || url);
+        toast.success('Luma-matte gift video uploaded');
+      } else toast.error('Upload failed');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploadingLumaMatteVideo(false);
+      if (lumaMatteVideoFileRef.current) lumaMatteVideoFileRef.current.value = '';
+    }
+  };
+
+  const handleUploadPlatformVideo = async (e, platform) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    const name = file.name?.toLowerCase() ?? '';
+    const isIos = platform === 'ios';
+    if (isIos && !name.endsWith('.mov')) {
+      toast.error('iOS gift video must be HEVC with alpha — upload a .mov file.');
+      return;
+    }
+    if (!isIos && !/\.(webm|webp)$/i.test(name)) {
+      toast.error('Android gift video must be WebM (preferred) or animated WebP — upload a .webm or .webp file.');
+      return;
+    }
+    const setUploading = isIos ? setUploadingIosVideo : setUploadingAndroidVideo;
+    const setPreview = isIos ? setIosVideoPreviewUrl : setAndroidVideoPreviewUrl;
+    const field = isIos ? 'videoUrlIos' : 'videoUrlAndroid';
+    const fileRef = isIos ? iosVideoFileRef : androidVideoFileRef;
+    try {
+      setUploading(true);
+      const result = await giftService.uploadAnimation(file);
+      const url = result?.url ?? result;
+      if (url) {
+        setForm((f) => ({
+          ...f,
+          [field]: url,
+          animationDurationMs:
+            typeof result?.animationDurationMs === 'number' && result.animationDurationMs > 0
+              ? result.animationDurationMs
+              : f.animationDurationMs,
+          animationDurationSec:
+            typeof result?.animationDurationMs === 'number' && result.animationDurationMs > 0
+              ? msToDurationSecInput(result.animationDurationMs)
+              : f.animationDurationSec,
+        }));
+        setPreview(result?.previewUrl || url);
+        toast.success(isIos ? 'iOS gift video uploaded' : 'Android gift video uploaded');
+      } else toast.error('Upload failed');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
     }
   };
 
@@ -678,15 +823,19 @@ const GiftManagement = () => {
                     <TableCell>
                       <div className="h-10 w-10 rounded border flex items-center justify-center bg-muted overflow-hidden">
                         {giftStripPreviewSrc(g) ? (
-                          <img
-                            src={giftStripPreviewSrc(g)}
-                            alt=""
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.style.display = 'none';
-                            }}
-                          />
+                          isVideoAnimationUrl(giftStripPreviewSrc(g)) ? (
+                            <GiftAnimationPreview src={giftStripPreviewSrc(g)} />
+                          ) : (
+                            <img
+                              src={giftStripPreviewSrc(g)}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          )
                         ) : (
                           <ImageIcon className="h-5 w-5 text-muted-foreground" />
                         )}
@@ -695,13 +844,13 @@ const GiftManagement = () => {
                     <TableCell>
                       <div
                         className="h-10 w-10 rounded border flex items-center justify-center bg-muted overflow-hidden text-[10px] text-muted-foreground"
-                        title={g.animationUrl || ''}
+                        title={giftHeroPreviewSrc(g) || g.animationUrl || ''}
                       >
                         {(g.animationJson && String(g.animationJson).trim()) ||
                         (g.animationUrl && /\.json($|\?)/i.test(g.animationUrl)) ? (
                           <span className="px-1 text-center leading-tight">Lottie</span>
-                        ) : g.animationUrl ? (
-                          <GiftAnimationPreview src={g.animationUrl} />
+                        ) : giftHeroPreviewSrc(g) ? (
+                          <GiftAnimationPreview src={giftHeroPreviewSrc(g)} />
                         ) : (
                           <span className="opacity-50">—</span>
                         )}
@@ -918,14 +1067,143 @@ const GiftManagement = () => {
                 spellCheck={false}
               />
             </div>
+            <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/20">
+              <Label className="flex items-center gap-2">
+                <Clapperboard className="h-4 w-4" />
+                Luma-matte video (recommended — iOS + Android)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                One stacked MP4 with RGB on top and grayscale alpha on bottom — the app plays it
+                with transparency + audio on both platforms. Encode with ffmpeg{' '}
+                <code className="text-[10px]">vstack</code> (stacked-alpha format). Max 50 MB.
+                Optional platform-specific .mov / .webm below are fallbacks when this is not set.
+              </p>
+              <div className="space-y-2">
+                <Label>Luma-matte hero — stacked MP4 (.mp4)</Label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    ref={lumaMatteVideoFileRef}
+                    type="file"
+                    accept="video/mp4,.mp4"
+                    className="hidden"
+                    onChange={handleUploadLumaMatteVideo}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploadingLumaMatteVideo}
+                    onClick={() => lumaMatteVideoFileRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploadingLumaMatteVideo
+                      ? 'Uploading…'
+                      : form.videoUrlLumaMatte
+                        ? 'Replace luma-matte .mp4'
+                        : 'Upload luma-matte .mp4'}
+                  </Button>
+                  {(lumaMatteVideoPreviewUrl || form.videoUrlLumaMatte) && (
+                    <>
+                      <div className="h-14 w-14 rounded border overflow-hidden bg-muted flex-shrink-0">
+                        <GiftAnimationPreview
+                          src={lumaMatteVideoPreviewUrl || form.videoUrlLumaMatte}
+                        />
+                      </div>
+                      <span className="text-xs text-green-700 dark:text-green-400">
+                        Luma-matte video uploaded
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/20">
+              <Label className="flex items-center gap-2">
+                <Clapperboard className="h-4 w-4" />
+                Platform videos (optional fallbacks)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Upload separate hero files per platform when you are not using luma-matte above.{' '}
+                <strong>iOS:</strong> HEVC with alpha (.mov). <strong>Android:</strong> WebM with
+                alpha + audio (.webm).
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>iOS video — HEVC (.mov)</Label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      ref={iosVideoFileRef}
+                      type="file"
+                      accept="video/quicktime,.mov"
+                      className="hidden"
+                      onChange={(e) => handleUploadPlatformVideo(e, 'ios')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadingIosVideo}
+                      onClick={() => iosVideoFileRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploadingIosVideo ? 'Uploading…' : form.videoUrlIos ? 'Replace iOS .mov' : 'Upload iOS .mov'}
+                    </Button>
+                    {(iosVideoPreviewUrl || form.videoUrlIos) && (
+                      <>
+                        <div className="h-14 w-14 rounded border overflow-hidden bg-muted flex-shrink-0">
+                          <GiftAnimationPreview src={iosVideoPreviewUrl || form.videoUrlIos} />
+                        </div>
+                        <span className="text-xs text-green-700 dark:text-green-400">iOS video uploaded</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Android video — WebM (.webm)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Transparent video with audio — use WebM, not static WebP. WebP is for picker icons below.
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      ref={androidVideoFileRef}
+                      type="file"
+                      accept="video/webm,.webm"
+                      className="hidden"
+                      onChange={(e) => handleUploadPlatformVideo(e, 'android')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadingAndroidVideo}
+                      onClick={() => androidVideoFileRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploadingAndroidVideo
+                        ? 'Uploading…'
+                        : form.videoUrlAndroid
+                          ? 'Replace Android .webm'
+                          : 'Upload Android .webm'}
+                    </Button>
+                    {(androidVideoPreviewUrl || form.videoUrlAndroid) && (
+                      <>
+                        <div className="h-14 w-14 rounded border overflow-hidden bg-muted flex-shrink-0">
+                          <GiftAnimationPreview src={androidVideoPreviewUrl || form.videoUrlAndroid} />
+                        </div>
+                        <span className="text-xs text-green-700 dark:text-green-400">Android video uploaded</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Clapperboard className="h-4 w-4" />
                 Send animation (GIF / MP4 / WebP / image URL)
               </Label>
               <p className="text-xs text-muted-foreground">
-                Optional alternative to Lottie JSON: GIF, MP4 video, or static image. MP4 plays as the
-                full-screen gift hero in the app (set playback duration below). Max upload ~50MB.
+                Optional fallback to platform videos: GIF, single MP4, or static image. Max upload ~50MB.
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 <input
@@ -1014,6 +1292,27 @@ const GiftManagement = () => {
                   </Button>
                 )}
               </div>
+            </div>
+            <div className="space-y-2 rounded-lg border border-dashed p-3 bg-muted/30">
+              <Label htmlFor="heroHeightPercent">Live hero height (% of screen)</Label>
+              <p className="text-xs text-muted-foreground">
+                Optional — width is always full screen. Set height only:{' '}
+                <code className="text-xs">80</code> or <code className="text-xs">0.8</code> = 80%
+                of screen height. Leave empty for the app default (same as today).
+              </p>
+              <Input
+                id="heroHeightPercent"
+                type="number"
+                min={0.01}
+                max={100}
+                step="any"
+                className="max-w-[160px]"
+                value={form.heroHeightPercent}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, heroHeightPercent: e.target.value }))
+                }
+                placeholder="Default"
+              />
             </div>
             <div className="space-y-2">
               <Label>Icon image (optional)</Label>
