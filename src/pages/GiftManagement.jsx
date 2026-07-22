@@ -151,7 +151,7 @@ const emptyGift = {
   animationUrl: '',
   /** Transparent + audio — HEVC .mov for iOS live hero. */
   videoUrlIos: '',
-  /** Transparent + audio — WebM / animated WebP / MP4 for Android live hero. */
+  /** Opaque / platform fallback — WebM or MP4 for Android live hero. */
   videoUrlAndroid: '',
   /** Stacked luma-matte MP4 — RGB top / alpha bottom; one file for iOS + Android. */
   videoUrlLumaMatte: '',
@@ -558,8 +558,10 @@ const GiftManagement = () => {
       toast.error('iOS gift video must be HEVC with alpha — upload a .mov file.');
       return;
     }
-    if (!isIos && !/\.(webm|webp)$/i.test(name)) {
-      toast.error('Android gift video must be WebM (preferred) or animated WebP — upload a .webm or .webp file.');
+    if (!isIos && !/\.(webm|webp|mp4|m4v)$/i.test(name)) {
+      toast.error(
+        'Android gift video must be WebM, MP4, or animated WebP — upload a .webm, .mp4, or .webp file.',
+      );
       return;
     }
     const setUploading = isIos ? setUploadingIosVideo : setUploadingAndroidVideo;
@@ -1124,8 +1126,9 @@ const GiftManagement = () => {
               </Label>
               <p className="text-xs text-muted-foreground">
                 Upload separate hero files per platform when you are not using luma-matte above.{' '}
-                <strong>iOS:</strong> HEVC with alpha (.mov). <strong>Android:</strong> WebM with
-                alpha + audio (.webm).
+                <strong>iOS:</strong> HEVC with alpha (.mov). <strong>Android:</strong> WebM with alpha
+                (.webm) or MP4 (.mp4). For transparent Android playback, prefer{' '}
+                <strong>luma-matte .mp4</strong> above — alpha WebM renders opaque in the app.
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -1159,15 +1162,17 @@ const GiftManagement = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Android video — WebM (.webm)</Label>
+                  <Label>Android video — WebM or MP4</Label>
                   <p className="text-xs text-muted-foreground">
-                    Transparent video with audio — use WebM, not static WebP. WebP is for picker icons below.
+                    For transparency on Android: upload a <strong>stacked luma-matte</strong> file
+                    (.mp4 or .webm — RGB on top, alpha mask on bottom) here or in the luma-matte field
+                    above. Plain alpha WebM/MP4 (single layer) will still look opaque/black on Android.
                   </p>
                   <div className="flex items-center gap-2 flex-wrap">
                     <input
                       ref={androidVideoFileRef}
                       type="file"
-                      accept="video/webm,.webm"
+                      accept="video/webm,video/mp4,.webm,.mp4,.webp"
                       className="hidden"
                       onChange={(e) => handleUploadPlatformVideo(e, 'android')}
                     />
@@ -1182,8 +1187,8 @@ const GiftManagement = () => {
                       {uploadingAndroidVideo
                         ? 'Uploading…'
                         : form.videoUrlAndroid
-                          ? 'Replace Android .webm'
-                          : 'Upload Android .webm'}
+                          ? 'Replace Android video'
+                          : 'Upload Android .webm / .mp4'}
                     </Button>
                     {(androidVideoPreviewUrl || form.videoUrlAndroid) && (
                       <>
@@ -1296,14 +1301,14 @@ const GiftManagement = () => {
             <div className="space-y-2 rounded-lg border border-dashed p-3 bg-muted/30">
               <Label htmlFor="heroHeightPercent">Live hero height (% of screen)</Label>
               <p className="text-xs text-muted-foreground">
-                Optional — width is always full screen. Set height only:{' '}
-                <code className="text-xs">80</code> or <code className="text-xs">0.8</code> = 80%
-                of screen height. Leave empty for the app default (same as today).
+                Optional — width is always full screen. Height only:{' '}
+                <code className="text-xs">100</code> = full screen height. Values above 100 are
+                clamped to 100. Leave empty for the app default (~82%).
               </p>
               <Input
                 id="heroHeightPercent"
                 type="number"
-                min={0.01}
+                min={1}
                 max={100}
                 step="any"
                 className="max-w-[160px]"
