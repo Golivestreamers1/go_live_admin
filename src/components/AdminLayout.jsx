@@ -34,6 +34,7 @@ import {
   UserPlus,
   ShieldHalf,
   Crown,
+  BadgeCheck,
   ImageIcon,
   Gem,
   LifeBuoy,
@@ -119,6 +120,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Top Spenders',
       href: '/topspenders',
       icon: Crown,
+    },
+    {
+      name: 'Premium subscribers',
+      href: '/premium-subscribers',
+      icon: BadgeCheck,
     },
     {
       name: 'Referrals',

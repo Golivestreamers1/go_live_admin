@@ -12,6 +12,7 @@ import CameraMicMemory from './pages/CameraMicMemory';
 import UserManagement from './pages/UserManagement';
 import UserDetails from './pages/UserDetails';
 import SponsoredCreators from './pages/SponsoredCreators';
+import PremiumSubscribers from './pages/PremiumSubscribers';
 import IconRecruiterApplications from './pages/IconRecruiterApplications';
 import Settings from './pages/Settings';
 import AdminLogin from './pages/AdminLogin';
@@ -284,6 +285,18 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <SubscriptionManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+
+          <Route
+            path="/premium-subscribers"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PremiumSubscribers />
                 </AdminLayout>
               </ProtectedRoute>
             }
