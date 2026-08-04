@@ -22,7 +22,8 @@ const statusBadge = (s) => {
   if (v === 'pending') return <Badge variant="secondary">Pending</Badge>;
   if (v === 'accepted') return <Badge className="bg-emerald-600">Accepted</Badge>;
   if (v === 'rejected') return <Badge variant="destructive">Rejected</Badge>;
-  return <Badge variant="outline">{s || '—'}</Badge>;
+  if (v === 'none' || !v) return <Badge variant="outline">Not applied</Badge>;
+  return <Badge variant="outline">{s}</Badge>;
 };
 
 const IconRecruiterApplications = () => {
@@ -212,7 +213,9 @@ const IconRecruiterApplications = () => {
                 ) : users.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                      No applications found
+                      {search
+                        ? 'No users matched that name or email'
+                        : 'No applications found'}
                     </TableCell>
                   </TableRow>
                 ) : (
