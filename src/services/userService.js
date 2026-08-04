@@ -19,6 +19,16 @@ export const userService = {
     return response.data.data; // Unwrap to return inner data object
   },
 
+  async getLoginSessions(id, params = {}) {
+    const { page = 1, limit = 25 } = params;
+    const queryParams = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    const response = await api.get(`/admin/users/${id}/login-sessions?${queryParams}`);
+    return response.data.data;
+  },
+
   async createUser(userData) {
     const response = await api.post('/admin/users', userData);
     return response.data.data; // Unwrap to return inner data object

@@ -539,6 +539,8 @@ export default function UserDetails() {
 
   const [activity, setActivity] = useState(null);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [loginSessions, setLoginSessions] = useState([]);
+  const [loginSessionsLoading, setLoginSessionsLoading] = useState(false);
   const [activityFrom, setActivityFrom] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -567,7 +569,19 @@ export default function UserDetails() {
         if (!cancelled) setLoading(false);
       }
     };
+    const loadSessions = async () => {
+      try {
+        setLoginSessionsLoading(true);
+        const data = await userService.getLoginSessions(id, { page: 1, limit: 20 });
+        if (!cancelled) setLoginSessions(data?.items || []);
+      } catch {
+        if (!cancelled) setLoginSessions([]);
+      } finally {
+        if (!cancelled) setLoginSessionsLoading(false);
+      }
+    };
     load();
+    loadSessions();
     return () => {
       cancelled = true;
     };
@@ -1071,6 +1085,10 @@ export default function UserDetails() {
                 <p className="font-medium">{fmtDate(user.lastLogin)}</p>
               </div>
               <div className="text-sm">
+                <p className="text-muted-foreground">Last login IP</p>
+                <p className="font-mono text-xs">{user.lastLoginIp || '—'}</p>
+              </div>
+              <div className="text-sm">
                 <p className="text-muted-foreground">User ID</p>
                 <p className="font-mono text-xs">
                   {user._id} <CopyBtn value={user._id} />
@@ -1086,6 +1104,52 @@ export default function UserDetails() {
                   <p>{user.bio}</p>
                 </div>
               ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Login sessions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {loginSessionsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading sessions…</p>
+              ) : loginSessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No login sessions recorded yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-muted-foreground border-b">
+                        <th className="py-2 pr-3 font-medium">When</th>
+                        <th className="py-2 pr-3 font-medium">IP</th>
+                        <th className="py-2 pr-3 font-medium">Method</th>
+                        <th className="py-2 pr-3 font-medium">Last seen</th>
+                        <th className="py-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loginSessions.map((s) => (
+                        <tr key={s._id} className="border-b border-border/60">
+                          <td className="py-2 pr-3 whitespace-nowrap">{fmtDate(s.createdAt)}</td>
+                          <td className="py-2 pr-3 font-mono text-xs">{s.ip || '—'}</td>
+                          <td className="py-2 pr-3">{s.method || '—'}</td>
+                          <td className="py-2 pr-3 whitespace-nowrap">{fmtDate(s.lastSeenAt)}</td>
+                          <td className="py-2">
+                            {s.revokedAt ? (
+                              <span className="text-muted-foreground">
+                                revoked{s.revokeReason ? ` (${s.revokeReason})` : ''}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600">active</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

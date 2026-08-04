@@ -559,6 +559,11 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
                     <span className="text-sm font-medium text-gray-900">Last Login:</span>
                     <span className="text-sm text-gray-600 ml-2">
                       {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
+                      {user.lastLoginIp ? (
+                        <span className="block text-xs text-muted-foreground font-mono mt-0.5">
+                          {user.lastLoginIp}
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                 </div>
