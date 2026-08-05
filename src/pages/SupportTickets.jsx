@@ -67,7 +67,7 @@ const SupportTickets = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
-  const [stats, setStats] = useState({ open: 0, in_progress: 0, awaiting_user: 0, resolved: 0, closed: 0 });
+  const [stats, setStats] = useState({ open: 0, in_progress: 0, awaiting_user: 0, resolved: 0, closed: 0, unread: 0 });
 
   const fetchData = useCallback(async () => {
     try {
@@ -143,7 +143,14 @@ const SupportTickets = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
-          <p className="text-sm text-gray-500 mt-1">Triage and respond to user tickets from web, app, and admin intake.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Unread replies stay at the top. Triage tickets from web, app, and admin intake.
+            {stats.unread > 0 ? (
+              <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                {stats.unread} unread
+              </span>
+            ) : null}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleExport} disabled={exporting}>
@@ -259,6 +266,7 @@ const SupportTickets = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8" />
                   <TableHead>Ticket #</TableHead>
                   <TableHead>Subject</TableHead>
                   <TableHead>Submitter</TableHead>
@@ -272,17 +280,42 @@ const SupportTickets = () => {
               <TableBody>
                 {tickets.map((t) => {
                   const s = statusMeta(t.status);
-                  const lastUpdate = t.lastAdminReplyAt || t.lastUserReplyAt || t.updatedAt || t.createdAt;
+                  const unread = Boolean(t.hasUnreadForAdmin);
+                  const lastUpdate =
+                    t.lastUserReplyAt &&
+                    (!t.lastAdminReplyAt || new Date(t.lastUserReplyAt) >= new Date(t.lastAdminReplyAt))
+                      ? t.lastUserReplyAt
+                      : t.lastAdminReplyAt || t.lastUserReplyAt || t.updatedAt || t.createdAt;
                   return (
                     <TableRow
                       key={t._id}
-                      className="cursor-pointer hover:bg-gray-50"
+                      className={`cursor-pointer hover:bg-gray-50 ${unread ? 'bg-blue-50/70' : ''}`}
                       onClick={() => navigateWithReturn(`/support/${t._id}`)}
                     >
-                      <TableCell className="font-mono text-xs">{t.ticketNumber}</TableCell>
-                      <TableCell className="max-w-[320px] truncate font-medium">{t.subject}</TableCell>
+                      <TableCell className="w-8 px-3">
+                        {unread ? (
+                          <span
+                            title="Unread"
+                            className="inline-block h-2.5 w-2.5 rounded-full bg-blue-600"
+                            aria-label="Unread"
+                          />
+                        ) : null}
+                      </TableCell>
+                      <TableCell className={`font-mono text-xs ${unread ? 'font-semibold' : ''}`}>
+                        {t.ticketNumber}
+                      </TableCell>
+                      <TableCell className={`max-w-[320px] truncate ${unread ? 'font-semibold text-gray-900' : 'font-medium'}`}>
+                        {t.subject}
+                        {unread ? (
+                          <span className="ml-2 inline-block rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                            Unread
+                          </span>
+                        ) : null}
+                      </TableCell>
                       <TableCell>
-                        <div className="text-sm">{t.submitterUser?.name || t.name || '—'}</div>
+                        <div className={`text-sm ${unread ? 'font-semibold' : ''}`}>
+                          {t.submitterUser?.name || t.name || '—'}
+                        </div>
                         <div className="text-xs text-gray-500">{t.email}</div>
                       </TableCell>
                       <TableCell><span className="text-xs bg-gray-100 text-gray-700 rounded px-2 py-0.5">{categoryLabel(t.category)}</span></TableCell>

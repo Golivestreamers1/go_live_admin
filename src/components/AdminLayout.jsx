@@ -27,6 +27,7 @@ import {
   Wallet,
   Flag,
   FileWarning,
+  Ban,
   Gift,
   DollarSign,
   ArrowDownToLine,
@@ -35,7 +36,6 @@ import {
   ShieldHalf,
   Crown,
   BadgeCheck,
-  ImageIcon,
   Gem,
   LifeBuoy,
   Bell,
@@ -80,7 +80,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
     const refresh = async () => {
       try {
         const stats = await supportService.getStats();
-        if (!cancelled) setOpenTicketCount(stats?.open || 0);
+        if (!cancelled) setOpenTicketCount(stats?.unread || stats?.open || 0);
       } catch {
         /* ignore — user may not be authed yet */
       }
@@ -132,14 +132,14 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Share2,
     },
     {
-      name: 'Banners',
-      href: '/banners',
-      icon: ImageIcon,
-    },
-    {
       name: 'Reported Users',
       href: '/reported-users',
       icon: Flag,
+    },
+    {
+      name: 'IP Bans',
+      href: '/ip-bans',
+      icon: Ban,
     },
     {
       name: 'Reported Posts',

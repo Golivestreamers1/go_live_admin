@@ -166,7 +166,7 @@ const SupportTicketDetail = () => {
       setTicket((t) => ({ ...t, ...updated }));
       setReply('');
       setFiles([]);
-      toast.success('Reply sent');
+      toast.success('Reply emailed to user');
       if (andResolve) await handlePatch({ status: 'resolved' });
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Send failed');
