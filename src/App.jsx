@@ -14,6 +14,7 @@ import UserDetails from './pages/UserDetails';
 import SponsoredCreators from './pages/SponsoredCreators';
 import PremiumSubscribers from './pages/PremiumSubscribers';
 import IconRecruiterApplications from './pages/IconRecruiterApplications';
+import AgencyRequests from './pages/AgencyRequests';
 import Settings from './pages/Settings';
 import AdminLogin from './pages/AdminLogin';
 import PackageManagement from './pages/PackageManagement';
@@ -231,6 +232,17 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <IconRecruiterApplications />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/agencies"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <AgencyRequests />
                 </AdminLayout>
               </ProtectedRoute>
             }

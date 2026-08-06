@@ -38,6 +38,7 @@ import {
   BadgeCheck,
   Gem,
   LifeBuoy,
+  Building2,
   Bell,
   AlertTriangle,
   Share2,
@@ -115,6 +116,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Icon Recruiter',
       href: '/icon-recruiter',
       icon: UserPlus,
+    },
+    {
+      name: 'Agency requests',
+      href: '/agencies',
+      icon: Building2,
     },
     {
       name: 'Top Spenders',
