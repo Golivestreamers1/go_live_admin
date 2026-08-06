@@ -169,6 +169,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Radio,
     },
     {
+      name: 'Live streams',
+      href: '/live-streams',
+      icon: Radio,
+    },
+    {
       name: 'Cash out email change',
       href: '/cashout-email-change',
       icon: ClipboardList,

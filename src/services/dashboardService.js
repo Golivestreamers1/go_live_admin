@@ -54,6 +54,12 @@ export const dashboardService = {
     return response.data.data;
   },
 
+  // Full active stream rows for moderation page
+  getActiveLiveStreams: async () => {
+    const response = await api.get('/admin/live-streams/active');
+    return response.data.data;
+  },
+
   // All-time / range stream totals + peaks + averages
   getStreamTotals: async () => {
     const response = await api.get('/dashboard/streams/totals');

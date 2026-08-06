@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -176,14 +177,19 @@ const LiveNowCard = () => {
                     ? ` (${data.activeStreams})`
                     : ''}
               </h3>
-              <div className="relative w-full sm:max-w-xs">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  placeholder="Filter by name, username, title, or bio…"
-                  className="h-9 pl-8"
-                />
+              <div className="flex w-full gap-2 sm:w-auto sm:items-center">
+                <Button asChild variant="outline" size="sm" className="h-9">
+                  <Link to="/live-streams">View all</Link>
+                </Button>
+                <div className="relative w-full sm:w-[320px]">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    placeholder="Filter by name, username, title, or bio…"
+                    className="h-9 pl-8"
+                  />
+                </div>
               </div>
             </div>
             {allStreams.length ? (
