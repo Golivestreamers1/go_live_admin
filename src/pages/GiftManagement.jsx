@@ -23,7 +23,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
-import { Gift, Plus, Pencil, Trash2, Image as ImageIcon, Upload, Clapperboard } from 'lucide-react';
+import { Gift, Plus, Pencil, Trash2, Image as ImageIcon, Upload, Clapperboard, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 const GIFT_CATEGORIES = ["Popular", "Roses", "Special", "Guns", "New", "Crown", "Sponsor"];
@@ -155,6 +155,8 @@ const emptyGift = {
   videoUrlAndroid: '',
   /** Stacked luma-matte MP4 — RGB top / alpha bottom; one file for iOS + Android. */
   videoUrlLumaMatte: '',
+  /** Tencent PAG (.pag) vector animation URL for native hardware-accelerated playback. */
+  pagUrl: '',
   /** Raw Lottie JSON (Bodymovin) — from paste or .json file read in browser; stored in MongoDB. */
   animationJson: '',
   animationDurationMs: null,
@@ -271,12 +273,15 @@ const GiftManagement = () => {
   const [uploadingIosVideo, setUploadingIosVideo] = useState(false);
   const [uploadingAndroidVideo, setUploadingAndroidVideo] = useState(false);
   const [uploadingLumaMatteVideo, setUploadingLumaMatteVideo] = useState(false);
+  const [uploadingPag, setUploadingPag] = useState(false);
   const [iosVideoPreviewUrl, setIosVideoPreviewUrl] = useState('');
   const [androidVideoPreviewUrl, setAndroidVideoPreviewUrl] = useState('');
   const [lumaMatteVideoPreviewUrl, setLumaMatteVideoPreviewUrl] = useState('');
+  const [pagPreviewUrl, setPagPreviewUrl] = useState('');
   const iosVideoFileRef = React.useRef(null);
   const androidVideoFileRef = React.useRef(null);
   const lumaMatteVideoFileRef = React.useRef(null);
+  const pagFileRef = React.useRef(null);
   const lottieJsonFileRef = React.useRef(null);
   const [wheelDialogOpen, setWheelDialogOpen] = useState(false);
   const [editingWheel, setEditingWheel] = useState(null);
@@ -325,6 +330,7 @@ const GiftManagement = () => {
       videoUrlIos: gift.videoUrlIos ?? '',
       videoUrlAndroid: gift.videoUrlAndroid ?? '',
       videoUrlLumaMatte: gift.videoUrlLumaMatte ?? '',
+      pagUrl: gift.pagUrl ?? '',
       animationJson: typeof gift.animationJson === 'string' ? gift.animationJson : '',
       animationDurationMs:
         typeof gift.animationDurationMs === 'number' && gift.animationDurationMs > 0
@@ -340,6 +346,7 @@ const GiftManagement = () => {
     setIosVideoPreviewUrl(gift.videoUrlIos ?? '');
     setAndroidVideoPreviewUrl(gift.videoUrlAndroid ?? '');
     setLumaMatteVideoPreviewUrl(gift.videoUrlLumaMatte ?? '');
+    setPagPreviewUrl(gift.pagUrl ?? '');
     setDialogOpen(true);
   };
 
@@ -352,6 +359,7 @@ const GiftManagement = () => {
     setIosVideoPreviewUrl('');
     setAndroidVideoPreviewUrl('');
     setLumaMatteVideoPreviewUrl('');
+    setPagPreviewUrl('');
   };
 
   const handleSubmit = async (e) => {
@@ -371,6 +379,7 @@ const GiftManagement = () => {
     const videoIosT = form.videoUrlIos?.trim() || '';
     const videoAndroidT = form.videoUrlAndroid?.trim() || '';
     const videoLumaT = form.videoUrlLumaMatte?.trim() || '';
+    const pagT = form.pagUrl?.trim() || '';
     const animJsonT = form.animationJson?.trim() || '';
     if (animJsonT) {
       try {
@@ -380,8 +389,8 @@ const GiftManagement = () => {
         return;
       }
     }
-    if (!iconT && !animT && !animJsonT && !videoIosT && !videoAndroidT && !videoLumaT) {
-      toast.error('Add Lottie JSON, luma-matte / platform videos, a GIF/image animation, and/or an icon — at least one is required.');
+    if (!iconT && !animT && !animJsonT && !videoIosT && !videoAndroidT && !videoLumaT && !pagT) {
+      toast.error('Add PAG (.pag), Lottie JSON, luma-matte / platform videos, a GIF/image animation, and/or an icon — at least one is required.');
       return;
     }
     /** Gated categories need their unlock rule, otherwise nobody could ever send the gift. */
@@ -412,6 +421,7 @@ const GiftManagement = () => {
         videoUrlIos: videoIosT || null,
         videoUrlAndroid: videoAndroidT || null,
         videoUrlLumaMatte: videoLumaT || null,
+        pagUrl: pagT || null,
         animationJson: animJsonT || null,
         animationDurationMs: (() => {
           const fromSec = parseDurationSecToMs(form.animationDurationSec);
@@ -471,10 +481,10 @@ const GiftManagement = () => {
     const file = e?.target?.files?.[0];
     if (!file) return;
     const name = file.name?.toLowerCase() ?? '';
-    const okExt = /\.(gif|webp|png|jpe?g|mp4|m4v|mov|webm)$/i.test(name);
+    const okExt = /\.(gif|webp|png|jpe?g|mp4|m4v|mov|webm|pag)$/i.test(name);
     if (!okExt) {
       toast.error(
-        'Upload GIF / WebP / PNG / JPG / MP4 / MOV / WebM. For Lottie, upload a .json file or paste JSON below.',
+        'Upload .pag (PAG), GIF / WebP / PNG / JPG / MP4 / MOV / WebM. For Lottie, upload a .json file or paste JSON below.',
       );
       return;
     }
@@ -546,6 +556,42 @@ const GiftManagement = () => {
     } finally {
       setUploadingLumaMatteVideo(false);
       if (lumaMatteVideoFileRef.current) lumaMatteVideoFileRef.current.value = '';
+    }
+  };
+
+  const handleUploadPag = async (e) => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    const name = file.name?.toLowerCase() ?? '';
+    if (!name.endsWith('.pag')) {
+      toast.error('PAG animation must be a vector binary file — upload a .pag file.');
+      return;
+    }
+    try {
+      setUploadingPag(true);
+      const result = await giftService.uploadAnimation(file);
+      const url = result?.url ?? result;
+      if (url) {
+        setForm((f) => ({
+          ...f,
+          pagUrl: url,
+          animationDurationMs:
+            typeof result?.animationDurationMs === 'number' && result.animationDurationMs > 0
+              ? result.animationDurationMs
+              : f.animationDurationMs,
+          animationDurationSec:
+            typeof result?.animationDurationMs === 'number' && result.animationDurationMs > 0
+              ? msToDurationSecInput(result.animationDurationMs)
+              : f.animationDurationSec,
+        }));
+        setPagPreviewUrl(result?.previewUrl || url);
+        toast.success('PAG vector file uploaded successfully');
+      } else toast.error('Upload failed');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploadingPag(false);
+      if (pagFileRef.current) pagFileRef.current.value = '';
     }
   };
 
@@ -848,7 +894,9 @@ const GiftManagement = () => {
                         className="h-10 w-10 rounded border flex items-center justify-center bg-muted overflow-hidden text-[10px] text-muted-foreground"
                         title={giftHeroPreviewSrc(g) || g.animationUrl || ''}
                       >
-                        {(g.animationJson && String(g.animationJson).trim()) ||
+                        {g.pagUrl ? (
+                          <span className="px-1 font-bold text-emerald-600 dark:text-emerald-400 text-center leading-tight">PAG</span>
+                        ) : (g.animationJson && String(g.animationJson).trim()) ||
                         (g.animationUrl && /\.json($|\?)/i.test(g.animationUrl)) ? (
                           <span className="px-1 text-center leading-tight">Lottie</span>
                         ) : giftHeroPreviewSrc(g) ? (
@@ -1068,6 +1116,53 @@ const GiftManagement = () => {
                 className="font-mono text-xs min-h-[120px]"
                 spellCheck={false}
               />
+            </div>
+            <div className="space-y-3 rounded-lg border border-dashed border-emerald-500/40 p-3 bg-emerald-500/5">
+              <Label className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-400">
+                <Sparkles className="h-4 w-4" />
+                Tencent PAG Vector Animation (.pag) — Native Vector Engine
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                High-performance hardware-accelerated vector animation format. Zero texture memory leaks, 60 FPS vector playback on low-end mobile devices.
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    ref={pagFileRef}
+                    type="file"
+                    accept=".pag"
+                    className="hidden"
+                    onChange={handleUploadPag}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploadingPag}
+                    onClick={() => pagFileRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploadingPag
+                      ? 'Uploading…'
+                      : form.pagUrl
+                        ? 'Replace .pag file'
+                        : 'Upload vector .pag'}
+                  </Button>
+                  {(pagPreviewUrl || form.pagUrl) && (
+                    <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                      ✓ Vector PAG asset attached
+                    </span>
+                  )}
+                </div>
+                <Input
+                  id="pagUrl"
+                  type="url"
+                  value={form.pagUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, pagUrl: e.target.value }))}
+                  placeholder="Or paste .pag URL directly"
+                  className="mt-1 font-mono text-xs"
+                />
+              </div>
             </div>
             <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/20">
               <Label className="flex items-center gap-2">
