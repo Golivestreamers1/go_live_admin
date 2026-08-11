@@ -1005,6 +1005,9 @@ export default function UserDetails() {
                 {user.role?.displayName ? (
                   <Badge variant="secondary">{user.role.displayName}</Badge>
                 ) : null}
+                {user.isDeleted ? (
+                  <Badge variant="destructive">Soft-deleted</Badge>
+                ) : null}
                 {user.isActive === false ? (
                   <Badge variant="destructive">Inactive</Badge>
                 ) : null}
