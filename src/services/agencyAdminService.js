@@ -49,6 +49,27 @@ export const agencyAdminService = {
     return response.data.data;
   },
 
+  async setWalletStatus(agencyId, payload) {
+    const response = await api.patch(
+      `/admin/agencies/${agencyId}/wallet/status`,
+      payload
+    );
+    return response.data.data;
+  },
+
+  async transferMember(payload) {
+    const response = await api.post('/admin/agencies/members/transfer', payload);
+    return response.data.data;
+  },
+
+  async reverseCommissionCashout(payload) {
+    const response = await api.post(
+      '/admin/agencies/commissions/reverse-cashout',
+      payload
+    );
+    return response.data.data;
+  },
+
   async getWithdrawals(agencyId, params = {}) {
     const response = await api.get(
       `/admin/agencies/${agencyId}/withdrawals${qs(params)}`

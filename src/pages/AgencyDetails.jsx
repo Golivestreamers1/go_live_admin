@@ -13,6 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Select, SelectContent, SelectItem } from '../components/ui/select';
 import { Textarea } from '../components/ui/textarea';
 import {
   Table,
@@ -63,6 +65,13 @@ const AgencyDetails = () => {
   const [noteDialog, setNoteDialog] = useState({ open: false, mode: null });
   const [note, setNote] = useState('');
   const [withdrawalBusy, setWithdrawalBusy] = useState(null);
+  const [transferDialog, setTransferDialog] = useState({
+    open: false,
+    member: null,
+    toAgencyId: '',
+    memberRole: '',
+    note: '',
+  });
 
   const loadDetails = useCallback(async () => {
     try {
@@ -135,14 +144,58 @@ const AgencyDetails = () => {
       if (noteDialog.mode === 'suspend') {
         await agencyAdminService.suspendAgency(agencyId, { note: note || undefined });
         toast.success('Agency suspended');
-      } else {
+      } else if (noteDialog.mode === 'reactivate') {
         await agencyAdminService.reactivateAgency(agencyId, { note: note || undefined });
         toast.success('Agency reactivated');
+      } else {
+        const walletStatus = noteDialog.mode?.replace('wallet-', '');
+        await agencyAdminService.setWalletStatus(agencyId, {
+          status: walletStatus,
+          note: note || undefined,
+        });
+        toast.success(`Wallet ${walletStatus === 'active' ? 'unfrozen' : walletStatus}`);
       }
       setNoteDialog({ open: false, mode: null });
       await loadDetails();
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Action failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openTransfer = (member) => {
+    setTransferDialog({
+      open: true,
+      member,
+      toAgencyId: '',
+      memberRole: member.memberRole || '',
+      note: '',
+    });
+  };
+
+  const confirmTransfer = async () => {
+    const userId =
+      transferDialog.member?.recruiterId?._id ||
+      transferDialog.member?.recruiterId;
+    if (!userId || !transferDialog.toAgencyId.trim()) {
+      toast.error('Target agency ID is required');
+      return;
+    }
+    try {
+      setBusy(true);
+      await agencyAdminService.transferMember({
+        userId: String(userId),
+        toAgencyId: transferDialog.toAgencyId.trim(),
+        memberRole: transferDialog.memberRole || undefined,
+        recruitedBy: transferDialog.member?.recruitedBy?._id || undefined,
+        note: transferDialog.note.trim() || undefined,
+      });
+      toast.success('Member transferred');
+      setTransferDialog((s) => ({ ...s, open: false }));
+      await Promise.all([loadMembers(), loadDetails()]);
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Member transfer failed');
     } finally {
       setBusy(false);
     }
@@ -348,12 +401,13 @@ const AgencyDetails = () => {
                       <TableHead>Role</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Joined</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {members.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                           {tabLoading ? 'Loading…' : 'No members'}
                         </TableCell>
                       </TableRow>
@@ -373,6 +427,15 @@ const AgencyDetails = () => {
                                 ? new Date(m.joinedAt || m.createdAt).toLocaleDateString()
                                 : '—'}
                             </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openTransfer(m)}
+                              >
+                                Transfer
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })
@@ -386,11 +449,43 @@ const AgencyDetails = () => {
 
         <TabsContent value="wallet">
           <Card>
-            <CardHeader>
-              <CardTitle>Wallet</CardTitle>
-              <CardDescription>
-                Status: {wallet.status || '—'} · Agency status: {status}
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Wallet</CardTitle>
+                <CardDescription>
+                  Status: {wallet.status || '—'} · Agency status: {status}
+                </CardDescription>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                {wallet.status === 'frozen' ? (
+                  <Button
+                    size="sm"
+                    onClick={() => openAction('wallet-active')}
+                    disabled={busy}
+                  >
+                    Unfreeze
+                  </Button>
+                ) : wallet.status !== 'closed' ? (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => openAction('wallet-frozen')}
+                    disabled={busy}
+                  >
+                    Freeze
+                  </Button>
+                ) : null}
+                {wallet.status !== 'closed' ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openAction('wallet-closed')}
+                    disabled={busy}
+                  >
+                    Close
+                  </Button>
+                ) : null}
+              </div>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-3">
               <div>
@@ -554,12 +649,24 @@ const AgencyDetails = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {noteDialog.mode === 'suspend' ? 'Suspend agency' : 'Reactivate agency'}
+              {noteDialog.mode === 'suspend'
+                ? 'Suspend agency'
+                : noteDialog.mode === 'reactivate'
+                  ? 'Reactivate agency'
+                  : noteDialog.mode === 'wallet-active'
+                    ? 'Unfreeze wallet'
+                    : noteDialog.mode === 'wallet-frozen'
+                      ? 'Freeze wallet'
+                      : 'Close wallet'}
             </DialogTitle>
             <DialogDescription>
               {noteDialog.mode === 'suspend'
                 ? 'Members, wallet, ledger, and audit history are preserved. Normal agency operations will be blocked.'
-                : 'Restores normal agency operations (status → approved / active).'}
+                : noteDialog.mode === 'reactivate'
+                  ? 'Restores normal agency operations (status → approved / active).'
+                  : noteDialog.mode === 'wallet-closed'
+                    ? 'Closing the wallet blocks future payouts. Confirm this administrative action.'
+                    : 'This changes whether the agency wallet can process payouts.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -580,12 +687,86 @@ const AgencyDetails = () => {
               Cancel
             </Button>
             <Button
-              variant={noteDialog.mode === 'suspend' ? 'destructive' : 'default'}
+              variant={
+                noteDialog.mode === 'suspend' ||
+                noteDialog.mode === 'wallet-frozen' ||
+                noteDialog.mode === 'wallet-closed'
+                  ? 'destructive'
+                  : 'default'
+              }
               disabled={busy}
               onClick={confirmStatusAction}
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={transferDialog.open}
+        onOpenChange={(open) =>
+          !busy && setTransferDialog((s) => ({ ...s, open }))
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transfer member</DialogTitle>
+            <DialogDescription>
+              Move this member to another agency while preserving an audit note.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Target agency ID</label>
+              <Input
+                value={transferDialog.toAgencyId}
+                onChange={(e) =>
+                  setTransferDialog((s) => ({ ...s, toAgencyId: e.target.value }))
+                }
+                placeholder="Agency ID"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Role (optional)</label>
+              <Select
+                value={transferDialog.memberRole}
+                onValueChange={(memberRole) =>
+                  setTransferDialog((s) => ({ ...s, memberRole }))
+                }
+                placeholder="Keep current role"
+              >
+                <SelectContent>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="recruiter">Recruiter</SelectItem>
+                  <SelectItem value="moderator">Moderator</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Note (optional)</label>
+              <Textarea
+                value={transferDialog.note}
+                onChange={(e) =>
+                  setTransferDialog((s) => ({ ...s, note: e.target.value }))
+                }
+                placeholder="Reason for transfer…"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => setTransferDialog((s) => ({ ...s, open: false }))}
+            >
+              Cancel
+            </Button>
+            <Button disabled={busy} onClick={confirmTransfer}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Transfer
             </Button>
           </DialogFooter>
         </DialogContent>
