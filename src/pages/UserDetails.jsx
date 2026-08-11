@@ -1190,6 +1190,7 @@ export default function UserDetails() {
                       <tr className="text-left text-muted-foreground border-b">
                         <th className="py-2 pr-3 font-medium">When</th>
                         <th className="py-2 pr-3 font-medium">IP</th>
+                        <th className="py-2 pr-3 font-medium">OS</th>
                         <th className="py-2 pr-3 font-medium">Method</th>
                         <th className="py-2 pr-3 font-medium">Last seen</th>
                         <th className="py-2 pr-3 font-medium">Status</th>
@@ -1201,6 +1202,9 @@ export default function UserDetails() {
                         <tr key={s._id} className="border-b border-border/60">
                           <td className="py-2 pr-3 whitespace-nowrap">{fmtDate(s.createdAt)}</td>
                           <td className="py-2 pr-3 font-mono text-xs">{s.ip || '—'}</td>
+                          <td className="py-2 pr-3 uppercase text-xs">
+                            {s.platform && s.platform !== 'unknown' ? s.platform : '—'}
+                          </td>
                           <td className="py-2 pr-3">{s.method || '—'}</td>
                           <td className="py-2 pr-3 whitespace-nowrap">{fmtDate(s.lastSeenAt)}</td>
                           <td className="py-2 pr-3">
