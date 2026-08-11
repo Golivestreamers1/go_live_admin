@@ -118,7 +118,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: UserPlus,
     },
     {
-      name: 'Agency requests',
+      name: 'Agencies',
       href: '/agencies',
       icon: Building2,
     },
