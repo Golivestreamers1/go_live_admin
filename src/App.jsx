@@ -33,12 +33,15 @@ import ReportedPosts from './pages/ReportedPosts';
 import CashOutRequests from './pages/CashOutRequests';
 import StickerManagement from './pages/StickerManagement';
 import GiftManagement from './pages/GiftManagement';
+import BlogManagement from './pages/BlogManagement';
+import BlogEditor from './pages/BlogEditor';
 import ContestManagement from './pages/ContestManagement';
 import CashoutOptionManagement from './pages/CashoutOptionManagement';
 import WithdrawRequests from './pages/WithdrawRequests';
 import WithdrawRequestDetails from './pages/WithdrawRequestDetails';
 import WithdrawRequestStreamDetails from './pages/WithdrawRequestStreamDetails';
 import TopSpenders from './pages/TopSpenders';
+import FinanceOverview from './pages/FinanceOverview';
 import Referrals from './pages/Referrals';
 import GifterPayoutDetails from './pages/GifterPayoutDetails';
 import GifterRecipientsLookup from './pages/GifterRecipientsLookup';
@@ -273,6 +276,17 @@ function App() {
           <Route path="/ruby-crown-wallet" element={<Navigate to="/topspenders" replace />} />
 
           <Route
+            path="/finance"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <FinanceOverview />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/referrals"
             element={
               <ProtectedRoute>
@@ -475,6 +489,37 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <GiftManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Literal /blogs/new must precede /blogs/:id/edit. */}
+          <Route
+            path="/blogs"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <BlogManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/blogs/new"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <BlogEditor />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/blogs/:id/edit"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <BlogEditor />
                 </AdminLayout>
               </ProtectedRoute>
             }

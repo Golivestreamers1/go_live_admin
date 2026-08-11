@@ -1,0 +1,187 @@
+/*
+ * Article styles MIRRORED from the landing page.
+ *
+ * Source of truth: landing-page/src/index.css → `.prose-golive`
+ * The marketing site and this dashboard are separate builds on different
+ * Tailwind majors, so the rules are duplicated rather than shared. If you
+ * change the article styling on the landing page, change it here too or the
+ * preview stops telling the truth.
+ *
+ * Scoped to `.blog-preview`, which also paints the dark surface the real
+ * article sits on — the admin is a light UI, so without it the preview would
+ * be white-on-white.
+ */
+
+.blog-preview {
+  background: #0e1116;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  font-size: 16.5px;
+  line-height: 1.8;
+  padding: 32px;
+  border-radius: 12px;
+}
+
+.blog-preview > * + * {
+  margin-top: 22px;
+}
+
+.blog-preview h2 {
+  font-family: 'Anton', 'Geist', sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  color: #fff;
+  margin-top: 52px;
+}
+
+.blog-preview h3 {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #fff;
+  margin-top: 36px;
+}
+
+.blog-preview h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 28px;
+}
+
+.blog-preview strong,
+.blog-preview b {
+  color: #fff;
+  font-weight: 600;
+}
+
+.blog-preview em {
+  font-style: italic;
+}
+
+.blog-preview a {
+  color: #ff6b35;
+  border-bottom: 1px solid rgba(255, 107, 53, 0.4);
+  text-decoration: none;
+}
+
+.blog-preview ul,
+.blog-preview ol {
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.blog-preview ul {
+  list-style: disc;
+}
+
+.blog-preview ol {
+  list-style: decimal;
+}
+
+.blog-preview li::marker {
+  color: #f62e1b;
+}
+
+.blog-preview blockquote {
+  border-left: 3px solid #f62e1b;
+  padding: 4px 0 4px 22px;
+  font-size: 19px;
+  line-height: 1.6;
+  color: #fff;
+  font-weight: 600;
+}
+
+.blog-preview hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  margin: 44px 0;
+}
+
+.blog-preview .lede {
+  font-size: 19px;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.blog-preview .callout {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 22px 24px;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.blog-preview .callout .label {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ffd700;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.blog-preview .callout.hot .label {
+  color: #f62e1b;
+}
+
+.blog-preview img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.blog-preview figure {
+  margin-inline: 0;
+}
+
+.blog-preview figcaption {
+  margin-top: 10px;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+
+.blog-preview code {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 0.9em;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+
+.blog-preview pre {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+/*
+ * The editing surface reuses the same look so writing matches the result.
+ * ProseMirror adds .ProseMirror to the contenteditable node.
+ */
+.blog-editor .ProseMirror {
+  min-height: 420px;
+  outline: none;
+}
+
+.blog-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.35);
+}
