@@ -33,6 +33,7 @@ import ReportedPosts from './pages/ReportedPosts';
 import CashOutRequests from './pages/CashOutRequests';
 import StickerManagement from './pages/StickerManagement';
 import GiftManagement from './pages/GiftManagement';
+import GiftCategoryManagement from './pages/GiftCategoryManagement';
 import BlogManagement from './pages/BlogManagement';
 import BlogEditor from './pages/BlogEditor';
 import ContestManagement from './pages/ContestManagement';
@@ -489,6 +490,16 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <GiftManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gift-categories"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <GiftCategoryManagement />
                 </AdminLayout>
               </ProtectedRoute>
             }

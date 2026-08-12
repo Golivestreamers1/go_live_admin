@@ -207,6 +207,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Gift,
     },
     {
+      name: 'Gift categories',
+      href: '/gift-categories',
+      icon: Tags,
+    },
+    {
       name: 'Blog',
       href: '/blogs',
       icon: Newspaper,

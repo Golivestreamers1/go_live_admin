@@ -37,4 +37,14 @@ export const giftService = {
     await api.delete(`${BASE}/${id}`);
     return { _id: id };
   },
+
+  async getCategories() {
+    const { data } = await api.get(`${BASE}/categories`);
+    return data?.data ?? { categories: [] };
+  },
+
+  async saveCategories(categories) {
+    const { data } = await api.put(`${BASE}/categories`, { categories });
+    return data?.data ?? { categories: [] };
+  },
 };
