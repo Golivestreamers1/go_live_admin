@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useListBack } from '../hooks/useListNavigation';
+import { useListBack, useDetailLinkTo } from '../hooks/useListNavigation';
 import { toast } from 'sonner';
 import {
   supportService,
@@ -102,6 +102,7 @@ function MessageBubble({ msg }) {
 const SupportTicketDetail = () => {
   const { id } = useParams();
   const goBack = useListBack('/support');
+  const detailLinkTo = useDetailLinkTo();
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reply, setReply] = useState('');
@@ -427,7 +428,7 @@ const SupportTicketDetail = () => {
                   return (
                     <Link
                       key={ot._id}
-                      to={`/support/${ot._id}`}
+                      to={detailLinkTo(`/support/${ot._id}`)}
                       className="block text-xs hover:bg-gray-50 rounded p-2 border border-gray-200"
                     >
                       <div className="flex items-center justify-between gap-2">
