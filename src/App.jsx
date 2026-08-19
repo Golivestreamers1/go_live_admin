@@ -43,6 +43,10 @@ import WithdrawRequestDetails from './pages/WithdrawRequestDetails';
 import WithdrawRequestStreamDetails from './pages/WithdrawRequestStreamDetails';
 import TopSpenders from './pages/TopSpenders';
 import FinanceOverview from './pages/FinanceOverview';
+import MoneyAudit from "./pages/MoneyAudit";
+import MoneyFlow from "./pages/MoneyFlow";
+import MoneyTracking from "./pages/MoneyTracking";
+import MoneyTrace from "./pages/MoneyTrace";
 import Referrals from './pages/Referrals';
 import GifterPayoutDetails from './pages/GifterPayoutDetails';
 import GifterRecipientsLookup from './pages/GifterRecipientsLookup';
@@ -281,7 +285,53 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
+                  <MoneyFlow />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* The original finance page. Kept reachable only so its numbers can
+              be compared against the rebuilt one; delete once reconciled. */}
+          <Route
+            path="/finance/legacy"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
                   <FinanceOverview />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/finance/audit"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MoneyAudit />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/finance/tracking"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MoneyTracking />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/finance/trace"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MoneyTrace />
                 </AdminLayout>
               </ProtectedRoute>
             }
