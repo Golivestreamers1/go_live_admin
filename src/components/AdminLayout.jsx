@@ -37,6 +37,9 @@ import {
   ShieldHalf,
   Crown,
   TrendingUp,
+  ScaleIcon,
+  History,
+  Search,
   BadgeCheck,
   Gem,
   LifeBuoy,
@@ -56,25 +59,21 @@ const AdminLayout = ({ children, user, onLogout }) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  // Auto-expand subscription menu if user is on a subscription page
-  const subscriptionPaths = ['/packages', '/subscriptions', '/subscription-stats'];
-  const isOnSubscriptionPage = subscriptionPaths.includes(location.pathname);
-  const [subscriptionMenuOpen, setSubscriptionMenuOpen] = React.useState(isOnSubscriptionPage);
-
-  // Auto-expand ecommerce menu if user is on an ecommerce page
-  const ecommercePaths = ['/vendors', '/products', '/categories', '/orders', '/reviews', '/payouts'];
-  const isOnEcommercePage = ecommercePaths.includes(location.pathname);
-  const [ecommerceMenuOpen, setEcommerceMenuOpen] = React.useState(isOnEcommercePage);
-
-  // Update menu state when route changes
-  React.useEffect(() => {
-    if (isOnSubscriptionPage && !subscriptionMenuOpen) {
-      setSubscriptionMenuOpen(true);
-    }
-    if (isOnEcommercePage && !ecommerceMenuOpen) {
-      setEcommerceMenuOpen(true);
-    }
-  }, [location.pathname, isOnSubscriptionPage, subscriptionMenuOpen, isOnEcommercePage, ecommerceMenuOpen]);
+  /**
+   * Collapsible nav groups, keyed by `groupKey`.
+   *
+   * Previously this was one boolean of state per group plus an effect to
+   * re-open it on navigation, which meant adding a group meant editing four
+   * places. A group with no entry here falls back to "open if you are on one of
+   * its pages", so a group auto-expands on the route without any effect at all,
+   * and an explicit toggle still wins.
+   */
+  const [openGroups, setOpenGroups] = React.useState({});
+  // Flips from the group's EFFECTIVE state, not from its stored one. A group
+  // auto-expanded by the current route has no stored value, so toggling from
+  // `false` would set it to `true` and appear to do nothing when clicked.
+  const toggleGroup = (key, currentlyOpen) =>
+    setOpenGroups((prev) => ({ ...prev, [key]: !currentlyOpen }));
 
   // Poll open-ticket count for the sidebar badge
   const [openTicketCount, setOpenTicketCount] = React.useState(0);
@@ -125,9 +124,39 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Building2,
     },
     {
-      name: 'Money Flow',
-      href: '/finance',
+      name: 'Accounting',
       icon: TrendingUp,
+      isGroup: true,
+      groupKey: 'accounting',
+      children: [
+        {
+          name: 'Money Flow',
+          href: '/finance',
+          icon: TrendingUp,
+        },
+        {
+          name: 'Money Tracking',
+          href: '/finance/tracking',
+          icon: Wallet,
+        },
+        {
+          name: 'Coins & Rubies Audit',
+          href: '/finance/audit',
+          icon: ScaleIcon,
+        },
+        {
+          name: 'Follow One Dollar',
+          href: '/finance/trace',
+          icon: Search,
+        },
+        // The original finance page. Kept only so its numbers can be compared
+        // against Money Tracking; remove it once every difference is explained.
+        {
+          name: 'Old finance page',
+          href: '/finance/legacy',
+          icon: History,
+        },
+      ],
     },
     {
       name: 'Top Spenders',
@@ -357,9 +386,12 @@ const AdminLayout = ({ children, user, onLogout }) => {
     return location.pathname === item.href;
   };
 
-  const isGroupActive = (children) => {
-    return children.some(child => location.pathname === child.href);
-  };
+  const isGroupActive = (children) =>
+    children.some((child) => isNavItemActive(child));
+
+  /** Explicit toggle wins; otherwise a group is open when you are inside it. */
+  const isGroupOpen = (item) =>
+    openGroups[item.groupKey] ?? isGroupActive(item.children);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -378,10 +410,8 @@ const AdminLayout = ({ children, user, onLogout }) => {
               const Icon = item.icon;
 
               if (item.isGroup) {
-                const isMenuOpen = item.groupKey === 'ecommerce' ? ecommerceMenuOpen : subscriptionMenuOpen;
-                const toggleMenu = item.groupKey === 'ecommerce'
-                  ? () => setEcommerceMenuOpen(!ecommerceMenuOpen)
-                  : () => setSubscriptionMenuOpen(!subscriptionMenuOpen);
+                const isMenuOpen = isGroupOpen(item);
+                const toggleMenu = () => toggleGroup(item.groupKey, isMenuOpen);
 
                 return (
                   <div key={item.name} className="space-y-1">
@@ -465,10 +495,8 @@ const AdminLayout = ({ children, user, onLogout }) => {
             const Icon = item.icon;
 
             if (item.isGroup) {
-              const isMenuOpen = item.groupKey === 'ecommerce' ? ecommerceMenuOpen : subscriptionMenuOpen;
-              const toggleMenu = item.groupKey === 'ecommerce'
-                ? () => setEcommerceMenuOpen(!ecommerceMenuOpen)
-                : () => setSubscriptionMenuOpen(!subscriptionMenuOpen);
+              const isMenuOpen = isGroupOpen(item);
+              const toggleMenu = () => toggleGroup(item.groupKey, isMenuOpen);
 
               return (
                 <div key={item.name} className="space-y-1">
