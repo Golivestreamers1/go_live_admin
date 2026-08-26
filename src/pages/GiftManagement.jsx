@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { giftService } from '../services/giftService';
-import GiftProcessingPanel from '../components/GiftProcessingPanel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -789,8 +788,7 @@ const GiftManagement = () => {
               Live stream gifts
             </CardTitle>
             <CardDescription>
-              <strong>Add gift</strong> = upload color + alpha videos; the server generates Android
-              luma MP4, iOS .mov, and a 50×50 icon for you to preview. Manage picker tabs on{' '}
+              <strong>Send animation</strong> (Lottie or GIF) is what plays on the live screen when someone sends this gift. Optional <strong>icon</strong> is a small image in the gift strip; if you only upload an animation, the app uses it everywhere. Manage picker tabs on{' '}
               <Link to="/gift-categories" className="text-primary underline-offset-4 hover:underline">Gift categories</Link>.
             </CardDescription>
           </div>
@@ -810,7 +808,7 @@ const GiftManagement = () => {
             <div className="py-8 text-center text-muted-foreground">Loading gifts...</div>
           ) : gifts.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              No gifts yet. Click &quot;Add gift&quot; and upload color + alpha videos to generate assets.
+              No gifts yet. Click &quot;Add gift&quot; to create one.
             </div>
           ) : (
             <Table>
@@ -931,25 +929,18 @@ const GiftManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Create = color+alpha process flow; Edit = metadata + existing asset preview */}
+      {/* Create / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent
-          className={
-            editingGift
-              ? 'sm:max-w-2xl max-h-[90vh] overflow-y-auto'
-              : 'gap-0 overflow-hidden border-0 bg-white p-0 shadow-2xl sm:max-w-[560px] max-h-[90vh] sm:rounded-2xl'
-          }
-        >
-          {editingGift ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Edit gift</DialogTitle>
-                <DialogDescription>
-                  Update name, coins, category, and playback settings. Video assets were generated
-                  from color + alpha — replace by creating a new gift.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingGift ? 'Edit gift' : 'Add gift'}</DialogTitle>
+            <DialogDescription>
+              {editingGift
+                ? 'Lottie: upload a .json file or paste JSON below (stored in MongoDB). Optional: GIF/WebP URL or upload for raster animation; icon for the gift strip.'
+                : 'Upload your Lottie .json file or paste JSON, or set a GIF/WebP animation URL/upload, plus optional icon.'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name *</Label>
               <Input
@@ -1082,49 +1073,137 @@ const GiftManagement = () => {
                 spellCheck={false}
               />
             </div>
-            <div className="space-y-3 rounded-lg border p-3 bg-muted/20">
+            <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/20">
               <Label className="flex items-center gap-2">
                 <Clapperboard className="h-4 w-4" />
-                Generated assets (read-only)
+                Luma-matte video (recommended — iOS + Android)
               </Label>
               <p className="text-xs text-muted-foreground">
-                These were created from color + alpha via FFmpeg. To replace videos, create a new gift
-                with <strong>Add gift</strong> (color + alpha → process → approve).
+                One stacked MP4 with RGB on top and grayscale alpha on bottom — the app plays it
+                with transparency + audio on both platforms. Encode with ffmpeg{' '}
+                <code className="text-[10px]">vstack</code> (stacked-alpha format). Max 50 MB.
+                Optional platform-specific .mov / .webm below are fallbacks when this is not set.
               </p>
-              <div className="flex flex-wrap gap-4">
-                {(iconPreviewUrl || form.iconUrl) && (
-                  <div>
-                    <div className="text-xs font-medium mb-1">Icon / thumbnail</div>
-                    <div className="h-12 w-12 rounded border overflow-hidden bg-muted">
-                      <img
-                        src={iconPreviewUrl || form.iconUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
+              <div className="space-y-2">
+                <Label>Luma-matte hero — stacked MP4 (.mp4)</Label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    ref={lumaMatteVideoFileRef}
+                    type="file"
+                    accept="video/mp4,.mp4"
+                    className="hidden"
+                    onChange={handleUploadLumaMatteVideo}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploadingLumaMatteVideo}
+                    onClick={() => lumaMatteVideoFileRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploadingLumaMatteVideo
+                      ? 'Uploading…'
+                      : form.videoUrlLumaMatte
+                        ? 'Replace luma-matte .mp4'
+                        : 'Upload luma-matte .mp4'}
+                  </Button>
+                  {(lumaMatteVideoPreviewUrl || form.videoUrlLumaMatte) && (
+                    <>
+                      <div className="h-14 w-14 rounded border overflow-hidden bg-muted flex-shrink-0">
+                        <GiftAnimationPreview
+                          src={lumaMatteVideoPreviewUrl || form.videoUrlLumaMatte}
+                        />
+                      </div>
+                      <span className="text-xs text-green-700 dark:text-green-400">
+                        Luma-matte video uploaded
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/20">
+              <Label className="flex items-center gap-2">
+                <Clapperboard className="h-4 w-4" />
+                Platform videos (optional fallbacks)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Upload separate hero files per platform when you are not using luma-matte above.{' '}
+                <strong>iOS:</strong> HEVC with alpha (.mov). <strong>Android:</strong> WebM with alpha
+                (.webm) or MP4 (.mp4). For transparent Android playback, prefer{' '}
+                <strong>luma-matte .mp4</strong> above — alpha WebM renders opaque in the app.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>iOS video — HEVC (.mov)</Label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      ref={iosVideoFileRef}
+                      type="file"
+                      accept="video/quicktime,.mov"
+                      className="hidden"
+                      onChange={(e) => handleUploadPlatformVideo(e, 'ios')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadingIosVideo}
+                      onClick={() => iosVideoFileRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploadingIosVideo ? 'Uploading…' : form.videoUrlIos ? 'Replace iOS .mov' : 'Upload iOS .mov'}
+                    </Button>
+                    {(iosVideoPreviewUrl || form.videoUrlIos) && (
+                      <>
+                        <div className="h-14 w-14 rounded border overflow-hidden bg-muted flex-shrink-0">
+                          <GiftAnimationPreview src={iosVideoPreviewUrl || form.videoUrlIos} />
+                        </div>
+                        <span className="text-xs text-green-700 dark:text-green-400">iOS video uploaded</span>
+                      </>
+                    )}
                   </div>
-                )}
-                {(lumaMatteVideoPreviewUrl || form.videoUrlLumaMatte) && (
-                  <div>
-                    <div className="text-xs font-medium mb-1">Android (luma MP4)</div>
-                    <div className="h-14 w-14 rounded border overflow-hidden bg-muted">
-                      <GiftAnimationPreview
-                        src={lumaMatteVideoPreviewUrl || form.videoUrlLumaMatte}
-                      />
-                    </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Android video — WebM or MP4</Label>
+                  <p className="text-xs text-muted-foreground">
+                    For transparency on Android: upload a <strong>stacked luma-matte</strong> file
+                    (.mp4 or .webm — RGB on top, alpha mask on bottom) here or in the luma-matte field
+                    above. Plain alpha WebM/MP4 (single layer) will still look opaque/black on Android.
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      ref={androidVideoFileRef}
+                      type="file"
+                      accept="video/webm,video/mp4,.webm,.mp4,.webp"
+                      className="hidden"
+                      onChange={(e) => handleUploadPlatformVideo(e, 'android')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadingAndroidVideo}
+                      onClick={() => androidVideoFileRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploadingAndroidVideo
+                        ? 'Uploading…'
+                        : form.videoUrlAndroid
+                          ? 'Replace Android video'
+                          : 'Upload Android .webm / .mp4'}
+                    </Button>
+                    {(androidVideoPreviewUrl || form.videoUrlAndroid) && (
+                      <>
+                        <div className="h-14 w-14 rounded border overflow-hidden bg-muted flex-shrink-0">
+                          <GiftAnimationPreview src={androidVideoPreviewUrl || form.videoUrlAndroid} />
+                        </div>
+                        <span className="text-xs text-green-700 dark:text-green-400">Android video uploaded</span>
+                      </>
+                    )}
                   </div>
-                )}
-                {(iosVideoPreviewUrl || form.videoUrlIos) && (
-                  <div>
-                    <div className="text-xs font-medium mb-1">iOS (.mov)</div>
-                    <div className="h-14 w-14 rounded border overflow-hidden bg-muted">
-                      <GiftAnimationPreview src={iosVideoPreviewUrl || form.videoUrlIos} />
-                    </div>
-                  </div>
-                )}
-                {!form.videoUrlLumaMatte && !form.videoUrlIos && !form.iconUrl && (
-                  <span className="text-xs text-muted-foreground">No generated video assets on this gift.</span>
-                )}
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -1317,35 +1396,10 @@ const GiftManagement = () => {
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting}>
-                {submitting ? 'Saving...' : 'Update'}
+                {submitting ? 'Saving...' : editingGift ? 'Update' : 'Create'}
               </Button>
             </DialogFooter>
           </form>
-            </>
-          ) : (
-            <div className="flex max-h-[90vh] flex-col bg-white">
-              <div className="border-b border-neutral-100 px-6 pb-4 pt-6 pr-12">
-                <DialogHeader className="space-y-1 text-left">
-                  <DialogTitle className="text-xl font-semibold tracking-tight text-neutral-900">
-                    Add gift
-                  </DialogTitle>
-                  <DialogDescription className="text-[13px] text-neutral-500">
-                    Simple upload → generate → preview → save
-                  </DialogDescription>
-                </DialogHeader>
-              </div>
-              <div className="overflow-y-auto px-6 py-5">
-                <GiftProcessingPanel
-                  categories={categories}
-                  onApproved={() => {
-                    fetchGifts();
-                    closeDialog();
-                    toast.success('Gift approved and saved');
-                  }}
-                />
-              </div>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 
