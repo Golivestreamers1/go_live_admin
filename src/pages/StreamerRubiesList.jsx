@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useListQueryState } from '../hooks/useListQueryState';
+import { useNavigateWithReturn } from '../hooks/useListNavigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -31,11 +32,12 @@ const SORT_OPTIONS = [
 ];
 
 const StreamerRubiesList = () => {
-  const navigate = useNavigate();
+  const { params, setQuery } = useListQueryState({ filterKeys: ['search', 'sort'] });
+  const navigateWithReturn = useNavigateWithReturn();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
-  const [search, setSearch] = useState('');
-  const [sortOption, setSortOption] = useState('rubies|desc');
+  const [search, setSearch] = useState(params.search);
+  const sortOption = params.sort || 'rubies|desc';
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -72,8 +74,17 @@ const StreamerRubiesList = () => {
   };
 
   useEffect(() => {
-    fetchData(1, '');
-  }, []);
+    setSearch(params.search);
+  }, [params.search]);
+
+  useEffect(() => {
+    fetchData(params.page, params.search, sortOption);
+  }, [params.page, params.search, sortOption]);
+
+  const handleSearch = (e) => {
+    e?.preventDefault();
+    setQuery({ page: 1, search: search.trim(), sort: sortOption });
+  };
 
   return (
     <div className="space-y-6">
@@ -104,10 +115,7 @@ const StreamerRubiesList = () => {
               <label className="text-xs font-medium text-gray-600 mb-1 block">Sort by</label>
               <Select
                 value={sortOption}
-                onValueChange={(v) => {
-                  setSortOption(v);
-                  fetchData(1, search, v);
-                }}
+                onValueChange={(v) => setQuery({ page: 1, sort: v, search: params.search })}
                 placeholder="Sort…"
               >
                 {SORT_OPTIONS.map((o) => (
@@ -118,7 +126,7 @@ const StreamerRubiesList = () => {
               </Select>
             </div>
             <div className="flex items-end">
-              <Button variant="outline" className="w-full sm:w-auto" onClick={() => fetchData(1, search)}>
+              <Button variant="outline" className="w-full sm:w-auto" onClick={handleSearch}>
                 Search
               </Button>
             </div>
@@ -168,7 +176,7 @@ const StreamerRubiesList = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => navigate(`/streamers-rubies/${sid}`)}
+                                onClick={() => navigateWithReturn(`/streamers-rubies/${sid}`)}
                               >
                                 Details
                               </Button>
@@ -191,7 +199,7 @@ const StreamerRubiesList = () => {
                     variant="outline"
                     size="sm"
                     disabled={pagination.page <= 1}
-                    onClick={() => fetchData(pagination.page - 1, search)}
+                    onClick={() => setQuery({ page: pagination.page - 1 })}
                   >
                     Previous
                   </Button>
@@ -199,7 +207,7 @@ const StreamerRubiesList = () => {
                     variant="outline"
                     size="sm"
                     disabled={pagination.page >= pagination.totalPages}
-                    onClick={() => fetchData(pagination.page + 1, search)}
+                    onClick={() => setQuery({ page: pagination.page + 1 })}
                   >
                     Next
                   </Button>

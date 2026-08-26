@@ -1,11 +1,15 @@
 import axios from 'axios';
+import {
+  attachGoLiveSignatureToAxiosConfig,
+  isApiSigningConfigured,
+  pathnameForAxiosConfig,
+  signAdminApiRequest,
+} from '../utils/adminRequestSign.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://api.golivestreamers.com/api/v1";
-// const API_BASE_URL = 'http://localhost:8002/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  // baseURL:"https://api.golivestreamers.com/api/v1",
   headers: {
     'Content-Type': 'application/json',
   },
@@ -24,13 +28,11 @@ const addRefreshSubscriber = (callback) => {
 };
 
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const token = localStorage.getItem('adminAccessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Default Content-Type is application/json; for FormData the browser must set
-    // multipart/form-data with a boundary — otherwise multer sees no file (uploads fail silently or 400).
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
       if (config.headers?.delete) {
         config.headers.delete('Content-Type');
@@ -38,11 +40,10 @@ api.interceptors.request.use(
         delete config.headers['Content-Type'];
       }
     }
+    await attachGoLiveSignatureToAxiosConfig(config);
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
@@ -50,7 +51,6 @@ api.interceptors.response.use(
   async (error) => {
     const { config, response } = error;
 
-    // Don't try to refresh tokens for login/register requests
     if (response?.status === 401 && !config._retry && !config.url?.includes('/auth/')) {
       if (isRefreshing) {
         return new Promise((resolve) => {
@@ -71,9 +71,29 @@ api.interceptors.response.use(
           throw new Error('No refresh token');
         }
 
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refreshToken
+        const refreshBody = JSON.stringify({ refreshToken });
+        const refreshPath = pathnameForAxiosConfig({
+          baseURL: API_BASE_URL,
+          url: '/auth/refresh',
         });
+        const signHeaders = isApiSigningConfigured()
+          ? await signAdminApiRequest({
+              method: 'POST',
+              pathname: refreshPath,
+              body: refreshBody,
+            })
+          : {};
+
+        const response = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          refreshBody,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              ...signHeaders,
+            },
+          },
+        );
 
         const { accessToken, refreshToken: newRefreshToken } = response.data.data.tokens;
 
@@ -98,7 +118,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

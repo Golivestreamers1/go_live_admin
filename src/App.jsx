@@ -4,6 +4,11 @@ import { Toaster } from 'sonner';
 
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
+import Stabilization from './pages/Stabilization';
+import OptimizationImpact from './pages/OptimizationImpact';
+import NativeImagesMemoryLeak from './pages/NativeImagesMemoryLeak';
+import LiveDeviceDetail from './pages/LiveDeviceDetail';
+import CameraMicMemory from './pages/CameraMicMemory';
 import UserManagement from './pages/UserManagement';
 import UserDetails from './pages/UserDetails';
 import SponsoredCreators from './pages/SponsoredCreators';
@@ -24,6 +29,7 @@ import ReportedPosts from './pages/ReportedPosts';
 import CashOutRequests from './pages/CashOutRequests';
 import StickerManagement from './pages/StickerManagement';
 import GiftManagement from './pages/GiftManagement';
+import ContestManagement from './pages/ContestManagement';
 import CashoutOptionManagement from './pages/CashoutOptionManagement';
 import WithdrawRequests from './pages/WithdrawRequests';
 import WithdrawRequestDetails from './pages/WithdrawRequestDetails';
@@ -31,15 +37,20 @@ import WithdrawRequestStreamDetails from './pages/WithdrawRequestStreamDetails';
 import TopSpenders from './pages/TopSpenders';
 import Referrals from './pages/Referrals';
 import GifterPayoutDetails from './pages/GifterPayoutDetails';
+import GifterRecipientsLookup from './pages/GifterRecipientsLookup';
 import StreamerRubiesList from './pages/StreamerRubiesList';
 import StreamerRubiesDetail from './pages/StreamerRubiesDetail';
+import UserStreamEarnings from './pages/UserStreamEarnings';
 import StreamerStreamGiftsAdmin from './pages/StreamerStreamGiftsAdmin';
 import SupportTickets from './pages/SupportTickets';
 import SupportTicketDetail from './pages/SupportTicketDetail';
 import SupportSettings from './pages/SupportSettings';
 import FraudCascade from './pages/FraudCascade';
 import FraudCascadeDetails from './pages/FraudCascadeDetails';
+import IntegrityDashboard from './pages/IntegrityDashboard';
+import PlatformReconciliation from './pages/PlatformReconciliation';
 import IapManagement from './pages/IapManagement';
+import FeaturesAllowed from './pages/FeaturesAllowed';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -108,6 +119,72 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <AdminDashboard />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization/optimization-impact"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <OptimizationImpact />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization/device/:userId"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <LiveDeviceDetail />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization/camera-mic-memory/device/:userId"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <LiveDeviceDetail />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization/camera-mic-memory"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <CameraMicMemory />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization/native-images-memory-leak"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <NativeImagesMemoryLeak />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stabilization"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <Stabilization />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -343,11 +420,41 @@ function App() {
             }
           />
           <Route
+            path="/contests"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <ContestManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/withdraw-requests"
             element={
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <WithdrawRequests />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/integrity/reconciliation"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PlatformReconciliation />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/integrity"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <IntegrityDashboard />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -382,6 +489,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/gifter-recipients"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <GifterRecipientsLookup />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/withdraw-requests/gifters/:gifterId"
             element={
@@ -419,6 +537,16 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <StreamerRubiesList />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user-stream-earnings"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <UserStreamEarnings />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -473,6 +601,16 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <FraudCascade />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/features-allowed"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <FeaturesAllowed />
                 </AdminLayout>
               </ProtectedRoute>
             }

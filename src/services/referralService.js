@@ -74,13 +74,49 @@ export const referralService = {
     return res.data.data;
   },
 
-  async getReferrerDetails(referrerId, { page = 1, limit = 25, period, startDate, endDate } = {}) {
+  async getReferrerDetails(
+    referrerId,
+    {
+      page = 1,
+      limit = 25,
+      period,
+      startDate,
+      endDate,
+      rewardStatus,
+      listPeriod,
+    } = {},
+  ) {
     const q = buildQuery({
       page,
       limit,
+      ...(rewardStatus && rewardStatus !== 'all' ? { rewardStatus } : {}),
+      ...(listPeriod && listPeriod !== 'selected' ? { listPeriod } : {}),
       ...normalizeRange({ period, startDate, endDate }),
     });
     const res = await api.get(`/admin/referrals/users/${referrerId}${q}`);
+    return res.data.data;
+  },
+
+  async getPending({ page = 1, limit = 25, search, status = 'pending', live = false } = {}) {
+    const q = buildQuery({
+      page,
+      limit,
+      status,
+      ...(live ? { live: 'true' } : {}),
+      ...(search ? { search: String(search).trim() } : {}),
+    });
+    const res = await api.get(`/admin/referrals/pending${q}`);
+    return res.data.data;
+  },
+
+  async getJourney(referredUserId) {
+    const res = await api.get(`/admin/referrals/journey/${referredUserId}`);
+    return res.data.data;
+  },
+
+  async getUserReferrals(userId, { page = 1, limit = 20 } = {}) {
+    const q = buildQuery({ page, limit });
+    const res = await api.get(`/admin/users/${userId}/get/referrals${q}`);
     return res.data.data;
   },
 };

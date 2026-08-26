@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { fraudCascadeService } from '../services/fraudCascadeService';
+import { ReturnLink } from '../components/ReturnLink';
+import { useListQueryState } from '../hooks/useListQueryState';
 import FraudCascadeDialog from '../components/FraudCascadeDialog';
 import {
   Card,
@@ -44,9 +45,10 @@ const fmtNumber = (n) =>
   typeof n === 'number' ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0';
 
 export default function FraudCascade() {
+  const { params, setQuery } = useListQueryState({ filterKeys: ['status'] });
+  const statusFilter = params.status;
   const [cascades, setCascades] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [featureDisabled, setFeatureDisabled] = useState(false);
   // For resuming a `plan_ready` cascade from the history table — opens the
@@ -58,7 +60,7 @@ export default function FraudCascade() {
     try {
       const data = await fraudCascadeService.list({
         status: statusFilter || null,
-        page: 1,
+        page: params.page,
         limit: 50,
       });
       setCascades(data?.items || []);
@@ -78,7 +80,7 @@ export default function FraudCascade() {
 
   useEffect(() => {
     fetchData();
-  }, [statusFilter]);
+  }, [statusFilter, params.page]);
 
   const handleUndo = async (cascadeId) => {
     const reason = window.prompt('Reason for undoing this cascade (min 20 chars):');
@@ -147,7 +149,10 @@ export default function FraudCascade() {
             <CardDescription>All cascades triggered by super-admins</CardDescription>
           </div>
           <div className="w-48">
-            <Select value={statusFilter || 'all'} onValueChange={(v) => setStatusFilter(v === 'all' ? '' : v)}>
+            <Select
+              value={statusFilter || 'all'}
+              onValueChange={(v) => setQuery({ page: 1, status: v === 'all' ? '' : v })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
@@ -204,7 +209,7 @@ export default function FraudCascade() {
                   return (
                     <TableRow key={c._id}>
                       <TableCell className="whitespace-nowrap text-xs">
-                        <Link
+                        <ReturnLink
                           to={`/fraud-cascade/${c._id}`}
                           className="hover:underline"
                           title={`Cascade #${String(c._id).slice(-6)}`}
@@ -213,7 +218,7 @@ export default function FraudCascade() {
                           <div className="text-[10px] font-mono text-muted-foreground">
                             #{String(c._id).slice(-6)}
                           </div>
-                        </Link>
+                        </ReturnLink>
                       </TableCell>
                       <TableCell>
                         <Badge variant={statusVariant(c.status)}>{c.status}</Badge>

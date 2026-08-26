@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { useListBack } from '../hooks/useListNavigation';
 import { toast } from 'sonner';
 import {
   supportService,
@@ -100,7 +101,7 @@ function MessageBubble({ msg }) {
 
 const SupportTicketDetail = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const goBack = useListBack('/support');
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reply, setReply] = useState('');
@@ -118,7 +119,7 @@ const SupportTicketDetail = () => {
       setTicket(data);
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Failed to load ticket');
-      navigate('/support');
+      goBack();
     } finally {
       setLoading(false);
     }
@@ -197,7 +198,7 @@ const SupportTicketDetail = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/support')}>
+        <Button variant="ghost" size="sm" onClick={goBack}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </Button>
         <div className="font-mono text-sm text-gray-500">{ticket.ticketNumber}</div>

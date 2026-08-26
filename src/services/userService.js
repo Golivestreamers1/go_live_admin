@@ -24,6 +24,20 @@ export const userService = {
     return response.data.data; // Unwrap to return inner data object
   },
 
+  /** Public app signup — POST /user/register (name, email, password, optional referralCode). */
+  async registerUser({ name, email, password, referralCode }) {
+    const payload = {
+      name: String(name).trim(),
+      email: String(email).trim().toLowerCase(),
+      password,
+    };
+    if (referralCode?.trim()) {
+      payload.referralCode = referralCode.trim().toUpperCase();
+    }
+    const response = await api.post('/user/register', payload);
+    return response.data;
+  },
+
   async updateUser(id, userData) {
     const response = await api.put(`/admin/users/${id}`, userData);
     return response.data.data; // Unwrap to return inner data object
@@ -105,6 +119,23 @@ export const userService = {
     return response.data.data;
   },
 
+  async getLedgerTimeline(userId, { page = 1, limit = 50, types, from, to } = {}) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(types ? { types } : {}),
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+    });
+    const response = await api.get(`/admin/users/${userId}/ledger-timeline?${params}`);
+    return response.data.data;
+  },
+
+  async getIntegrityCheck(userId) {
+    const response = await api.get(`/admin/users/${userId}/integrity-check`);
+    return response.data.data;
+  },
+
   async reconcileLifetimeRubies(userId) {
     const response = await api.post(`/admin/users/${userId}/lifetime-rubies/reconcile`);
     return response.data.data;
@@ -112,6 +143,15 @@ export const userService = {
 
   async adjustUserCoins(userId, { direction, amount, reason }) {
     const response = await api.post(`/admin/users/${userId}/coins/adjust`, {
+      direction,
+      amount,
+      reason,
+    });
+    return response.data.data;
+  },
+
+  async adjustUserRubies(userId, { direction, amount, reason }) {
+    const response = await api.post(`/admin/users/${userId}/rubies/adjust`, {
       direction,
       amount,
       reason,

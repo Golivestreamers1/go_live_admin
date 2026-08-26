@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useListBack, useNavigateWithReturn } from '../hooks/useListNavigation';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import payoutAnalyticsService from '../services/payoutAnalyticsService';
@@ -16,8 +17,9 @@ import {
 
 /** Stream gifting admin for a single stream (from Streamers & rubies hub). */
 const StreamerStreamGiftsAdmin = () => {
-  const navigate = useNavigate();
   const { streamerId, streamId } = useParams();
+  const goBack = useListBack(streamerId ? `/streamers-rubies/${streamerId}` : '/streamers-rubies');
+  const navigateWithReturn = useNavigateWithReturn();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [rejectingGiftId, setRejectingGiftId] = useState(null);
@@ -115,7 +117,6 @@ const StreamerStreamGiftsAdmin = () => {
     }
   };
 
-  const backHref = streamerId ? `/streamers-rubies/${streamerId}` : '/streamers-rubies';
 
   return (
     <div className="space-y-6">
@@ -124,7 +125,7 @@ const StreamerStreamGiftsAdmin = () => {
           <h1 className="text-3xl font-bold text-gray-900">Stream gifts</h1>
           <p className="text-gray-600 mt-1">Reject individual transactions or selected gifters.</p>
         </div>
-        <Button variant="outline" onClick={() => navigate(backHref)}>
+        <Button variant="outline" onClick={goBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to streamer
         </Button>
@@ -242,7 +243,7 @@ const StreamerStreamGiftsAdmin = () => {
                                   size="sm"
                                   variant="outline"
                                   onClick={() =>
-                                    navigate(
+                                    navigateWithReturn(
                                       `/withdraw-requests/gifters/${row.gifter._id}?streamId=${streamId}`,
                                     )
                                   }

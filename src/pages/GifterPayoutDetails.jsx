@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { useListBack } from "../hooks/useListNavigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -8,6 +10,7 @@ import payoutAnalyticsService from "../services/payoutAnalyticsService";
 
 const GifterPayoutDetails = () => {
   const { gifterId } = useParams();
+  const goBack = useListBack("/gifter-recipients");
   const [searchParams] = useSearchParams();
   const streamId = searchParams.get("streamId") || "";
   const [loading, setLoading] = useState(true);
@@ -39,13 +42,19 @@ const GifterPayoutDetails = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Gifter Details</h1>
-        <p className="text-gray-600 mt-1">
-          {streamId
-            ? "Showing gifting done by this user for the selected stream."
-            : "Detailed gifting and coin purchase history of this user."}
-        </p>
+      <div className="flex items-start gap-3">
+        <Button variant="outline" size="sm" onClick={goBack}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Gifter Details</h1>
+          <p className="text-gray-600 mt-1">
+            {streamId
+              ? "Showing gifting done by this user for the selected stream."
+              : "Detailed gifting and coin purchase history of this user."}
+          </p>
+        </div>
       </div>
 
       {loading ? (

@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useListBack, useNavigateWithReturn } from '../hooks/useListNavigation';
 import { toast } from 'sonner';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, Lock } from 'lucide-react';
 import { withdrawRequestService } from '../services/withdrawRequestService';
 import payoutAnalyticsService from '../services/payoutAnalyticsService';
+import WithdrawAuditView from '../components/audit/WithdrawAuditView';
+import WithdrawAuditTimeline from '../components/audit/WithdrawAuditTimeline';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -17,7 +20,8 @@ import {
 } from '../components/ui/table';
 
 const WithdrawRequestDetails = () => {
-  const navigate = useNavigate();
+  const navigateWithReturn = useNavigateWithReturn();
+  const goBack = useListBack('/withdraw-requests');
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState(null);
@@ -25,6 +29,13 @@ const WithdrawRequestDetails = () => {
   const [streamStats, setStreamStats] = useState(null);
   const [streamsPage, setStreamsPage] = useState(1);
   const [purchasesPage, setPurchasesPage] = useState(1);
+  const [showAudit, setShowAudit] = useState(false);
+  const [audit, setAudit] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [approvalSnapshot, setApprovalSnapshot] = useState(null);
+  const [auditTimeline, setAuditTimeline] = useState(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [markingPaypal, setMarkingPaypal] = useState(false);
 
   const STREAMS_PAGE_SIZE = 10;
   const PURCHASES_PAGE_SIZE = 10;
@@ -65,6 +76,77 @@ const WithdrawRequestDetails = () => {
     fetchDetails();
   }, [id]);
 
+  const loadAuditTimeline = async () => {
+    if (!id) return;
+    try {
+      setTimelineLoading(true);
+      const data = await withdrawRequestService.getRequestAuditEvents(id);
+      setAuditTimeline(data);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to load audit timeline');
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id && request) loadAuditTimeline();
+  }, [id, request?._id, request?.status]);
+
+  const handleMarkPaypalSent = async () => {
+    if (!id) return;
+    try {
+      setMarkingPaypal(true);
+      const data = await withdrawRequestService.markPaypalSent(id);
+      if (data?.timeline) setAuditTimeline(data.timeline);
+      else await loadAuditTimeline();
+      toast.success('PayPal marked as sent');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to mark PayPal sent');
+    } finally {
+      setMarkingPaypal(false);
+    }
+  };
+
+  const loadWithdrawAudit = async () => {
+    if (!id) return;
+    try {
+      setAuditLoading(true);
+      const data = await withdrawRequestService.getRequestAudit(id);
+      setAudit(data);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to load withdraw audit');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const loadApprovalSnapshot = async () => {
+    if (!id) return;
+    try {
+      setAuditLoading(true);
+      const data = await withdrawRequestService.getRequestAuditSnapshot(id);
+      setApprovalSnapshot(data);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to load approval audit snapshot');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const handleSeeAudit = async () => {
+    setShowAudit(true);
+    if (!audit) await loadWithdrawAudit();
+    await loadAuditTimeline();
+  };
+
+  const handleViewApprovalAudit = async () => {
+    setShowAudit(true);
+    if (!approvalSnapshot) await loadApprovalSnapshot();
+  };
+
+  const isFrozenAuditView = request?.status === 'approved' && showAudit;
+
   const formatCurrency = (value) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0);
 
@@ -101,15 +183,40 @@ const WithdrawRequestDetails = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Withdraw Request Details</h1>
-          <p className="text-gray-600 mt-1">Basic checkout request information.</p>
+          <p className="text-gray-600 mt-1">
+            {showAudit
+              ? isFrozenAuditView
+                ? 'Frozen accountability record from approval.'
+                : 'Accountability proof before payout.'
+              : 'Basic checkout request information.'}
+          </p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/withdraw-requests')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={goBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          {request?.status === 'pending' && !showAudit ? (
+            <Button onClick={handleSeeAudit}>
+              <Eye className="w-4 h-4 mr-2" />
+              See Audit
+            </Button>
+          ) : null}
+          {request?.status === 'approved' && !showAudit ? (
+            <Button onClick={handleViewApprovalAudit}>
+              <Lock className="w-4 h-4 mr-2" />
+              View approval audit
+            </Button>
+          ) : null}
+          {showAudit ? (
+            <Button variant="secondary" onClick={() => setShowAudit(false)}>
+              Back to request details
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {loading ? (
@@ -120,6 +227,24 @@ const WithdrawRequestDetails = () => {
         <Card>
           <CardContent className="py-10 text-center text-gray-500">Request not found</CardContent>
         </Card>
+      ) : showAudit ? (
+        <div className="space-y-4">
+          <WithdrawAuditTimeline
+            timeline={auditTimeline}
+            loading={timelineLoading}
+            onRefresh={loadAuditTimeline}
+            onMarkPaypalSent={handleMarkPaypalSent}
+            markingPaypal={markingPaypal}
+            canMarkPaypal={request.status === 'approved'}
+          />
+          <WithdrawAuditView
+            audit={request.status === 'approved' ? null : audit}
+            frozenSnapshot={request.status === 'approved' ? approvalSnapshot : null}
+            loading={auditLoading}
+            onRefresh={request.status === 'approved' ? loadApprovalSnapshot : loadWithdrawAudit}
+            userId={request.user?._id || request.user}
+          />
+        </div>
       ) : (
         <>
           <Card>
@@ -178,6 +303,15 @@ const WithdrawRequestDetails = () => {
               </div>
             </CardContent>
           </Card>
+
+          <WithdrawAuditTimeline
+            timeline={auditTimeline}
+            loading={timelineLoading}
+            onRefresh={loadAuditTimeline}
+            onMarkPaypalSent={handleMarkPaypalSent}
+            markingPaypal={markingPaypal}
+            canMarkPaypal={request.status === 'approved'}
+          />
 
           <Card>
             <CardHeader>
@@ -241,7 +375,7 @@ const WithdrawRequestDetails = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => navigate(`/withdraw-requests/${id}/streams/${stream.streamId}`)}
+                                  onClick={() => navigateWithReturn(`/withdraw-requests/${id}/streams/${stream.streamId}`)}
                                 >
                                   Details
                                 </Button>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useListBack, useNavigateWithReturn } from '../hooks/useListNavigation';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import payoutAnalyticsService from '../services/payoutAnalyticsService';
@@ -15,8 +16,9 @@ import {
 } from '../components/ui/table';
 
 const WithdrawRequestStreamDetails = () => {
-  const navigate = useNavigate();
   const { id, streamId } = useParams();
+  const goBack = useListBack(`/withdraw-requests/${id}`);
+  const navigateWithReturn = useNavigateWithReturn();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [rejectingGiftId, setRejectingGiftId] = useState(null);
@@ -136,7 +138,7 @@ const WithdrawRequestStreamDetails = () => {
           <h1 className="text-3xl font-bold text-gray-900">Stream Gifting Details</h1>
           <p className="text-gray-600 mt-1">User-wise gifting breakdown for this stream.</p>
         </div>
-        <Button variant="outline" onClick={() => navigate(`/withdraw-requests/${id}`)}>
+        <Button variant="outline" onClick={goBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
@@ -271,7 +273,7 @@ const WithdrawRequestStreamDetails = () => {
                               size="sm"
                               variant="outline"
                               onClick={() =>
-                                navigate(
+                                navigateWithReturn(
                                   `/withdraw-requests/gifters/${row.gifter?._id}?streamId=${streamId}`
                                 )
                               }
