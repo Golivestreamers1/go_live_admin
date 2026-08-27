@@ -60,7 +60,7 @@ function timeAgo(iso) {
 
 const SupportTickets = () => {
   const { params, setQuery } = useListQueryState({
-    filterKeys: ['status', 'category', 'priority', 'source', 'q'],
+    filterKeys: ['status', 'category', 'priority', 'source', 'q', 'unread'],
   });
   const navigateWithReturn = useNavigateWithReturn();
   const [q, setQ] = useState(params.q);
@@ -80,6 +80,7 @@ const SupportTickets = () => {
       if (params.category) query.category = params.category;
       if (params.priority) query.priority = params.priority;
       if (params.source) query.source = params.source;
+      if (params.unread) query.unread = params.unread;
       if (params.q) query.q = params.q;
       const [list, counts] = await Promise.all([
         supportService.listTickets(query),
@@ -94,7 +95,7 @@ const SupportTickets = () => {
     } finally {
       setLoading(false);
     }
-  }, [params.page, params.status, params.category, params.priority, params.source, params.q]);
+  }, [params.page, params.status, params.category, params.priority, params.source, params.unread, params.q]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -144,7 +145,7 @@ const SupportTickets = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Unread replies stay at the top. Triage tickets from web, app, and admin intake.
+            Newest activity first — a new ticket or a new reply moves to the top.
             {stats.unread > 0 ? (
               <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
                 {stats.unread} unread
@@ -190,6 +191,21 @@ const SupportTickets = () => {
                 {t.label}
               </Button>
             ))}
+            <span className="mx-1 h-5 w-px bg-gray-200" aria-hidden />
+            {/* The queue is ordered by newest activity, so unread is a filter
+                rather than a sort key — reading a ticket must not move it. */}
+            <Button
+              size="sm"
+              variant={params.unread ? 'default' : 'outline'}
+              onClick={() => setQuery({ page: 1, unread: params.unread ? '' : 'true' })}
+            >
+              Unread only
+              {stats.unread > 0 ? (
+                <span className="ml-2 rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                  {stats.unread}
+                </span>
+              ) : null}
+            </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -281,11 +297,9 @@ const SupportTickets = () => {
                 {tickets.map((t) => {
                   const s = statusMeta(t.status);
                   const unread = Boolean(t.hasUnreadForAdmin);
+                  // lastActivityAt is what the queue is sorted by, so show it.
                   const lastUpdate =
-                    t.lastUserReplyAt &&
-                    (!t.lastAdminReplyAt || new Date(t.lastUserReplyAt) >= new Date(t.lastAdminReplyAt))
-                      ? t.lastUserReplyAt
-                      : t.lastAdminReplyAt || t.lastUserReplyAt || t.updatedAt || t.createdAt;
+                    t.lastActivityAt || t.lastUserReplyAt || t.lastAdminReplyAt || t.updatedAt || t.createdAt;
                   return (
                     <TableRow
                       key={t._id}
