@@ -169,8 +169,12 @@ const LiveNowCard = () => {
 
           <div>
             <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              {/* This list has one row per person, so its count is participants and will
+                  exceed the "Active Streams" stat above whenever a box party is running.
+                  Labelled accordingly rather than left reading as a second, contradictory
+                  stream count. */}
               <h3 className="text-sm font-semibold text-gray-700">
-                Live Streams
+                Live participants
                 {allStreams.length
                   ? ` (${filteredStreams.length}${filter.trim() ? ` of ${allStreams.length}` : ''})`
                   : typeof data?.activeStreams === 'number'
