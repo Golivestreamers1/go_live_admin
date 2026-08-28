@@ -88,6 +88,14 @@ const LiveStreamsManagement = () => {
         startedAt: s.startedAt || null,
         mode: deriveMode(s),
         isBoxGuest: Boolean(s.boxPartyHostStreamId),
+        // Kept so the stat cards can count distinct battles and parties rather than rows —
+        // a battle spans two rows and a box party spans one per participant.
+        battleId: s.battleId ? String(s.battleId) : null,
+        boxPartyId: s.boxPartyHostStreamId
+          ? String(s.boxPartyHostStreamId)
+          : s.roomId
+            ? String(s._id)
+            : null,
       })),
     [streams],
   );
@@ -104,16 +112,41 @@ const LiveStreamsManagement = () => {
     );
   }, [mappedStreams, search]);
 
+  /**
+   * A box party is ONE broadcast containing several people: the host owns a stream row and every
+   * guest gets their own row pointing back at it. Counting rows therefore counts participants,
+   * not streams — which is why this page read 12 while the dashboard read 8 for the same moment.
+   *
+   * `hosts` applies the rule the dashboard already uses (dashboard.service.js: hostStreams =
+   * rows without a boxPartyHostStreamId), so the two pages now agree on what "a stream" means.
+   * The row total is still shown, labelled as participants, because this page is for moderation
+   * and every row is someone you can individually end.
+   */
   const stats = useMemo(() => {
-    let battles = 0;
-    let boxes = 0;
     let singles = 0;
+    let hosts = 0;
+    // A battle spans two rows and a box party spans one row per participant, so both are
+    // counted as distinct events — matching dashboard.service.js, which does the same with
+    // `distinctBattles` and `countDistinctBoxParties`.
+    const battleIds = new Set();
+    const partyIds = new Set();
     for (const s of mappedStreams) {
-      if (s.mode === 'battle') battles += 1;
-      else if (s.mode === 'box') boxes += 1;
-      else singles += 1;
+      if (!s.isBoxGuest) hosts += 1;
+      if (s.mode === 'battle') {
+        if (s.battleId) battleIds.add(s.battleId);
+      } else if (s.mode === 'box') {
+        if (s.boxPartyId) partyIds.add(s.boxPartyId);
+      } else {
+        singles += 1;
+      }
     }
-    return { battles, boxes, singles };
+    return {
+      battles: battleIds.size,
+      boxes: partyIds.size,
+      singles,
+      hosts,
+      participants: mappedStreams.length,
+    };
   }, [mappedStreams]);
 
   const handleConfirmEnd = async () => {
@@ -152,11 +185,19 @@ const LiveStreamsManagement = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Active streams</div>
-              <div className="text-2xl font-bold">{mappedStreams.length}</div>
+              <div className="text-2xl font-bold">{stats.hosts}</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">broadcasts, not people</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Live participants</div>
+              <div className="text-2xl font-bold">{stats.participants}</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">hosts + box guests</div>
             </CardContent>
           </Card>
           <Card>
@@ -173,7 +214,7 @@ const LiveStreamsManagement = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Box streams</div>
+              <div className="text-xs text-muted-foreground">Box parties</div>
               <div className="text-2xl font-bold">{stats.boxes}</div>
             </CardContent>
           </Card>
@@ -183,11 +224,16 @@ const LiveStreamsManagement = () => {
           <CardHeader>
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
+                {/* One row per participant, so a box party appears once per person here
+                    while the dashboard counts it as a single broadcast. */}
                 <CardTitle>
-                  Live Streams ({filteredStreams.length}
+                  Live participants ({filteredStreams.length}
                   {search.trim() ? ` of ${mappedStreams.length}` : ''})
                 </CardTitle>
-                <CardDescription>Search and moderate currently active streams.</CardDescription>
+                <CardDescription>
+                  Search and moderate everyone currently live. Box guests appear as separate rows
+                  and can be ended individually.
+                </CardDescription>
               </div>
               <div className="relative w-full md:max-w-sm">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

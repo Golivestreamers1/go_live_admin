@@ -151,11 +151,15 @@ const AdminLayout = ({ children, user, onLogout }) => {
         },
         // The original finance page. Kept only so its numbers can be compared
         // against Money Tracking; remove it once every difference is explained.
-        {
-          name: 'Old finance page',
-          href: '/finance/legacy',
-          icon: History,
-        },
+        //
+        // Hidden from the sidebar while the new Accounting pages are reviewed. The
+        // route itself still resolves, so /finance/legacy remains reachable by URL
+        // for that comparison — this only removes the menu entry.
+        // {
+        //   name: 'Old finance page',
+        //   href: '/finance/legacy',
+        //   icon: History,
+        // },
       ],
     },
     {
@@ -198,23 +202,25 @@ const AdminLayout = ({ children, user, onLogout }) => {
       href: '/withdraw-requests',
       icon: ArrowDownToLine,
     },
-    {
-      name: 'Streamers & rubies',
-      href: '/streamers-rubies',
-      icon: Gem,
-      pathMatch: 'prefix',
-      pathExclude: ['/user-stream-earnings'],
-    },
-    {
-      name: 'User stream earnings',
-      href: '/user-stream-earnings',
-      icon: Radio,
-    },
-    {
-      name: 'Live streams',
-      href: '/live-streams',
-      icon: Radio,
-    },
+    // Hidden from the sidebar pending the admin simplification review. The routes still
+    // resolve, so each page stays reachable by URL while its usage is being assessed.
+    // {
+    //   name: 'Streamers & rubies',
+    //   href: '/streamers-rubies',
+    //   icon: Gem,
+    //   pathMatch: 'prefix',
+    //   pathExclude: ['/user-stream-earnings'],
+    // },
+    // {
+    //   name: 'User stream earnings',
+    //   href: '/user-stream-earnings',
+    //   icon: Radio,
+    // },
+    // {
+    //   name: 'Live streams',
+    //   href: '/live-streams',
+    //   icon: Radio,
+    // },
     {
       name: 'Cash out email change',
       href: '/cashout-email-change',
@@ -225,11 +231,12 @@ const AdminLayout = ({ children, user, onLogout }) => {
     //   href: '/cashout-options',
     //   icon: DollarSign,
     // },
-    {
-      name: 'Gifter recipients',
-      href: '/gifter-recipients',
-      icon: Send,
-    },
+    // Hidden pending the admin simplification review; route still resolves.
+    // {
+    //   name: 'Gifter recipients',
+    //   href: '/gifter-recipients',
+    //   icon: Send,
+    // },
     {
       name: 'Gifts',
       href: '/gifts',
