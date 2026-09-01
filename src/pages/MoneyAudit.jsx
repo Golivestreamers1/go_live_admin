@@ -49,10 +49,16 @@ const SEVERITY_META = {
   info: { label: "INFO", variant: "outline" },
 };
 
+/**
+ * Rendering falls back to the raw check name, so a check missing from this map
+ * still appears — it just reads like a variable name instead of English. Keep it
+ * in step with CHECKS in ledgerReconcile.service.js.
+ */
 const CHECK_LABELS = {
   userBalance: "Wallet vs. history",
   stuckStreams: "Unpaid streams",
   withdrawalPairing: "Payout records",
+  agencyWithdrawalPairing: "Agency payouts",
   commissionPairing: "Commissions",
   purchaseIntegrity: "Purchases",
   lifetimeRubies: "Lifetime earnings",
