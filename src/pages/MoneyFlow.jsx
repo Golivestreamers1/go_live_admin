@@ -17,6 +17,7 @@ import GrossToNet from "../components/finance/GrossToNet";
 import RateCard from "../components/finance/RateCard";
 import MonthlyChart from "../components/finance/MonthlyChart";
 import Funnel from "../components/finance/Funnel";
+import SelfCheck from "../components/finance/SelfCheck";
 import financeAuditService from "../services/financeAuditService";
 
 /**
@@ -161,8 +162,12 @@ export default function MoneyFlow() {
             <StatCard label="We kept" value={usd(d.headline.keptUsd)} hint={`${d.headline.keptPct}% of money in`} tone="good" />
           </div>
 
+          {/* The page proving its own arithmetic, directly beneath the figures
+              it is vouching for. Quiet when everything agrees. */}
+          <SelfCheck checks={d.selfCheck} />
+
           {/* ── the shape of it, before any of the detail ── */}
-          <MonthlyChart months={d.monthly} />
+          <MonthlyChart months={d.monthly} range={d.range} />
 
           {/* Full width each: at half width the waterfall truncated its own
               row labels, which defeats the point of labelling them. */}

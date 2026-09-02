@@ -47,6 +47,7 @@ import MoneyAudit from "./pages/MoneyAudit";
 import MoneyFlow from "./pages/MoneyFlow";
 import MoneyTracking from "./pages/MoneyTracking";
 import MoneyTrace from "./pages/MoneyTrace";
+import MoneyGuide from "./pages/MoneyGuide";
 import Referrals from './pages/Referrals';
 import GifterPayoutDetails from './pages/GifterPayoutDetails';
 import GifterRecipientsLookup from './pages/GifterRecipientsLookup';
@@ -332,6 +333,17 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <MoneyTrace />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/finance/guide"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MoneyGuide />
                 </AdminLayout>
               </ProtectedRoute>
             }

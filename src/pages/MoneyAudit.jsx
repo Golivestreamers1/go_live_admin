@@ -117,6 +117,116 @@ function BalancePanel({ title, note, totals, unit, valueOf }) {
   );
 }
 
+/*
+ * Repeated findings, folded.
+ *
+ * One check can legitimately fire the same finding on dozens of accounts:
+ * "Ledger rows belong to an account that no longer exists" arrived 21 times at
+ * $0.25 each, filling most of the page and burying the three notes that
+ * actually said something. Folding is not hiding — the count and the combined
+ * worth stay on the summary row, and one click restores every original row.
+ *
+ * Criticals are never folded no matter how many there are: when money is
+ * missing, an operator wants to see each account, not a total.
+ */
+const REPEAT_THRESHOLD = 5;
+
+function groupRepeats(rows, severity) {
+  const order = [];
+  const byTitle = new Map();
+  for (const f of rows) {
+    const key = `${f.check}::${f.title}`;
+    if (!byTitle.has(key)) {
+      byTitle.set(key, []);
+      order.push(key);
+    }
+    byTitle.get(key).push(f);
+  }
+  return order.map((key) => {
+    const groupRows = byTitle.get(key);
+    return {
+      key,
+      rows: groupRows,
+      collapsible: severity !== "critical" && groupRows.length >= REPEAT_THRESHOLD,
+      totalUsd: groupRows.reduce((acc, f) => acc + (Number(f.usd) || 0), 0),
+    };
+  });
+}
+
+function FindingRow({ f, muted = false }) {
+  return (
+    <TableRow className={muted ? "bg-muted/30" : undefined}>
+      <TableCell className="align-top">
+        <Badge variant={SEVERITY_META[f.severity]?.variant}>
+          {SEVERITY_META[f.severity]?.label}
+        </Badge>
+        <div className="mt-2 font-medium">{f.title}</div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {CHECK_LABELS[f.check] || f.check}
+        </div>
+      </TableCell>
+      <TableCell className="align-top text-sm text-muted-foreground">{f.detail}</TableCell>
+      <TableCell className="align-top text-sm">
+        <div className="font-medium">{f.subject || "—"}</div>
+        {f.expected !== null && f.actual !== null ? (
+          <div className="mt-1 text-xs text-muted-foreground tabular-nums">
+            history {num(f.expected)} · actual {num(f.actual)}
+          </div>
+        ) : null}
+      </TableCell>
+      <TableCell className="align-top text-right tabular-nums">
+        {f.delta === null ? "—" : `${signed(f.delta)} ${f.currency || ""}`}
+      </TableCell>
+      <TableCell className="align-top text-right font-semibold tabular-nums">
+        {usd(f.usd)}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function RepeatedFinding({ group }) {
+  const [open, setOpen] = useState(false);
+  const first = group.rows[0];
+
+  return (
+    <>
+      <TableRow>
+        <TableCell className="align-top">
+          <Badge variant={SEVERITY_META[first.severity]?.variant}>
+            {SEVERITY_META[first.severity]?.label}
+          </Badge>
+          <div className="mt-2 font-medium">{first.title}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {CHECK_LABELS[first.check] || first.check}
+          </div>
+        </TableCell>
+        <TableCell className="align-top text-sm text-muted-foreground">{first.detail}</TableCell>
+        <TableCell className="align-top text-sm">
+          <div className="font-medium">{num(group.rows.length)} accounts</div>
+          <Button
+            variant="link"
+            size="sm"
+            className="mt-1 h-auto p-0 text-xs"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+          >
+            {open ? "Hide them" : `Show all ${num(group.rows.length)}`}
+          </Button>
+        </TableCell>
+        <TableCell className="align-top text-right text-xs text-muted-foreground">
+          same for each
+        </TableCell>
+        <TableCell className="align-top text-right font-semibold tabular-nums">
+          {usd(group.totalUsd)}
+        </TableCell>
+      </TableRow>
+      {open
+        ? group.rows.map((f, i) => <FindingRow key={`${group.key}-${i}`} f={f} muted />)
+        : null}
+    </>
+  );
+}
+
 function Row({ label, value }) {
   return (
     <div className="flex justify-between border-b border-dashed py-2 last:border-0">
@@ -241,8 +351,25 @@ export default function MoneyAudit() {
                       <div className="text-xs text-muted-foreground">value we cannot explain</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold tabular-nums">{num(summary?.findings)}</div>
-                      <div className="text-xs text-muted-foreground">problems found</div>
+                      {/*
+                        Counts critical + warning only. `summary.findings` is the
+                        total including notes, and using it here put "43 problems
+                        found" directly above a card reading "22 — Context, not
+                        problems". The dollar figure beside it has always excluded
+                        notes; the count now agrees with it.
+                      */}
+                      <div className="text-2xl font-bold tabular-nums">
+                        {num(
+                          (summary?.bySeverity?.critical || 0) +
+                            (summary?.bySeverity?.warning || 0),
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        problems found
+                        {summary?.bySeverity?.info
+                          ? ` · ${num(summary.bySeverity.info)} notes`
+                          : ""}
+                      </div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold tabular-nums">
@@ -332,36 +459,15 @@ export default function MoneyAudit() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {grouped[severity].map((f, i) => (
-                          <TableRow key={`${f.check}-${f.subjectId}-${i}`}>
-                            <TableCell className="align-top">
-                              <Badge variant={SEVERITY_META[f.severity]?.variant}>
-                                {SEVERITY_META[f.severity]?.label}
-                              </Badge>
-                              <div className="mt-2 font-medium">{f.title}</div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {CHECK_LABELS[f.check] || f.check}
-                              </div>
-                            </TableCell>
-                            <TableCell className="align-top text-sm text-muted-foreground">
-                              {f.detail}
-                            </TableCell>
-                            <TableCell className="align-top text-sm">
-                              <div className="font-medium">{f.subject || "—"}</div>
-                              {f.expected !== null && f.actual !== null ? (
-                                <div className="mt-1 text-xs text-muted-foreground tabular-nums">
-                                  history {num(f.expected)} · actual {num(f.actual)}
-                                </div>
-                              ) : null}
-                            </TableCell>
-                            <TableCell className="align-top text-right tabular-nums">
-                              {f.delta === null ? "—" : `${signed(f.delta)} ${f.currency || ""}`}
-                            </TableCell>
-                            <TableCell className="align-top text-right font-semibold tabular-nums">
-                              {usd(f.usd)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {groupRepeats(grouped[severity], severity).map((g) =>
+                          g.collapsible ? (
+                            <RepeatedFinding key={g.key} group={g} />
+                          ) : (
+                            g.rows.map((f, i) => (
+                              <FindingRow key={`${g.key}-${i}`} f={f} />
+                            ))
+                          ),
+                        )}
                       </TableBody>
                     </Table>
                   </CardContent>

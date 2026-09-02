@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "../components/ui/table";
 import DateRangeFilter from "../components/finance/DateRangeFilter";
+import MonthlyChart from "../components/finance/MonthlyChart";
 import StatCard from "../components/finance/StatCard";
 import EmptyState from "../components/finance/EmptyState";
 import ExportCsvButton from "../components/finance/ExportCsvButton";
@@ -47,6 +48,17 @@ const BAR_COLORS = {
   kept: "#0f8a5f",
 };
 
+/*
+ * Same component, same colours, same grammar as Money Flow's chart — a measure
+ * keeps its hue across both pages, so "Money in" is emerald wherever you meet
+ * it. Validated categorical trio: worst adjacent ΔE 8.9 protan / 23.8 normal.
+ */
+const TRACKING_SERIES = [
+  { key: "gross", label: "Money in", className: "fill-emerald-500", swatch: "bg-emerald-500" },
+  { key: "fee", label: "Store fees", className: "fill-amber-500", swatch: "bg-amber-500" },
+  { key: "net", label: "We received", className: "fill-sky-600", swatch: "bg-sky-600" },
+];
+
 export default function MoneyTracking() {
   const [rangeState, setRangeState] = useState({ range: "30d", from: "", to: "" });
   const [data, setData] = useState(null);
@@ -74,7 +86,6 @@ export default function MoneyTracking() {
   }, [load]);
 
   const h = data?.headline;
-  const maxMonth = Math.max(1, ...(data?.monthly || []).map((m) => m.gross || 0));
 
   return (
     <div className="space-y-6 p-6">
@@ -313,31 +324,13 @@ export default function MoneyTracking() {
           </div>
 
           {data.monthly?.length ? (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Month by month</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex h-48 items-end gap-4 px-2">
-                  {data.monthly.map((m) => (
-                    <div key={m.key} className="flex-1 text-center">
-                      <div className="text-xs tabular-nums text-muted-foreground">
-                        {usd(m.gross)}
-                      </div>
-                      <div
-                        className="mt-1 rounded-t bg-foreground/80"
-                        style={{ height: `${Math.max(2, (m.gross / maxMonth) * 140)}px` }}
-                      />
-                      <div className="mt-1 text-xs text-muted-foreground">{m.key}</div>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-3 text-center text-xs text-muted-foreground">
-                  These bars are built from the same rows as the total above, so they always
-                  add up to it.
-                </p>
-              </CardContent>
-            </Card>
+            <MonthlyChart
+              months={data.monthly}
+              series={TRACKING_SERIES}
+              range={data.range}
+              ariaLabel="Money in, store fees and what we received, by month"
+              footNote="These bars are built from the same rows as the total above, so they always add up to it."
+            />
           ) : null}
 
           <Card>
