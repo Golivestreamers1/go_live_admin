@@ -53,25 +53,33 @@ const AdminLayout = ({ children, user, onLogout }) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  // Auto-expand subscription menu if user is on a subscription page
-  const subscriptionPaths = ['/packages', '/subscriptions', '/subscription-stats'];
-  const isOnSubscriptionPage = subscriptionPaths.includes(location.pathname);
-  const [subscriptionMenuOpen, setSubscriptionMenuOpen] = React.useState(isOnSubscriptionPage);
+  // Which grouped-menu sections are expanded, keyed by groupKey — generic so
+  // any number of groups (subscription, ecommerce, marketplace, ...) can
+  // auto-expand independently instead of hardcoding one state var per group.
+  const groupPaths = {
+    subscription: ['/packages', '/subscriptions', '/subscription-stats'],
+    ecommerce: ['/vendors', '/products', '/categories', '/orders', '/reviews', '/payouts'],
+    marketplace: ['/marketplace/cost-table', '/marketplace/settings', '/marketplace/orders', '/marketplace/earnings'],
+  };
+  const [openGroups, setOpenGroups] = React.useState(() => {
+    const initial = {};
+    for (const [key, paths] of Object.entries(groupPaths)) {
+      initial[key] = paths.includes(location.pathname);
+    }
+    return initial;
+  });
 
-  // Auto-expand ecommerce menu if user is on an ecommerce page
-  const ecommercePaths = ['/vendors', '/products', '/categories', '/orders', '/reviews', '/payouts'];
-  const isOnEcommercePage = ecommercePaths.includes(location.pathname);
-  const [ecommerceMenuOpen, setEcommerceMenuOpen] = React.useState(isOnEcommercePage);
-
-  // Update menu state when route changes
+  // Auto-expand a group when navigating directly to one of its pages.
   React.useEffect(() => {
-    if (isOnSubscriptionPage && !subscriptionMenuOpen) {
-      setSubscriptionMenuOpen(true);
+    for (const [key, paths] of Object.entries(groupPaths)) {
+      if (paths.includes(location.pathname) && !openGroups[key]) {
+        setOpenGroups((prev) => ({ ...prev, [key]: true }));
+      }
     }
-    if (isOnEcommercePage && !ecommerceMenuOpen) {
-      setEcommerceMenuOpen(true);
-    }
-  }, [location.pathname, isOnSubscriptionPage, subscriptionMenuOpen, isOnEcommercePage, ecommerceMenuOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  const toggleGroup = (key) => setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Poll open-ticket count for the sidebar badge
   const [openTicketCount, setOpenTicketCount] = React.useState(0);
@@ -216,6 +224,18 @@ const AdminLayout = ({ children, user, onLogout }) => {
       href: '/features-allowed',
       icon: SlidersHorizontal,
     },
+    {
+      name: 'Marketplace',
+      icon: ShoppingCart,
+      isGroup: true,
+      groupKey: 'marketplace',
+      children: [
+        { name: 'Cost Table', href: '/marketplace/cost-table', icon: Tags },
+        { name: 'Settings', href: '/marketplace/settings', icon: Settings },
+        { name: 'Orders', href: '/marketplace/orders', icon: ClipboardList },
+        { name: 'Earnings', href: '/marketplace/earnings', icon: DollarSign },
+      ],
+    },
     // {
     //   name: 'QR Codes',
     //   href: '/qr-codes',
@@ -349,10 +369,8 @@ const AdminLayout = ({ children, user, onLogout }) => {
               const Icon = item.icon;
 
               if (item.isGroup) {
-                const isMenuOpen = item.groupKey === 'ecommerce' ? ecommerceMenuOpen : subscriptionMenuOpen;
-                const toggleMenu = item.groupKey === 'ecommerce'
-                  ? () => setEcommerceMenuOpen(!ecommerceMenuOpen)
-                  : () => setSubscriptionMenuOpen(!subscriptionMenuOpen);
+                const isMenuOpen = openGroups[item.groupKey];
+                const toggleMenu = () => toggleGroup(item.groupKey);
 
                 return (
                   <div key={item.name} className="space-y-1">
@@ -436,10 +454,8 @@ const AdminLayout = ({ children, user, onLogout }) => {
             const Icon = item.icon;
 
             if (item.isGroup) {
-              const isMenuOpen = item.groupKey === 'ecommerce' ? ecommerceMenuOpen : subscriptionMenuOpen;
-              const toggleMenu = item.groupKey === 'ecommerce'
-                ? () => setEcommerceMenuOpen(!ecommerceMenuOpen)
-                : () => setSubscriptionMenuOpen(!subscriptionMenuOpen);
+              const isMenuOpen = openGroups[item.groupKey];
+              const toggleMenu = () => toggleGroup(item.groupKey);
 
               return (
                 <div key={item.name} className="space-y-1">

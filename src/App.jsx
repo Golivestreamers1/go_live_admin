@@ -51,6 +51,10 @@ import FraudCascade from './pages/FraudCascade';
 import FraudCascadeDetails from './pages/FraudCascadeDetails';
 import IapManagement from './pages/IapManagement';
 import FeaturesAllowed from './pages/FeaturesAllowed';
+import MarketplaceCostTable from './pages/MarketplaceCostTable';
+import MarketplaceSettings from './pages/MarketplaceSettings';
+import MarketplaceOrders from './pages/MarketplaceOrders';
+import MarketplaceEarnings from './pages/MarketplaceEarnings';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -634,6 +638,47 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <FraudCascadeDetails />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/marketplace/cost-table"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MarketplaceCostTable />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/marketplace/settings"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MarketplaceSettings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/marketplace/orders"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MarketplaceOrders />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/marketplace/earnings"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MarketplaceEarnings />
                 </AdminLayout>
               </ProtectedRoute>
             }
