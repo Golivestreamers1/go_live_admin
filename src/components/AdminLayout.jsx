@@ -48,6 +48,7 @@ import {
   Trophy,
   Radio,
   Send,
+  Megaphone,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -221,6 +222,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Contests',
       href: '/contests',
       icon: Trophy,
+    },
+    {
+      name: 'Banners',
+      href: '/banners',
+      icon: Megaphone,
     },
     {
       name: 'Support Tickets',

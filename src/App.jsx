@@ -37,6 +37,7 @@ import GiftCategoryManagement from './pages/GiftCategoryManagement';
 import BlogManagement from './pages/BlogManagement';
 import BlogEditor from './pages/BlogEditor';
 import ContestManagement from './pages/ContestManagement';
+import BannerManagement from './pages/BannerManagement';
 import CashoutOptionManagement from './pages/CashoutOptionManagement';
 import WithdrawRequests from './pages/WithdrawRequests';
 import WithdrawRequestDetails from './pages/WithdrawRequestDetails';
@@ -541,6 +542,16 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <ContestManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/banners"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <BannerManagement />
                 </AdminLayout>
               </ProtectedRoute>
             }

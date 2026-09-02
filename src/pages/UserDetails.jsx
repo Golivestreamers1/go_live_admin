@@ -1168,6 +1168,24 @@ export default function UserDetails() {
                 <p className="text-muted-foreground">PayPal email</p>
                 <p className="font-medium">{user.paypalEmail || '—'}</p>
               </div>
+              <div className="text-sm">
+                <p className="text-muted-foreground">Birthday</p>
+                <p className="font-medium">
+                  {user.dateOfBirth
+                    ? new Date(user.dateOfBirth).toLocaleDateString()
+                    : '—'}
+                </p>
+              </div>
+              <div className="text-sm">
+                <p className="text-muted-foreground">Birthday updates</p>
+                <p className="font-medium">
+                  {user.canChangeDateOfBirth === false
+                    ? 'Used (1/1) — locked'
+                    : user.dateOfBirth
+                      ? `Available (${Number(user.dateOfBirthChangeCount || 0)}/1)`
+                      : 'Not set (0/1)'}
+                </p>
+              </div>
               {user.bio ? (
                 <div className="text-sm md:col-span-2">
                   <p className="text-muted-foreground">Bio</p>
