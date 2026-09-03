@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import {
   Table,
   TableBody,
@@ -20,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog';
-import { Radio, Eye, Users, Swords, Boxes, Square } from 'lucide-react';
+import { Radio, Eye, Users, Swords, Boxes, Square, Search } from 'lucide-react';
 import dashboardService from '../../services/dashboardService';
 import { usePolling } from '../../hooks/usePolling';
 import RefreshControl from './RefreshControl';
@@ -79,6 +81,7 @@ const LiveNowCard = () => {
   const [streamToEnd, setStreamToEnd] = useState(null);
   const [ending, setEnding] = useState(false);
   const [endError, setEndError] = useState('');
+  const [filter, setFilter] = useState('');
 
   const tiles = [
     {
@@ -113,6 +116,19 @@ const LiveNowCard = () => {
     },
   ];
 
+  const allStreams = data?.topStreams ?? [];
+  const filteredStreams = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return allStreams;
+    return allStreams.filter((s) => {
+      const hay = [s.streamer, s.username, s.title, s.bio, s.mode, s.provider]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [allStreams, filter]);
+
   const handleConfirmEnd = async () => {
     if (!streamToEnd?.streamId) return;
     setEnding(true);
@@ -140,7 +156,7 @@ const LiveNowCard = () => {
               </span>
               Live Now
             </CardTitle>
-            <CardDescription>Realtime streams and viewers</CardDescription>
+            <CardDescription>All live streams — end any stream for moderation</CardDescription>
           </div>
           <RefreshControl {...polling} />
         </CardHeader>
@@ -152,63 +168,100 @@ const LiveNowCard = () => {
           </div>
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-gray-700">
-              Live Streams
-              {typeof data?.activeStreams === 'number' ? ` (${data.activeStreams})` : ''}
-            </h3>
-            {data?.topStreams?.length ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Streamer</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="text-right">Viewers</TableHead>
-                    <TableHead className="text-right">Peak</TableHead>
-                    <TableHead className="text-right">Unique</TableHead>
-                    <TableHead>Mode</TableHead>
-                    <TableHead>Provider</TableHead>
-                    <TableHead className="text-right">Duration</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.topStreams.map((s) => (
-                    <TableRow key={s.streamId}>
-                      <TableCell className="font-medium">{s.streamer}</TableCell>
-                      <TableCell className="max-w-[240px] truncate text-muted-foreground">
-                        {s.title || <span className="italic">untitled</span>}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">{s.viewersNow}</TableCell>
-                      <TableCell className="text-right">{s.peak}</TableCell>
-                      <TableCell className="text-right">{s.uniqueViewers}</TableCell>
-                      <TableCell>
-                        <Badge variant={modeBadgeVariant(s.mode)} className="capitalize">
-                          {s.mode}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="capitalize text-muted-foreground">{s.provider}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatDuration(s.durationSec)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="h-8 gap-1.5"
-                          onClick={() => {
-                            setEndError('');
-                            setStreamToEnd(s);
-                          }}
-                        >
-                          <Square className="h-3.5 w-3.5 fill-current" />
-                          End
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-sm font-semibold text-gray-700">
+                Live Streams
+                {allStreams.length
+                  ? ` (${filteredStreams.length}${filter.trim() ? ` of ${allStreams.length}` : ''})`
+                  : typeof data?.activeStreams === 'number'
+                    ? ` (${data.activeStreams})`
+                    : ''}
+              </h3>
+              <div className="flex w-full gap-2 sm:w-auto sm:items-center">
+                <Button asChild variant="outline" size="sm" className="h-9">
+                  <Link to="/live-streams">View all</Link>
+                </Button>
+                <div className="relative w-full sm:w-[320px]">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    placeholder="Filter by name, username, title, or bio…"
+                    className="h-9 pl-8"
+                  />
+                </div>
+              </div>
+            </div>
+            {allStreams.length ? (
+              filteredStreams.length ? (
+                <div className="max-h-[28rem] overflow-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Streamer</TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead className="text-right">Viewers</TableHead>
+                        <TableHead className="text-right">Peak</TableHead>
+                        <TableHead className="text-right">Unique</TableHead>
+                        <TableHead>Mode</TableHead>
+                        <TableHead>Provider</TableHead>
+                        <TableHead className="text-right">Duration</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredStreams.map((s) => (
+                        <TableRow key={s.streamId}>
+                          <TableCell className="font-medium">
+                            <div className="min-w-0">
+                              <div>{s.streamer}</div>
+                              {s.username ? (
+                                <div className="truncate text-xs font-normal text-muted-foreground">
+                                  @{s.username}
+                                </div>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[240px] truncate text-muted-foreground">
+                            {s.title || <span className="italic">untitled</span>}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{s.viewersNow}</TableCell>
+                          <TableCell className="text-right">{s.peak}</TableCell>
+                          <TableCell className="text-right">{s.uniqueViewers}</TableCell>
+                          <TableCell>
+                            <Badge variant={modeBadgeVariant(s.mode)} className="capitalize">
+                              {s.mode}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="capitalize text-muted-foreground">{s.provider}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatDuration(s.durationSec)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="h-8 gap-1.5"
+                              onClick={() => {
+                                setEndError('');
+                                setStreamToEnd(s);
+                              }}
+                            >
+                              <Square className="h-3.5 w-3.5 fill-current" />
+                              End
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  No live streams match “{filter.trim()}”.
+                </p>
+              )
             ) : (
               <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
                 No streams are live right now.

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { giftService } from '../services/giftService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -25,37 +26,12 @@ import {
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { Gift, Plus, Pencil, Trash2, Image as ImageIcon, Upload, Clapperboard } from 'lucide-react';
 import { toast } from 'sonner';
-
-const GIFT_CATEGORIES = ["Popular", "Roses", "Special", "Guns", "New", "Crown", "Sponsor"];
-
-/**
- * Gated categories. Gifts in these tabs are still SHOWN to everyone in the app, but appear
- * with a lock and are disabled unless the sender qualifies. Enforced server-side on send.
- */
-const GATED_CATEGORIES = ["Crown", "Sponsor"];
-
-/** Crown tiers — must match CROWN_TIER_LABELS in the backend (giftAccess.service.js). */
-const CROWN_TIERS = [
-  { value: 1, label: "Bronze Crown" },
-  { value: 2, label: "Silver Crown" },
-  { value: 3, label: "Gold Crown" },
-  { value: 4, label: "Ruby Crown" },
-];
-
-/** Sponsor gate — who can send a "Sponsor" gift. */
-const GIFT_ROLES = [
-  { value: "sponsored", label: "Sponsored creators only" },
-  { value: "icon_creator", label: "Icon Creators only" },
-  { value: "either", label: "Sponsored OR Icon Creator" },
-];
-
-const crownTierLabel = (tier) =>
-  CROWN_TIERS.find((t) => Number(t.value) === Number(tier))?.label ?? null;
-const giftRoleLabel = (role) =>
-  GIFT_ROLES.find((r) => r.value === role)?.label ?? null;
-
-const GATED_GIFT_CATEGORIES = ["Crown", "Sponsor"];
-const WHEEL_CATEGORIES = GIFT_CATEGORIES.filter((c) => !GATED_GIFT_CATEGORIES.includes(c));
+import {
+  findCategoryTab,
+  isGatedCategoryTab,
+  needsCrownGate,
+  needsRoleGate,
+} from '../utils/giftCategoryHelpers';
 
 const PRIZE_RECIPIENTS = [
   { value: 'streamer', label: 'Streamer' },
@@ -141,7 +117,7 @@ function WheelPreview({ segments, theme }) {
 const emptyGift = {
   name: '',
   coinValue: '',
-  category: 'Popular',
+  category: 'Trending',
   /** Crown gate — only used when category === 'Crown'. Hierarchical: a user with a higher
    *  tier can also send lower-tier gifts (Gold unlocks Bronze + Silver + Gold). */
   requiredCrownTier: '',
@@ -282,6 +258,33 @@ const GiftManagement = () => {
   const [editingWheel, setEditingWheel] = useState(null);
   const [wheelForm, setWheelForm] = useState(() => makeEmptyWheel());
   const [wheelSubmitting, setWheelSubmitting] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [crownTiers, setCrownTiers] = useState([]);
+  const [giftRoles, setGiftRoles] = useState([]);
+
+  const wheelCategoryOptions = categories.filter(
+    (c) => !c.gated && !c.gateType,
+  );
+
+  const crownTierLabel = (tier) =>
+    crownTiers.find((t) => Number(t.value ?? t.tier) === Number(tier))?.label ?? null;
+  const giftRoleLabel = (role) =>
+    giftRoles.find((r) => r.value === role)?.label ?? null;
+
+  const fetchCategories = async () => {
+    try {
+      const data = await giftService.getCategories();
+      const list = Array.isArray(data?.categories) ? data.categories : [];
+      setCategories(list);
+      setCrownTiers(Array.isArray(data?.crownTiers) ? data.crownTiers : []);
+      setGiftRoles(Array.isArray(data?.giftRoles) ? data.giftRoles : []);
+      return list;
+    } catch (err) {
+      console.error('Failed to fetch gift categories', err);
+      toast.error(err.response?.data?.message || 'Failed to fetch gift categories');
+      return [];
+    }
+  };
 
   const fetchGifts = async () => {
     try {
@@ -298,6 +301,7 @@ const GiftManagement = () => {
   };
 
   useEffect(() => {
+    void fetchCategories();
     fetchGifts();
   }, []);
 
@@ -317,7 +321,7 @@ const GiftManagement = () => {
     setForm({
       name: gift.name ?? '',
       coinValue: gift.coinValue ?? '',
-      category: gift.category ?? 'Popular',
+      category: findCategoryTab(categories, gift.category)?.key ?? gift.category ?? 'Trending',
       requiredCrownTier: gift.requiredCrownTier != null ? String(gift.requiredCrownTier) : '',
       requiredRole: gift.requiredRole ?? '',
       iconUrl: gift.iconUrl ?? '',
@@ -385,12 +389,12 @@ const GiftManagement = () => {
       return;
     }
     /** Gated categories need their unlock rule, otherwise nobody could ever send the gift. */
-    if (form.category === 'Crown' && !form.requiredCrownTier) {
+    if (needsCrownGate(categories, form.category) && !form.requiredCrownTier) {
       toast.error('Crown gifts need a required crown tier (Bronze / Silver / Gold / Ruby).');
       return;
     }
-    if (form.category === 'Sponsor' && !form.requiredRole) {
-      toast.error('Sponsor gifts need a required status (Sponsored / Icon Creator / Either).');
+    if (needsRoleGate(categories, form.category) && !form.requiredRole) {
+      toast.error('Sponsor/Icons gifts need a required status (Sponsored / Icon Creator / Either).');
       return;
     }
     try {
@@ -398,15 +402,15 @@ const GiftManagement = () => {
       const body = {
         name,
         coinValue,
-        category: form.category || 'Popular',
+        category: form.category || categories[0]?.key || 'Trending',
         /** Always send both (null when not applicable) so switching a gift OUT of a gated
          *  category clears its old gate instead of leaving it silently locked. */
         requiredCrownTier:
-          form.category === 'Crown' && form.requiredCrownTier
+          needsCrownGate(categories, form.category) && form.requiredCrownTier
             ? Number(form.requiredCrownTier)
             : null,
         requiredRole:
-          form.category === 'Sponsor' && form.requiredRole ? form.requiredRole : null,
+          needsRoleGate(categories, form.category) && form.requiredRole ? form.requiredRole : null,
         iconUrl: iconT || undefined,
         animationUrl: animT || undefined,
         videoUrlIos: videoIosT || null,
@@ -658,7 +662,7 @@ const GiftManagement = () => {
     setWheelForm({
       name: gift.name ?? '',
       cost: w.cost ?? gift.coinValue ?? '',
-      category: GIFT_CATEGORIES.includes(gift.category) ? gift.category : 'Special',
+      category: findCategoryTab(categories, gift.category)?.key ?? gift.category ?? wheelCategoryOptions[0]?.key ?? 'Trending',
       prizeRecipient: w.prizeRecipient === 'viewer' ? 'viewer' : 'streamer',
       prizeCurrency: w.prizeCurrency === 'coins' ? 'coins' : 'rubies',
       minTierCreditsZero: !!w.minTierCreditsZero,
@@ -742,7 +746,9 @@ const GiftManagement = () => {
       const body = {
         name,
         coinValue: cost,
-        category: WHEEL_CATEGORIES.includes(wheelForm.category) ? wheelForm.category : 'Special',
+        category: wheelCategoryOptions.some((c) => c.key === wheelForm.category)
+          ? wheelForm.category
+          : defaultCategoryKey(wheelCategoryOptions),
         type: 'wheel',
         displayOrder: Number(wheelForm.displayOrder) || 0,
         isActive: wheelForm.isActive,
@@ -782,7 +788,8 @@ const GiftManagement = () => {
               Live stream gifts
             </CardTitle>
             <CardDescription>
-              <strong>Send animation</strong> (Lottie or GIF) is what plays on the live screen when someone sends this gift. Optional <strong>icon</strong> is a small image in the gift strip; if you only upload an animation, the app uses it everywhere.
+              <strong>Send animation</strong> (Lottie or GIF) is what plays on the live screen when someone sends this gift. Optional <strong>icon</strong> is a small image in the gift strip; if you only upload an animation, the app uses it everywhere. Manage picker tabs on{' '}
+              <Link to="/gift-categories" className="text-primary underline-offset-4 hover:underline">Gift categories</Link>.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -967,23 +974,20 @@ const GiftManagement = () => {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 required
               >
-                {GIFT_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                    {GATED_CATEGORIES.includes(cat) ? ' 🔒' : ''}
+                {categories.map((cat) => (
+                  <option key={cat.key} value={cat.key}>
+                    {cat.label || cat.key}
+                    {isGatedCategoryTab(categories, cat.key) ? ' 🔒' : ''}
                   </option>
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                Category determines how gifts are grouped in the app.{' '}
-                <strong>Crown</strong> and <strong>Sponsor</strong> are <em>gated</em>: everyone
-                still sees the gift, but it shows a lock and is disabled unless the sender
-                qualifies (enforced server-side).
+                Tabs are configured under Gift categories. Gated tabs show a lock unless the sender qualifies.
               </p>
             </div>
 
             {/* ——— Crown gate ——— */}
-            {form.category === 'Crown' && (
+            {needsCrownGate(categories, form.category) && (
               <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
                 <Label htmlFor="requiredCrownTier">Required crown tier *</Label>
                 <select
@@ -994,8 +998,8 @@ const GiftManagement = () => {
                   required
                 >
                   <option value="">Select a crown tier…</option>
-                  {CROWN_TIERS.map((t) => (
-                    <option key={t.value} value={t.value}>
+                  {crownTiers.map((t) => (
+                    <option key={t.value ?? t.tier} value={t.value ?? t.tier}>
                       {t.label}
                     </option>
                   ))}
@@ -1010,7 +1014,7 @@ const GiftManagement = () => {
             )}
 
             {/* ——— Sponsor / Icon Creator gate ——— */}
-            {form.category === 'Sponsor' && (
+            {needsRoleGate(categories, form.category) && (
               <div className="space-y-2 rounded-md border border-violet-500/40 bg-violet-500/5 p-3">
                 <Label htmlFor="requiredRole">Required status *</Label>
                 <select
@@ -1021,7 +1025,7 @@ const GiftManagement = () => {
                   required
                 >
                   <option value="">Select who can send this…</option>
-                  {GIFT_ROLES.map((r) => (
+                  {giftRoles.map((r) => (
                     <option key={r.value} value={r.value}>
                       {r.label}
                     </option>
@@ -1614,9 +1618,9 @@ const GiftManagement = () => {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   required
                 >
-                  {WHEEL_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
+                  {wheelCategoryOptions.map((cat) => (
+                    <option key={cat.key} value={cat.key}>
+                      {cat.label || cat.key}
                     </option>
                   ))}
                 </select>

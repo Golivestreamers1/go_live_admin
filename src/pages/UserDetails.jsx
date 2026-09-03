@@ -21,6 +21,7 @@ import {
   Eye,
   Smartphone,
   UserPlus,
+  Ban,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
@@ -37,7 +38,24 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import { Textarea } from '../components/ui/textarea';
 import { userService } from '../services/userService';
+import { ipBanService } from '../services/ipBanService';
 import payoutAnalyticsService from '../services/payoutAnalyticsService';
 import { useListBack } from '../hooks/useListNavigation';
 import FraudCascadeDialog from '../components/FraudCascadeDialog';
@@ -539,6 +557,43 @@ export default function UserDetails() {
 
   const [activity, setActivity] = useState(null);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [loginSessions, setLoginSessions] = useState([]);
+  const [loginSessionsLoading, setLoginSessionsLoading] = useState(false);
+  const [ipBanTarget, setIpBanTarget] = useState(null);
+  const [ipBanReason, setIpBanReason] = useState('');
+  const [ipBanDuration, setIpBanDuration] = useState('permanent');
+  const [ipBanning, setIpBanning] = useState(false);
+  const [ipBanLookup, setIpBanLookup] = useState(null);
+
+  const openIpBan = async (ip) => {
+    if (!ip) return;
+    setIpBanTarget(ip);
+    setIpBanReason('');
+    setIpBanDuration('permanent');
+    setIpBanLookup(null);
+    try {
+      const data = await ipBanService.lookup(ip);
+      setIpBanLookup(data);
+    } catch {
+      /* lookup is best-effort */
+    }
+  };
+
+  const confirmIpBan = async () => {
+    if (!ipBanTarget) return;
+    try {
+      setIpBanning(true);
+      const payload = { ip: ipBanTarget, reason: ipBanReason.trim() };
+      if (ipBanDuration !== 'permanent') payload.durationDays = Number(ipBanDuration);
+      await ipBanService.create(payload);
+      toast.success(`Banned IP ${ipBanTarget}`);
+      setIpBanTarget(null);
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Failed to ban IP');
+    } finally {
+      setIpBanning(false);
+    }
+  };
   const [activityFrom, setActivityFrom] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -567,7 +622,19 @@ export default function UserDetails() {
         if (!cancelled) setLoading(false);
       }
     };
+    const loadSessions = async () => {
+      try {
+        setLoginSessionsLoading(true);
+        const data = await userService.getLoginSessions(id, { page: 1, limit: 20 });
+        if (!cancelled) setLoginSessions(data?.items || []);
+      } catch {
+        if (!cancelled) setLoginSessions([]);
+      } finally {
+        if (!cancelled) setLoginSessionsLoading(false);
+      }
+    };
     load();
+    loadSessions();
     return () => {
       cancelled = true;
     };
@@ -938,6 +1005,9 @@ export default function UserDetails() {
                 {user.role?.displayName ? (
                   <Badge variant="secondary">{user.role.displayName}</Badge>
                 ) : null}
+                {user.isDeleted ? (
+                  <Badge variant="destructive">Soft-deleted</Badge>
+                ) : null}
                 {user.isActive === false ? (
                   <Badge variant="destructive">Inactive</Badge>
                 ) : null}
@@ -1071,6 +1141,24 @@ export default function UserDetails() {
                 <p className="font-medium">{fmtDate(user.lastLogin)}</p>
               </div>
               <div className="text-sm">
+                <p className="text-muted-foreground">Last login IP</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-mono text-xs">{user.lastLoginIp || '—'}</p>
+                  {user.lastLoginIp ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1 text-xs"
+                      onClick={() => openIpBan(user.lastLoginIp)}
+                    >
+                      <Ban className="h-3 w-3" />
+                      Ban IP
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              <div className="text-sm">
                 <p className="text-muted-foreground">User ID</p>
                 <p className="font-mono text-xs">
                   {user._id} <CopyBtn value={user._id} />
@@ -1080,12 +1168,95 @@ export default function UserDetails() {
                 <p className="text-muted-foreground">PayPal email</p>
                 <p className="font-medium">{user.paypalEmail || '—'}</p>
               </div>
+              <div className="text-sm">
+                <p className="text-muted-foreground">Birthday</p>
+                <p className="font-medium">
+                  {user.dateOfBirth
+                    ? new Date(user.dateOfBirth).toLocaleDateString()
+                    : '—'}
+                </p>
+              </div>
+              <div className="text-sm">
+                <p className="text-muted-foreground">Birthday updates</p>
+                <p className="font-medium">
+                  {user.canChangeDateOfBirth === false
+                    ? 'Used (1/1) — locked'
+                    : user.dateOfBirth
+                      ? `Available (${Number(user.dateOfBirthChangeCount || 0)}/1)`
+                      : 'Not set (0/1)'}
+                </p>
+              </div>
               {user.bio ? (
                 <div className="text-sm md:col-span-2">
                   <p className="text-muted-foreground">Bio</p>
                   <p>{user.bio}</p>
                 </div>
               ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Login sessions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {loginSessionsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading sessions…</p>
+              ) : loginSessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No login sessions recorded yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-muted-foreground border-b">
+                        <th className="py-2 pr-3 font-medium">When</th>
+                        <th className="py-2 pr-3 font-medium">IP</th>
+                        <th className="py-2 pr-3 font-medium">OS</th>
+                        <th className="py-2 pr-3 font-medium">Method</th>
+                        <th className="py-2 pr-3 font-medium">Last seen</th>
+                        <th className="py-2 pr-3 font-medium">Status</th>
+                        <th className="py-2 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loginSessions.map((s) => (
+                        <tr key={s._id} className="border-b border-border/60">
+                          <td className="py-2 pr-3 whitespace-nowrap">{fmtDate(s.createdAt)}</td>
+                          <td className="py-2 pr-3 font-mono text-xs">{s.ip || '—'}</td>
+                          <td className="py-2 pr-3 uppercase text-xs">
+                            {s.platform && s.platform !== 'unknown' ? s.platform : '—'}
+                          </td>
+                          <td className="py-2 pr-3">{s.method || '—'}</td>
+                          <td className="py-2 pr-3 whitespace-nowrap">{fmtDate(s.lastSeenAt)}</td>
+                          <td className="py-2 pr-3">
+                            {s.revokedAt ? (
+                              <span className="text-muted-foreground">
+                                revoked{s.revokeReason ? ` (${s.revokeReason})` : ''}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600">active</span>
+                            )}
+                          </td>
+                          <td className="py-2">
+                            {s.ip ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 gap-1 text-xs"
+                                onClick={() => openIpBan(s.ip)}
+                              >
+                                <Ban className="h-3 w-3" />
+                                Ban
+                              </Button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -2467,6 +2638,60 @@ export default function UserDetails() {
           }}
         />
       ) : null}
+
+      <Dialog
+        open={Boolean(ipBanTarget)}
+        onOpenChange={(open) => {
+          if (!ipBanning && !open) setIpBanTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ban IP {ipBanTarget}?</DialogTitle>
+            <DialogDescription>
+              Blocks this network from the app (login, API, sockets). Carrier CGNAT may affect other users on the same IP.
+            </DialogDescription>
+          </DialogHeader>
+          {ipBanLookup ? (
+            <p className="rounded-md border bg-amber-50 px-3 py-2 text-xs text-amber-950">
+              {ipBanLookup.userCount} user(s) last logged in from this IP
+              {ipBanLookup.isBanned ? ' · already banned' : ''}.
+            </p>
+          ) : null}
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Duration</label>
+              <Select value={ipBanDuration} onValueChange={setIpBanDuration}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="permanent">Permanent</SelectItem>
+                  <SelectItem value="1">1 day</SelectItem>
+                  <SelectItem value="7">7 days</SelectItem>
+                  <SelectItem value="30">30 days</SelectItem>
+                  <SelectItem value="90">90 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Reason</label>
+              <Textarea
+                rows={3}
+                value={ipBanReason}
+                onChange={(e) => setIpBanReason(e.target.value)}
+                placeholder="e.g. Sexual content / spam"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={ipBanning} onClick={() => setIpBanTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={ipBanning} onClick={confirmIpBan}>
+              {ipBanning ? 'Banning…' : 'Ban IP'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

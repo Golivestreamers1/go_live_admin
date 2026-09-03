@@ -27,17 +27,20 @@ import {
   Wallet,
   Flag,
   FileWarning,
+  Ban,
   Gift,
+  Newspaper,
   DollarSign,
   ArrowDownToLine,
   Sparkles,
   UserPlus,
   ShieldHalf,
   Crown,
+  TrendingUp,
   BadgeCheck,
-  ImageIcon,
   Gem,
   LifeBuoy,
+  Building2,
   Bell,
   AlertTriangle,
   Share2,
@@ -45,6 +48,7 @@ import {
   Trophy,
   Radio,
   Send,
+  Megaphone,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -88,7 +92,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
     const refresh = async () => {
       try {
         const stats = await supportService.getStats();
-        if (!cancelled) setOpenTicketCount(stats?.open || 0);
+        if (!cancelled) setOpenTicketCount(stats?.unread || stats?.open || 0);
       } catch {
         /* ignore — user may not be authed yet */
       }
@@ -125,6 +129,16 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: UserPlus,
     },
     {
+      name: 'Agencies',
+      href: '/agencies',
+      icon: Building2,
+    },
+    {
+      name: 'Money Flow',
+      href: '/finance',
+      icon: TrendingUp,
+    },
+    {
       name: 'Top Spenders',
       href: '/topspenders',
       icon: Crown,
@@ -140,14 +154,14 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Share2,
     },
     {
-      name: 'Banners',
-      href: '/banners',
-      icon: ImageIcon,
-    },
-    {
       name: 'Reported Users',
       href: '/reported-users',
       icon: Flag,
+    },
+    {
+      name: 'IP Bans',
+      href: '/ip-bans',
+      icon: Ban,
     },
     {
       name: 'Reported Posts',
@@ -177,6 +191,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Radio,
     },
     {
+      name: 'Live streams',
+      href: '/live-streams',
+      icon: Radio,
+    },
+    {
       name: 'Cash out email change',
       href: '/cashout-email-change',
       icon: ClipboardList,
@@ -197,9 +216,25 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Gift,
     },
     {
+      name: 'Gift categories',
+      href: '/gift-categories',
+      icon: Tags,
+    },
+    {
+      name: 'Blog',
+      href: '/blogs',
+      icon: Newspaper,
+      pathMatch: 'prefix',
+    },
+    {
       name: 'Contests',
       href: '/contests',
       icon: Trophy,
+    },
+    {
+      name: 'Banners',
+      href: '/banners',
+      icon: Megaphone,
     },
     {
       name: 'Support Tickets',

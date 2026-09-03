@@ -14,6 +14,8 @@ import UserDetails from './pages/UserDetails';
 import SponsoredCreators from './pages/SponsoredCreators';
 import PremiumSubscribers from './pages/PremiumSubscribers';
 import IconRecruiterApplications from './pages/IconRecruiterApplications';
+import AgencyManagement from './pages/AgencyManagement';
+import AgencyDetails from './pages/AgencyDetails';
 import Settings from './pages/Settings';
 import AdminLogin from './pages/AdminLogin';
 import PackageManagement from './pages/PackageManagement';
@@ -31,12 +33,17 @@ import ReportedPosts from './pages/ReportedPosts';
 import CashOutRequests from './pages/CashOutRequests';
 import StickerManagement from './pages/StickerManagement';
 import GiftManagement from './pages/GiftManagement';
+import GiftCategoryManagement from './pages/GiftCategoryManagement';
+import BlogManagement from './pages/BlogManagement';
+import BlogEditor from './pages/BlogEditor';
 import ContestManagement from './pages/ContestManagement';
+import BannerManagement from './pages/BannerManagement';
 import CashoutOptionManagement from './pages/CashoutOptionManagement';
 import WithdrawRequests from './pages/WithdrawRequests';
 import WithdrawRequestDetails from './pages/WithdrawRequestDetails';
 import WithdrawRequestStreamDetails from './pages/WithdrawRequestStreamDetails';
 import TopSpenders from './pages/TopSpenders';
+import FinanceOverview from './pages/FinanceOverview';
 import Referrals from './pages/Referrals';
 import GifterPayoutDetails from './pages/GifterPayoutDetails';
 import GifterRecipientsLookup from './pages/GifterRecipientsLookup';
@@ -44,6 +51,7 @@ import StreamerRubiesList from './pages/StreamerRubiesList';
 import StreamerRubiesDetail from './pages/StreamerRubiesDetail';
 import UserStreamEarnings from './pages/UserStreamEarnings';
 import StreamerStreamGiftsAdmin from './pages/StreamerStreamGiftsAdmin';
+import LiveStreamsManagement from './pages/LiveStreamsManagement';
 import SupportTickets from './pages/SupportTickets';
 import SupportTicketDetail from './pages/SupportTicketDetail';
 import SupportSettings from './pages/SupportSettings';
@@ -55,6 +63,7 @@ import MarketplaceCostTable from './pages/MarketplaceCostTable';
 import MarketplaceSettings from './pages/MarketplaceSettings';
 import MarketplaceOrders from './pages/MarketplaceOrders';
 import MarketplaceEarnings from './pages/MarketplaceEarnings';
+import IpBans from './pages/IpBans';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -239,6 +248,28 @@ function App() {
           />
 
           <Route
+            path="/agencies"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <AgencyManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/agencies/:agencyId"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <AgencyDetails />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/topspenders"
             element={
               <ProtectedRoute>
@@ -249,6 +280,17 @@ function App() {
             }
           />
           <Route path="/ruby-crown-wallet" element={<Navigate to="/topspenders" replace />} />
+
+          <Route
+            path="/finance"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <FinanceOverview />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/referrals"
@@ -395,6 +437,17 @@ function App() {
           />
 
           <Route
+            path="/ip-bans"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <IpBans />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/reported-posts"
             element={
               <ProtectedRoute>
@@ -447,11 +500,62 @@ function App() {
             }
           />
           <Route
+            path="/gift-categories"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <GiftCategoryManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Literal /blogs/new must precede /blogs/:id/edit. */}
+          <Route
+            path="/blogs"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <BlogManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/blogs/new"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <BlogEditor />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/blogs/:id/edit"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <BlogEditor />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/contests"
             element={
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <ContestManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/banners"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <BannerManagement />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -554,6 +658,16 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <UserStreamEarnings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/live-streams"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <LiveStreamsManagement />
                 </AdminLayout>
               </ProtectedRoute>
             }

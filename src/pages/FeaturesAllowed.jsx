@@ -1,9 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Share2, Trophy, Gift, Sparkles, Globe } from 'lucide-react';
+import { Share2, Trophy, Gift, Sparkles, Globe, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Switch } from '../components/ui/switch';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
 import { featuresAllowedService } from '../services/featuresAllowedService';
+
+const DEFAULT_GIFT_QUEUE = 6;
+const MIN_GIFT_QUEUE = 1;
+const MAX_GIFT_QUEUE = 12;
+
+const clampGiftQueue = (raw) => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return DEFAULT_GIFT_QUEUE;
+  return Math.max(MIN_GIFT_QUEUE, Math.min(MAX_GIFT_QUEUE, Math.round(n)));
+};
 
 const FeaturesAllowed = () => {
   const [settings, setSettings] = useState({
@@ -12,7 +24,9 @@ const FeaturesAllowed = () => {
     gifterWheel: true,
     mysteryWheel: true,
     coinsWebsite: false,
+    maxGiftAnimationQueue: DEFAULT_GIFT_QUEUE,
   });
+  const [queueDraft, setQueueDraft] = useState(String(DEFAULT_GIFT_QUEUE));
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -20,13 +34,16 @@ const FeaturesAllowed = () => {
     try {
       setLoading(true);
       const data = await featuresAllowedService.getSettings();
+      const queue = clampGiftQueue(data?.maxGiftAnimationQueue ?? DEFAULT_GIFT_QUEUE);
       setSettings({
         referral: data?.referral !== false,
         contest: data?.contest !== false,
         gifterWheel: data?.gifterWheel !== false,
         mysteryWheel: data?.mysteryWheel !== false,
         coinsWebsite: data?.coinsWebsite === true,
+        maxGiftAnimationQueue: queue,
       });
+      setQueueDraft(String(queue));
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to load feature settings');
     } finally {
@@ -118,6 +135,25 @@ const FeaturesAllowed = () => {
       );
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to update coins website setting');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleSaveGiftQueue = async () => {
+    const next = clampGiftQueue(queueDraft);
+    setQueueDraft(String(next));
+    try {
+      setUpdating(true);
+      const updated = await featuresAllowedService.updateSettings({
+        maxGiftAnimationQueue: next,
+      });
+      const saved = clampGiftQueue(updated?.maxGiftAnimationQueue ?? next);
+      setSettings((prev) => ({ ...prev, maxGiftAnimationQueue: saved }));
+      setQueueDraft(String(saved));
+      toast.success(`Live gift queue set to ${saved} (playing + waiting)`);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update gift queue size');
     } finally {
       setUpdating(false);
     }
@@ -286,6 +322,52 @@ const FeaturesAllowed = () => {
         <CardContent>
           <p className="text-sm text-muted-foreground">
             Default is disabled. In-app store packages remain available regardless of this setting.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-l-4 border-l-rose-500">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <Layers className="h-5 w-5 text-rose-600" />
+            Live gift animation queue
+          </CardTitle>
+          <CardDescription className="mt-1">
+            How many gift animations can show at once on live (the one playing plus waiting).
+            Extra gifts still count coins — only the animation is skipped. Applies on the next live session.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="number"
+              min={MIN_GIFT_QUEUE}
+              max={MAX_GIFT_QUEUE}
+              step={1}
+              inputMode="numeric"
+              className="w-24"
+              value={queueDraft}
+              onChange={(e) => setQueueDraft(e.target.value)}
+              disabled={loading || updating}
+            />
+            <Button
+              type="button"
+              onClick={handleSaveGiftQueue}
+              disabled={
+                loading ||
+                updating ||
+                clampGiftQueue(queueDraft) === settings.maxGiftAnimationQueue
+              }
+            >
+              Save
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Current: {settings.maxGiftAnimationQueue}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Allowed range {MIN_GIFT_QUEUE}–{MAX_GIFT_QUEUE}. Default is {DEFAULT_GIFT_QUEUE}.
+            Higher values can slow or crash live on older phones.
           </p>
         </CardContent>
       </Card>

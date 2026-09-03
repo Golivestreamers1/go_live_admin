@@ -138,8 +138,18 @@ const SupportTicketDetail = () => {
       attachments: ticket.attachments || [],
       createdAt: ticket.createdAt,
     };
-    return [initial, ...(ticket.messages || [])];
+    /** Newest first so agents see the latest reply without scrolling. */
+    return [initial, ...(ticket.messages || [])].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
   }, [ticket]);
+
+  const notesNewestFirst = useMemo(() => {
+    const notes = Array.isArray(ticket?.internalNotes) ? [...ticket.internalNotes] : [];
+    return notes.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [ticket?.internalNotes]);
 
   const handlePatch = async (changes) => {
     try {
@@ -166,7 +176,7 @@ const SupportTicketDetail = () => {
       setTicket((t) => ({ ...t, ...updated }));
       setReply('');
       setFiles([]);
-      toast.success('Reply sent');
+      toast.success('Reply emailed to user');
       if (andResolve) await handlePatch({ status: 'resolved' });
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Send failed');
@@ -334,11 +344,11 @@ const SupportTicketDetail = () => {
             </Card>
           )}
 
-          {Array.isArray(ticket.internalNotes) && ticket.internalNotes.length > 0 && (
+          {notesNewestFirst.length > 0 && (
             <Card>
               <CardHeader><CardTitle className="text-sm">Internal notes</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                {ticket.internalNotes.map((n) => (
+                {notesNewestFirst.map((n) => (
                   <div key={n._id} className="bg-yellow-50 border border-yellow-200 rounded p-3">
                     <div className="text-xs text-gray-500 mb-1">
                       <strong className="text-gray-700">{n.authorName || 'Admin'}</strong> · {new Date(n.createdAt).toLocaleString()}

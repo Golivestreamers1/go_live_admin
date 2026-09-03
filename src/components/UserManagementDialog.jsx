@@ -559,6 +559,11 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
                     <span className="text-sm font-medium text-gray-900">Last Login:</span>
                     <span className="text-sm text-gray-600 ml-2">
                       {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
+                      {user.lastLoginIp ? (
+                        <span className="block text-xs text-muted-foreground font-mono mt-0.5">
+                          {user.lastLoginIp}
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                 </div>
@@ -768,10 +773,11 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
                 <Trash2 className="w-5 h-5 text-red-600 mt-0.5" />
                 <div className="flex-1">
                   <h4 className="text-sm font-medium text-red-800">
-                    Delete User
+                    Soft-delete User
                   </h4>
                   <p className="text-sm text-red-700 mt-1">
-                    Permanently delete this user account. This action cannot be undone and will remove all associated data.
+                    Deactivate and hide this account from the app. The user record and related
+                    history are retained for legal / audit purposes (not permanently wiped).
                   </p>
 
                   {!showDeleteConfirmation ? (
@@ -781,21 +787,21 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
                       onClick={() => setShowDeleteConfirmation(true)}
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
-                      Delete User
+                      Soft-delete User
                     </Button>
                   ) : (
                     <div className="mt-3 space-y-3">
                       <div className="p-3 bg-red-100 border border-red-300 rounded">
                         <p className="text-sm font-medium text-red-800">
-                          Are you absolutely sure?
+                          Confirm soft-delete?
                         </p>
                         <p className="text-sm text-red-700 mt-1">
-                          This will permanently delete <strong>{user.firstName} {user.lastName}</strong> and all associated data including:
+                          This will deactivate <strong>{user.firstName} {user.lastName}</strong> and hide their public content. Retained:
                         </p>
                         <ul className="text-sm text-red-700 mt-2 list-disc list-inside">
-                          <li>Account information</li>
-                          <li>Activity history</li>
-                          <li>Associated records</li>
+                          <li>Account identity (email, username, profile)</li>
+                          <li>Wallet / transaction history</li>
+                          <li>Login sessions and audit trails</li>
                         </ul>
                       </div>
                       <div className="flex gap-2">
