@@ -74,6 +74,8 @@ const BannerManagement = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  /** Ids currently being toggled — disables just that row's control, not the whole table. */
+  const [togglingIds, setTogglingIds] = useState([]);
 
   const fetchBanners = useCallback(async () => {
     try {
@@ -90,6 +92,38 @@ const BannerManagement = () => {
   useEffect(() => {
     fetchBanners();
   }, [fetchBanners]);
+
+  /**
+   * Show/hide a banner without opening the edit dialog.
+   *
+   * `isActive` is the only switch the app honours regardless of dates: the public feed returns
+   * `isActive: true` AND inside the start/end window, so a banner can be scheduled correctly and
+   * still be hidden by this flag. Updates optimistically and rolls back on failure so the row
+   * never shows a state the server rejected.
+   */
+  const toggleActive = useCallback(
+    async (banner) => {
+      const id = banner?._id;
+      if (!id) return;
+      const next = !banner.isActive;
+      setTogglingIds((ids) => [...ids, id]);
+      setBanners((rows) =>
+        rows.map((r) => (r._id === id ? { ...r, isActive: next } : r)),
+      );
+      try {
+        await bannerService.update(id, { isActive: next });
+        toast.success(next ? 'Banner is now active' : 'Banner hidden');
+      } catch (err) {
+        setBanners((rows) =>
+          rows.map((r) => (r._id === id ? { ...r, isActive: banner.isActive } : r)),
+        );
+        toast.error(err.response?.data?.message || 'Could not update banner');
+      } finally {
+        setTogglingIds((ids) => ids.filter((x) => x !== id));
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     contestService
@@ -253,9 +287,22 @@ const BannerManagement = () => {
                     <TableCell>{typeLabel(banner.type)}</TableCell>
                     <TableCell>{banner.sortOrder ?? 0}</TableCell>
                     <TableCell>
-                      <Badge variant={banner.isActive ? 'default' : 'secondary'}>
-                        {banner.isActive ? 'Active' : 'Hidden'}
-                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 hover:bg-transparent"
+                        disabled={togglingIds.includes(banner._id)}
+                        onClick={() => toggleActive(banner)}
+                        title={
+                          banner.isActive
+                            ? 'Click to hide this banner'
+                            : 'Click to make this banner active'
+                        }
+                      >
+                        <Badge variant={banner.isActive ? 'default' : 'secondary'}>
+                          {banner.isActive ? 'Active' : 'Hidden'}
+                        </Badge>
+                      </Button>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button variant="outline" size="icon" onClick={() => openEdit(banner)}>
