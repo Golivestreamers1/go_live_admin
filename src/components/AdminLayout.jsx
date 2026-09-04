@@ -63,7 +63,13 @@ const AdminLayout = ({ children, user, onLogout }) => {
   const groupPaths = {
     subscription: ['/packages', '/subscriptions', '/subscription-stats'],
     ecommerce: ['/vendors', '/products', '/categories', '/orders', '/reviews', '/payouts'],
-    marketplace: ['/marketplace/cost-table', '/marketplace/settings', '/marketplace/orders', '/marketplace/earnings'],
+    marketplace: [
+      '/marketplace/products',
+      '/marketplace/cost-table',
+      '/marketplace/settings',
+      '/marketplace/orders',
+      '/marketplace/earnings',
+    ],
   };
   const [openGroups, setOpenGroups] = React.useState(() => {
     const initial = {};
@@ -265,6 +271,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
       isGroup: true,
       groupKey: 'marketplace',
       children: [
+        { name: 'Products', href: '/marketplace/products', icon: BadgeCheck },
         { name: 'Cost Table', href: '/marketplace/cost-table', icon: Tags },
         { name: 'Settings', href: '/marketplace/settings', icon: Settings },
         { name: 'Orders', href: '/marketplace/orders', icon: ClipboardList },

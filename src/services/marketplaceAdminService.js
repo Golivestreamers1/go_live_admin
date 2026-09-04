@@ -55,4 +55,30 @@ export const marketplaceAdminService = {
     const response = await api.get(`/admin/marketplace/earnings?${queryParams}`);
     return response.data.data;
   },
+
+  async getProducts(params = {}) {
+    const { status, page = 1, limit = 20 } = params;
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...(status && { status }),
+    });
+    const response = await api.get(`/admin/marketplace/products?${queryParams}`);
+    return response.data.data;
+  },
+
+  async getProduct(id) {
+    const response = await api.get(`/admin/marketplace/products/${id}`);
+    return response.data.data;
+  },
+
+  async approveProduct(id, edits = {}) {
+    const response = await api.patch(`/admin/marketplace/products/${id}/approve`, edits);
+    return response.data.data;
+  },
+
+  async rejectProduct(id, note) {
+    const response = await api.patch(`/admin/marketplace/products/${id}/reject`, { note });
+    return response.data.data;
+  },
 };

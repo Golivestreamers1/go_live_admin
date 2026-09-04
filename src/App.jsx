@@ -59,6 +59,7 @@ import FraudCascade from './pages/FraudCascade';
 import FraudCascadeDetails from './pages/FraudCascadeDetails';
 import IapManagement from './pages/IapManagement';
 import FeaturesAllowed from './pages/FeaturesAllowed';
+import MarketplaceProducts from './pages/MarketplaceProducts';
 import MarketplaceCostTable from './pages/MarketplaceCostTable';
 import MarketplaceSettings from './pages/MarketplaceSettings';
 import MarketplaceOrders from './pages/MarketplaceOrders';
@@ -757,6 +758,16 @@ function App() {
             }
           />
 
+          <Route
+            path="/marketplace/products"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MarketplaceProducts />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/marketplace/cost-table"
             element={
