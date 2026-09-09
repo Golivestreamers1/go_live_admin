@@ -23,6 +23,7 @@ import {
   ShoppingCart,
   Tags,
   ClipboardList,
+  Image,
   Star,
   Wallet,
   Flag,
@@ -279,6 +280,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
       children: [
         { name: 'Products', href: '/marketplace/products', icon: BadgeCheck },
         // { name: 'Vendors', href: '/marketplace/vendors', icon: Users }, // QA: not showing signed-up vendors
+        { name: 'Banners', href: '/marketplace/banners', icon: Image },
         { name: 'Settings', href: '/marketplace/settings', icon: Settings },
         { name: 'Orders', href: '/marketplace/orders', icon: ClipboardList },
         { name: 'Earnings', href: '/marketplace/earnings', icon: DollarSign },

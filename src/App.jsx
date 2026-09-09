@@ -65,6 +65,7 @@ import MarketplaceVendors from './pages/MarketplaceVendors';
 import MarketplaceSettings from './pages/MarketplaceSettings';
 import MarketplaceOrders from './pages/MarketplaceOrders';
 import MarketplaceEarnings from './pages/MarketplaceEarnings';
+import MarketplaceBanners from './pages/MarketplaceBanners';
 import IpBans from './pages/IpBans';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
@@ -805,6 +806,16 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <MarketplaceOrders />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/marketplace/banners"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <MarketplaceBanners />
                 </AdminLayout>
               </ProtectedRoute>
             }
