@@ -127,6 +127,20 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Users,
     },
     {
+      name: 'Marketplace',
+      icon: ShoppingCart,
+      isGroup: true,
+      groupKey: 'marketplace',
+      children: [
+        { name: 'Products', href: '/marketplace/products', icon: BadgeCheck },
+        // { name: 'Vendors', href: '/marketplace/vendors', icon: Users },
+        { name: 'Banners', href: '/marketplace/banners', icon: Image },
+        { name: 'Settings', href: '/marketplace/settings', icon: Settings },
+        { name: 'Orders', href: '/marketplace/orders', icon: ClipboardList },
+        { name: 'Earnings', href: '/marketplace/earnings', icon: DollarSign },
+      ],
+    },
+    {
       name: 'Sponsored creators',
       href: '/sponsored-creators',
       icon: Sparkles,
@@ -271,20 +285,6 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'App Theme',
       href: '/theme',
       icon: Palette,
-    },
-    {
-      name: 'Marketplace',
-      icon: ShoppingCart,
-      isGroup: true,
-      groupKey: 'marketplace',
-      children: [
-        { name: 'Products', href: '/marketplace/products', icon: BadgeCheck },
-        // { name: 'Vendors', href: '/marketplace/vendors', icon: Users }, // QA: not showing signed-up vendors
-        { name: 'Banners', href: '/marketplace/banners', icon: Image },
-        { name: 'Settings', href: '/marketplace/settings', icon: Settings },
-        { name: 'Orders', href: '/marketplace/orders', icon: ClipboardList },
-        { name: 'Earnings', href: '/marketplace/earnings', icon: DollarSign },
-      ],
     },
     // {
     //   name: 'QR Codes',
