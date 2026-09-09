@@ -13,6 +13,8 @@ const SECTIONS = [
   { key: 'home', label: 'Home' },
   { key: 'feed', label: 'Feed' },
   { key: 'live', label: 'Live' },
+  { key: 'shop', label: 'Shop' },
+  { key: 'profile', label: 'Profile' },
 ];
 
 const MODES = [
@@ -64,6 +66,14 @@ const emptyBackgrounds = () => ({
     light: { enabled: false, imageUrl: '' },
     dark: { enabled: false, imageUrl: '' },
   },
+  shop: {
+    light: { enabled: false, imageUrl: '' },
+    dark: { enabled: false, imageUrl: '' },
+  },
+  profile: {
+    light: { enabled: false, imageUrl: '' },
+    dark: { enabled: false, imageUrl: '' },
+  },
 });
 
 const ThemeAppearance = () => {
@@ -73,7 +83,7 @@ const ThemeAppearance = () => {
   const [lightColors, setLightColors] = useState(emptyColors);
   const [darkColors, setDarkColors] = useState(emptyColors);
   const [backgrounds, setBackgrounds] = useState(emptyBackgrounds);
-  const [overlays, setOverlays] = useState({ light: 0.35, dark: 0.5 });
+  const [overlays, setOverlays] = useState({ light: 0, dark: 0 });
   const [uploadBusy, setUploadBusy] = useState('');
   const [version, setVersion] = useState(1);
 
@@ -99,10 +109,18 @@ const ThemeAppearance = () => {
           ...emptyBackgrounds().live,
           ...(data?.backgrounds?.live || {}),
         },
+        shop: {
+          ...emptyBackgrounds().shop,
+          ...(data?.backgrounds?.shop || {}),
+        },
+        profile: {
+          ...emptyBackgrounds().profile,
+          ...(data?.backgrounds?.profile || {}),
+        },
       });
       setOverlays({
-        light: data?.overlays?.light ?? 0.35,
-        dark: data?.overlays?.dark ?? 0.5,
+        light: data?.overlays?.light ?? 0,
+        dark: data?.overlays?.dark ?? 0,
       });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load theme settings');
