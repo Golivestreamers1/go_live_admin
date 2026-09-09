@@ -407,7 +407,7 @@ const ReviewDialog = ({ productId, onClose, onDecided }) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="h-7 py-1">Enabled</TableHead>
+                      {/* Enabled checkbox hidden: toggling it here didn't apply on the vendor side (QA) */}
                       <TableHead className="h-7 py-1">Variant</TableHead>
                       <TableHead className="h-7 py-1">Cost</TableHead>
                       <TableHead className="h-7 py-1">Vendor keeps</TableHead>
@@ -418,15 +418,6 @@ const ReviewDialog = ({ productId, onClose, onDecided }) => {
                   <TableBody>
                     {(product.variants ?? []).map((v) => (
                       <TableRow key={v.variantId}>
-                        <TableCell className="py-1">
-                          <input
-                            type="checkbox"
-                            checked={enabledVariants[v.variantId] !== false}
-                            onChange={(e) =>
-                              setEnabledVariants((s) => ({ ...s, [v.variantId]: e.target.checked }))
-                            }
-                          />
-                        </TableCell>
                         <TableCell className="py-1">{v.title || `Variant ${v.variantId}`}</TableCell>
                         <TableCell className="py-1">{money(v.costCents)}</TableCell>
                         <TableCell className="py-1">{money(v.vendorMarkupCents)}</TableCell>
