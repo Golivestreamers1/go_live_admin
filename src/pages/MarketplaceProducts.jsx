@@ -68,6 +68,7 @@ const groupMockupsByColor = (product) => {
 const MarketplaceProducts = () => {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({});
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('pending_review');
   const [loading, setLoading] = useState(true);
@@ -80,6 +81,7 @@ const MarketplaceProducts = () => {
       const data = await marketplaceAdminService.getProducts({ page, limit, status: status || undefined });
       setItems(data.items);
       setTotal(data.total);
+      setStatusCounts(data.statusCounts || {});
     } catch (error) {
       toast.error('Failed to load products');
     } finally {
@@ -99,8 +101,28 @@ const MarketplaceProducts = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Products</h1>
         <p className="mt-1 text-sm text-gray-500">
-          New products a streamer submits wait here for approval before they go live.
+          New products a streamer submits wait here for approval before they go live. publish
         </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {STATUS_OPTIONS.filter(Boolean).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => {
+              setPage(1);
+              setStatus(s);
+            }}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              status === s
+                ? 'border-gray-900 bg-gray-900 text-white'
+                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {s.replace(/_/g, ' ')} · {statusCounts[s] ?? 0}
+          </button>
+        ))}
       </div>
 
       <Card>
@@ -407,7 +429,7 @@ const ReviewDialog = ({ productId, onClose, onDecided }) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="h-7 py-1">Enabled</TableHead>
+                      {/* Enabled checkbox hidden: toggling it here didn't apply on the vendor side (QA) */}
                       <TableHead className="h-7 py-1">Variant</TableHead>
                       <TableHead className="h-7 py-1">Cost</TableHead>
                       <TableHead className="h-7 py-1">Vendor keeps</TableHead>
@@ -418,15 +440,6 @@ const ReviewDialog = ({ productId, onClose, onDecided }) => {
                   <TableBody>
                     {(product.variants ?? []).map((v) => (
                       <TableRow key={v.variantId}>
-                        <TableCell className="py-1">
-                          <input
-                            type="checkbox"
-                            checked={enabledVariants[v.variantId] !== false}
-                            onChange={(e) =>
-                              setEnabledVariants((s) => ({ ...s, [v.variantId]: e.target.checked }))
-                            }
-                          />
-                        </TableCell>
                         <TableCell className="py-1">{v.title || `Variant ${v.variantId}`}</TableCell>
                         <TableCell className="py-1">{money(v.costCents)}</TableCell>
                         <TableCell className="py-1">{money(v.vendorMarkupCents)}</TableCell>
@@ -467,10 +480,12 @@ const ReviewDialog = ({ productId, onClose, onDecided }) => {
             </>
           ) : (
             <>
-              <Button variant="destructive" onClick={() => setShowRejectForm(true)} disabled={saving || loading}>
-                <X className="w-4 h-4 mr-2" />
-                Reject
-              </Button>
+              {product?.status !== 'rejected' && (
+                <Button variant="destructive" onClick={() => setShowRejectForm(true)} disabled={saving || loading}>
+                  <X className="w-4 h-4 mr-2" />
+                  Reject
+                </Button>
+              )}
               <Button onClick={handleApprove} disabled={saving || loading}>
                 <Check className="w-4 h-4 mr-2" />
                 {saving ? 'Approving…' : 'Approve & publish'}

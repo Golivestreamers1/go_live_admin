@@ -116,11 +116,12 @@ const MarketplaceOrders = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Order #</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Vendor</TableHead>
                     <TableHead>Buyer</TableHead>
                     <TableHead>Items</TableHead>
-                    <TableHead>Subtotal</TableHead>
+                    <TableHead>Total</TableHead>
                     <TableHead>Platform profit</TableHead>
                     <TableHead>Vendor payout</TableHead>
                     <TableHead>Status</TableHead>
@@ -130,13 +131,18 @@ const MarketplaceOrders = () => {
                 <TableBody>
                   {items.map((order) => (
                     <TableRow key={order._id}>
+                      <TableCell className="font-mono text-xs">
+                        {order._id.slice(-8).toUpperCase()}
+                      </TableCell>
                       <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>{order.vendorId?.name || '—'}</TableCell>
                       <TableCell>{order.buyerId?.name || '—'}</TableCell>
                       <TableCell>
                         {order.items?.reduce((n, i) => n + i.quantity, 0) ?? 0}
                       </TableCell>
-                      <TableCell>{money(order.subtotal)}</TableCell>
+                      <TableCell>
+                        {money((order.subtotal ?? 0) + (order.shippingPrice ?? 0) + (order.taxPrice ?? 0))}
+                      </TableCell>
                       <TableCell>{money(order.platformMarkup)}</TableCell>
                       <TableCell>{money(order.vendorPayout)}</TableCell>
                       <TableCell>
@@ -241,6 +247,12 @@ const OrderDetailDialog = ({ orderId, onClose }) => {
         ) : (
           <div className="space-y-4 py-2 text-sm">
             <div className="flex items-center justify-between">
+              <span className="text-gray-500">Order number</span>
+              <span className="font-mono text-xs text-gray-700">
+                {detail._id.slice(-8).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
               <span className="text-gray-500">Status</span>
               <Badge variant={STATUS_BADGE[detail.status] || 'secondary'}>
                 {detail.status.replace(/_/g, ' ')}
@@ -318,6 +330,14 @@ const OrderDetailDialog = ({ orderId, onClose }) => {
               <div className="flex justify-between text-gray-500">
                 <span>Tax</span>
                 <span>{money(detail.taxPrice)}</span>
+              </div>
+              <div className="mt-1 flex justify-between border-t pt-1 font-semibold text-gray-900">
+                <span>Total order price</span>
+                <span>
+                  {money(
+                    (detail.subtotal ?? 0) + (detail.shippingPrice ?? 0) + (detail.taxPrice ?? 0),
+                  )}
+                </span>
               </div>
               <div className="mt-1 flex justify-between font-medium text-gray-900">
                 <span>Vendor payout</span>

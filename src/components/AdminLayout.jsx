@@ -23,6 +23,7 @@ import {
   ShoppingCart,
   Tags,
   ClipboardList,
+  Image,
   Star,
   Wallet,
   Flag,
@@ -124,6 +125,20 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'User Management',
       href: '/users',
       icon: Users,
+    },
+    {
+      name: 'Marketplace',
+      icon: ShoppingCart,
+      isGroup: true,
+      groupKey: 'marketplace',
+      children: [
+        { name: 'Products', href: '/marketplace/products', icon: BadgeCheck },
+        // { name: 'Vendors', href: '/marketplace/vendors', icon: Users },
+        { name: 'Banners', href: '/marketplace/banners', icon: Image },
+        { name: 'Settings', href: '/marketplace/settings', icon: Settings },
+        { name: 'Orders', href: '/marketplace/orders', icon: ClipboardList },
+        { name: 'Earnings', href: '/marketplace/earnings', icon: DollarSign },
+      ],
     },
     {
       name: 'Sponsored creators',
@@ -270,19 +285,6 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'App Theme',
       href: '/theme',
       icon: Palette,
-    },
-    {
-      name: 'Marketplace',
-      icon: ShoppingCart,
-      isGroup: true,
-      groupKey: 'marketplace',
-      children: [
-        { name: 'Products', href: '/marketplace/products', icon: BadgeCheck },
-        { name: 'Vendors', href: '/marketplace/vendors', icon: Users },
-        { name: 'Settings', href: '/marketplace/settings', icon: Settings },
-        { name: 'Orders', href: '/marketplace/orders', icon: ClipboardList },
-        { name: 'Earnings', href: '/marketplace/earnings', icon: DollarSign },
-      ],
     },
     // {
     //   name: 'QR Codes',

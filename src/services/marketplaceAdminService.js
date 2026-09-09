@@ -108,6 +108,11 @@ export const marketplaceAdminService = {
     return response.data.data;
   },
 
+  async getPendingBanners() {
+    const response = await api.get('/admin/marketplace/banners');
+    return response.data.data;
+  },
+
   async approveBanner(vendorId) {
     const response = await api.patch(`/admin/marketplace/banners/${vendorId}/approve`);
     return response.data.data;
