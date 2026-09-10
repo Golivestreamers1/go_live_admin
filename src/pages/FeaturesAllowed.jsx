@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Share2, Trophy, Gift, Sparkles, Globe, Layers } from 'lucide-react';
+import { Share2, Trophy, Gift, Sparkles, Globe, Layers, Menu } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Switch } from '../components/ui/switch';
@@ -10,6 +10,35 @@ import { featuresAllowedService } from '../services/featuresAllowedService';
 const DEFAULT_GIFT_QUEUE = 6;
 const MIN_GIFT_QUEUE = 1;
 const MAX_GIFT_QUEUE = 12;
+
+const PROFILE_MENU_ITEMS = [
+  { key: 'messages', label: 'Messages' },
+  { key: 'shop', label: 'Shop' },
+  { key: 'myProfile', label: 'My Profile' },
+  { key: 'earnings', label: 'Earnings' },
+  { key: 'mySubscribers', label: 'My Subscribers' },
+  { key: 'mySubscriptions', label: 'My Subscriptions' },
+  { key: 'ranking', label: 'Ranking' },
+  { key: 'myGifters', label: 'My Gifters' },
+  { key: 'wallet', label: 'Wallet' },
+  { key: 'agency', label: 'Agency' },
+  { key: 'refer', label: 'Refer' },
+  { key: 'premium', label: 'GoLive Premium' },
+  { key: 'settings', label: 'Settings' },
+];
+
+const DEFAULT_PROFILE_MENU = Object.fromEntries(
+  PROFILE_MENU_ITEMS.map((item) => [item.key, true]),
+);
+
+const normalizeProfileMenu = (raw) => {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const out = { ...DEFAULT_PROFILE_MENU };
+  for (const { key } of PROFILE_MENU_ITEMS) {
+    out[key] = src[key] !== false;
+  }
+  return out;
+};
 
 const clampGiftQueue = (raw) => {
   const n = Number(raw);
@@ -25,6 +54,7 @@ const FeaturesAllowed = () => {
     mysteryWheel: true,
     coinsWebsite: false,
     maxGiftAnimationQueue: DEFAULT_GIFT_QUEUE,
+    profileMenu: { ...DEFAULT_PROFILE_MENU },
   });
   const [queueDraft, setQueueDraft] = useState(String(DEFAULT_GIFT_QUEUE));
   const [loading, setLoading] = useState(true);
@@ -42,6 +72,7 @@ const FeaturesAllowed = () => {
         mysteryWheel: data?.mysteryWheel !== false,
         coinsWebsite: data?.coinsWebsite === true,
         maxGiftAnimationQueue: queue,
+        profileMenu: normalizeProfileMenu(data?.profileMenu),
       });
       setQueueDraft(String(queue));
     } catch (error) {
@@ -123,6 +154,29 @@ const FeaturesAllowed = () => {
     }
   };
 
+  const handleProfileMenuToggle = async (key, checked) => {
+    try {
+      setUpdating(true);
+      const updated = await featuresAllowedService.updateSettings({
+        profileMenu: { [key]: checked },
+      });
+      setSettings((prev) => ({
+        ...prev,
+        profileMenu: normalizeProfileMenu(updated?.profileMenu ?? { ...prev.profileMenu, [key]: checked }),
+      }));
+      const label = PROFILE_MENU_ITEMS.find((item) => item.key === key)?.label || key;
+      toast.success(
+        checked
+          ? `${label} is visible on the Profile menu`
+          : `${label} is hidden from the Profile menu`,
+      );
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update profile menu setting');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleCoinsWebsiteToggle = async (checked) => {
     try {
       setUpdating(true);
@@ -167,6 +221,42 @@ const FeaturesAllowed = () => {
           Control which app features are visible to users. Changes apply on next app open or refresh.
         </p>
       </div>
+
+      <Card className="border-l-4 border-l-rose-600">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <Menu className="h-5 w-5 text-rose-600" />
+            Profile menu
+          </CardTitle>
+          <CardDescription className="mt-1">
+            Each switch controls whether that row appears on the Profile tab. Default is on.
+            Turn a switch off to hide it from users.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          {PROFILE_MENU_ITEMS.map((item) => {
+            const enabled = settings.profileMenu?.[item.key] !== false;
+            return (
+              <div
+                key={item.key}
+                className="flex items-center justify-between gap-4 rounded-lg border bg-white px-3 py-2.5"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {enabled ? 'Visible' : 'Hidden'}
+                  </p>
+                </div>
+                <Switch
+                  checked={enabled}
+                  onCheckedChange={(checked) => handleProfileMenuToggle(item.key, checked)}
+                  disabled={loading || updating}
+                />
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
 
       <Card className="border-l-4 border-l-emerald-500">
         <CardHeader className="pb-3">
