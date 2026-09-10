@@ -84,8 +84,16 @@ const MarketplaceEarnings = () => {
       ) : summary ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatCard label="Orders" value={summary.orderCount} />
-            <StatCard label="Suborders" value={summary.suborderCount} />
+            <StatCard
+              label="Orders"
+              value={summary.orderCount}
+              hint="Distinct checkout transactions"
+            />
+            <StatCard
+              label="Suborders"
+              value={summary.suborderCount}
+              hint="One per vendor per order — compare this to the Orders page, which lists suborders"
+            />
             <StatCard
               label="Platform profit"
               value={money(summary.platformProfitCents)}
