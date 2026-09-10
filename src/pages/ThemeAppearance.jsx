@@ -15,6 +15,8 @@ const SECTIONS = [
   { key: 'live', label: 'Live' },
   { key: 'shop', label: 'Shop' },
   { key: 'profile', label: 'Profile' },
+  { key: 'leaderboard', label: 'Leaderboard' },
+  { key: 'level', label: 'Level' },
 ];
 
 const MODES = [
@@ -53,28 +55,10 @@ function imageSrc(image) {
 const emptyColors = () =>
   Object.fromEntries(COLOR_FIELDS.map((f) => [f.key, '']));
 
-const emptyBackgrounds = () => ({
-  home: {
-    light: { enabled: false, imageUrl: '' },
-    dark: { enabled: false, imageUrl: '' },
-  },
-  feed: {
-    light: { enabled: false, imageUrl: '' },
-    dark: { enabled: false, imageUrl: '' },
-  },
-  live: {
-    light: { enabled: false, imageUrl: '' },
-    dark: { enabled: false, imageUrl: '' },
-  },
-  shop: {
-    light: { enabled: false, imageUrl: '' },
-    dark: { enabled: false, imageUrl: '' },
-  },
-  profile: {
-    light: { enabled: false, imageUrl: '' },
-    dark: { enabled: false, imageUrl: '' },
-  },
-});
+const emptySlot = () => ({ enabled: false, imageUrl: '' });
+const emptyPair = () => ({ light: emptySlot(), dark: emptySlot() });
+const emptyBackgrounds = () =>
+  Object.fromEntries(SECTIONS.map((s) => [s.key, emptyPair()]));
 
 const ThemeAppearance = () => {
   const [loading, setLoading] = useState(true);
@@ -97,26 +81,15 @@ const ThemeAppearance = () => {
       setBackgrounds({
         ...emptyBackgrounds(),
         ...(data?.backgrounds || {}),
-        home: {
-          ...emptyBackgrounds().home,
-          ...(data?.backgrounds?.home || {}),
-        },
-        feed: {
-          ...emptyBackgrounds().feed,
-          ...(data?.backgrounds?.feed || {}),
-        },
-        live: {
-          ...emptyBackgrounds().live,
-          ...(data?.backgrounds?.live || {}),
-        },
-        shop: {
-          ...emptyBackgrounds().shop,
-          ...(data?.backgrounds?.shop || {}),
-        },
-        profile: {
-          ...emptyBackgrounds().profile,
-          ...(data?.backgrounds?.profile || {}),
-        },
+        ...Object.fromEntries(
+          SECTIONS.map(({ key }) => [
+            key,
+            {
+              ...emptyPair(),
+              ...(data?.backgrounds?.[key] || {}),
+            },
+          ]),
+        ),
       });
       setOverlays({
         light: data?.overlays?.light ?? 0,
@@ -251,7 +224,8 @@ const ThemeAppearance = () => {
           </h1>
           <p className="text-gray-600 mt-1">
             Light theme defaults match the current mobile app palette. Dark theme uses charcoal
-            surfaces. Backgrounds apply only to Home, Feed, and Live — each must choose Light or Dark.
+            surfaces. Upload a Light and/or Dark background per screen (Home, Feed, Live, Shop,
+            Profile, Leaderboard, Level). Light images never show in Dark mode (and vice versa).
           </p>
         </div>
         <Badge variant="outline">v{version}</Badge>
@@ -350,8 +324,8 @@ const ThemeAppearance = () => {
             Section backgrounds
           </CardTitle>
           <CardDescription>
-            Only Home, Feed, and Live. Each upload must belong to Light or Dark. Light backgrounds
-            never show in Dark mode (and vice versa).
+            Each screen can have a Light and Dark image. Light backgrounds never show in Dark mode
+            (and vice versa). Leaderboard and Level use the image uploaded here as the screen background.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
