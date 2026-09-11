@@ -229,8 +229,8 @@ const FeaturesAllowed = () => {
             Profile menu
           </CardTitle>
           <CardDescription className="mt-1">
-            Each switch controls whether that row appears on the Profile tab. Default is on.
-            Turn a switch off to hide it from users.
+            Each switch is Allowed by default. Turn a switch off to hide that row
+            on the Profile tab. Users only see an item here if it is Allowed.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1">
@@ -244,7 +244,7 @@ const FeaturesAllowed = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-900">{item.label}</p>
                   <p className="text-xs text-muted-foreground">
-                    {enabled ? 'Visible' : 'Hidden'}
+                    {enabled ? 'Allowed' : 'Not allowed'}
                   </p>
                 </div>
                 <Switch

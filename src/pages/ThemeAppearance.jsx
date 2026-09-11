@@ -16,7 +16,6 @@ const SECTIONS = [
   { key: 'shop', label: 'Shop' },
   { key: 'profile', label: 'Profile' },
   { key: 'leaderboard', label: 'Leaderboard' },
-  { key: 'level', label: 'Level' },
 ];
 
 const MODES = [
@@ -225,7 +224,7 @@ const ThemeAppearance = () => {
           <p className="text-gray-600 mt-1">
             Light theme defaults match the current mobile app palette. Dark theme uses charcoal
             surfaces. Upload a Light and/or Dark background per screen (Home, Feed, Live, Shop,
-            Profile, Leaderboard, Level). Light images never show in Dark mode (and vice versa).
+            Profile, Leaderboard). Light images never show in Dark mode (and vice versa).
           </p>
         </div>
         <Badge variant="outline">v{version}</Badge>
@@ -325,7 +324,7 @@ const ThemeAppearance = () => {
           </CardTitle>
           <CardDescription>
             Each screen can have a Light and Dark image. Light backgrounds never show in Dark mode
-            (and vice versa). Leaderboard and Level use the image uploaded here as the screen background.
+            (and vice versa). Leaderboard uses the image uploaded here as its screen background.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
