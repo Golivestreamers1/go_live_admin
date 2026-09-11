@@ -76,7 +76,9 @@ const MarketplaceOrders = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Marketplace Orders</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Every vendor's suborders across the whole marketplace.
+          Every vendor's suborders across the whole marketplace — one row per vendor per
+          checkout, so a single order spanning several vendors' products appears as multiple
+          rows here. Compare against "Suborders" (not "Orders") on the Earnings page.
         </p>
       </div>
 
