@@ -78,6 +78,16 @@ export const marketplaceAdminService = {
     return response.data.data;
   },
 
+  async deleteProduct(id) {
+    const response = await api.delete(`/admin/marketplace/products/${id}`);
+    return response.data.data;
+  },
+
+  async setProductEnabled(id, enabled) {
+    const response = await api.patch(`/admin/marketplace/products/${id}/enabled`, { enabled });
+    return response.data.data;
+  },
+
   async getVendors(params = {}) {
     const { search, suspended, page = 1, limit = 20 } = params;
     const queryParams = new URLSearchParams({
