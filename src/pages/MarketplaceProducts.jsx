@@ -227,6 +227,15 @@ const MarketplaceProducts = () => {
                               disabled
                             </Badge>
                           )}
+                          {product.printify?.locked && (
+                            <Badge
+                              variant="destructive"
+                              className="ml-1"
+                              title="The fulfillment provider has locked this product — edits won't be accepted until it clears"
+                            >
+                              locked
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
