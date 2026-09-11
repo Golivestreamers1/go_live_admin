@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Check, X } from 'lucide-react';
+import { Check, EyeOff, Power, Trash2, X } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -93,6 +93,28 @@ const MarketplaceProducts = () => {
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status]);
+
+  const handleDelete = async (product) => {
+    if (!window.confirm(`Permanently delete "${product.title}"? This cannot be undone.`)) return;
+    try {
+      await marketplaceAdminService.deleteProduct(product._id);
+      toast.success('Product deleted');
+      fetchProducts();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete product');
+    }
+  };
+
+  const handleToggleEnabled = async (product) => {
+    const enabling = product.adminDisabled === true;
+    try {
+      await marketplaceAdminService.setProductEnabled(product._id, enabling);
+      toast.success(enabling ? 'Product re-enabled' : 'Product disabled');
+      fetchProducts();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update product');
+    }
+  };
 
   const pages = Math.max(1, Math.ceil(total / limit));
 
@@ -200,11 +222,40 @@ const MarketplaceProducts = () => {
                           <Badge variant={STATUS_BADGE[product.status] || 'secondary'}>
                             {product.status.replace(/_/g, ' ')}
                           </Badge>
+                          {product.adminDisabled && (
+                            <Badge variant="destructive" className="ml-1">
+                              disabled
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="outline" size="sm" onClick={() => setReviewing(product)}>
-                            Review
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="outline" size="sm" onClick={() => setReviewing(product)}>
+                              Review
+                            </Button>
+                            {product.status === 'published' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                title={product.adminDisabled ? 'Re-enable' : 'Disable'}
+                                onClick={() => handleToggleEnabled(product)}
+                              >
+                                {product.adminDisabled ? (
+                                  <Power className="h-4 w-4" />
+                                ) : (
+                                  <EyeOff className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="Delete"
+                              onClick={() => handleDelete(product)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
