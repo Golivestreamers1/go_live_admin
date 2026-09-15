@@ -23,6 +23,7 @@ import {
   ShoppingCart,
   Tags,
   ClipboardList,
+  History,
   Image,
   Star,
   Wallet,
@@ -71,6 +72,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
       '/marketplace/settings',
       '/marketplace/orders',
       '/marketplace/earnings',
+      '/marketplace/price-history',
     ],
   };
   const [openGroups, setOpenGroups] = React.useState(() => {
@@ -138,6 +140,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
         { name: 'Settings', href: '/marketplace/settings', icon: Settings },
         { name: 'Orders', href: '/marketplace/orders', icon: ClipboardList },
         { name: 'Earnings', href: '/marketplace/earnings', icon: DollarSign },
+        { name: 'Price History', href: '/marketplace/price-history', icon: History },
       ],
     },
     {
