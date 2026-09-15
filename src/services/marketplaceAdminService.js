@@ -53,11 +53,12 @@ export const marketplaceAdminService = {
   },
 
   async getProducts(params = {}) {
-    const { status, page = 1, limit = 20 } = params;
+    const { status, search, page = 1, limit = 20 } = params;
     const queryParams = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
       ...(status && { status }),
+      ...(search && { search }),
     });
     const response = await api.get(`/admin/marketplace/products?${queryParams}`);
     return response.data.data;
@@ -85,6 +86,19 @@ export const marketplaceAdminService = {
 
   async setProductEnabled(id, enabled) {
     const response = await api.patch(`/admin/marketplace/products/${id}/enabled`, { enabled });
+    return response.data.data;
+  },
+
+  async resyncAllProductPricing() {
+    const response = await api.post('/admin/marketplace/products/resync-pricing');
+    return response.data.data;
+  },
+
+  async getProductPriceHistory(id, params = {}) {
+    const { limit = 100 } = params;
+    const response = await api.get(`/admin/marketplace/products/${id}/price-history`, {
+      params: { limit },
+    });
     return response.data.data;
   },
 

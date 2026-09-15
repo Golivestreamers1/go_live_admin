@@ -73,6 +73,8 @@ const MarketplaceProducts = () => {
   const [status, setStatus] = useState('pending_review');
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(null);
+  const [resyncing, setResyncing] = useState(false);
+  const [resyncResult, setResyncResult] = useState(null);
   const limit = 20;
 
   const fetchProducts = async () => {
@@ -116,15 +118,44 @@ const MarketplaceProducts = () => {
     }
   };
 
+  const handleResyncPricing = async () => {
+    setResyncing(true);
+    try {
+      const result = await marketplaceAdminService.resyncAllProductPricing();
+      setResyncResult(result);
+      if (result.changed > 0) {
+        toast.success(`Repriced ${result.changed} of ${result.checked} product(s)`);
+        fetchProducts();
+      } else {
+        toast.success(`Checked ${result.checked} product(s) — all prices already match Printify's current cost`);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to resync pricing');
+    } finally {
+      setResyncing(false);
+    }
+  };
+
   const pages = Math.max(1, Math.ceil(total / limit));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          New products a streamer submits wait here for approval before they go live.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Products</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            New products a streamer submits wait here for approval before they go live.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={resyncing}
+          onClick={handleResyncPricing}
+          title="Re-checks every published product's cost against Printify's current price and corrects ours if it's drifted"
+        >
+          {resyncing ? 'Resyncing…' : 'Resync pricing'}
+        </Button>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -297,6 +328,48 @@ const MarketplaceProducts = () => {
             fetchProducts();
           }}
         />
+      )}
+
+      {resyncResult && (
+        <Dialog open onOpenChange={(open) => !open && setResyncResult(null)}>
+          <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Pricing resync results</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2 text-sm">
+              <p className="text-gray-600">
+                Checked {resyncResult.checked} published product(s) against Printify's current
+                cost — {resyncResult.changed} needed a price correction.
+              </p>
+              {resyncResult.results
+                .filter((r) => r.changed || r.error || r.skipped)
+                .map((r) => (
+                  <div key={r.productId} className="rounded-md border p-3">
+                    <div className="font-medium text-gray-900">{r.title || r.productId}</div>
+                    {r.error && <p className="text-red-600">Error: {r.error}</p>}
+                    {r.skipped && <p className="text-gray-500">Skipped: {r.skipped}</p>}
+                    {r.diffs?.map((d) => (
+                      <div key={d.variantId} className="flex justify-between text-gray-600">
+                        <span>{d.title || `Variant ${d.variantId}`}</span>
+                        <span>
+                          {money(d.oldPrice)} → <span className="font-medium text-gray-900">{money(d.newPrice)}</span>
+                          {' '}(cost {money(d.oldCostCents)} → {money(d.newCostCents)})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              {resyncResult.changed === 0 && !resyncResult.results.some((r) => r.error || r.skipped) && (
+                <p className="text-gray-500">No changes — everything already matches.</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResyncResult(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
