@@ -135,12 +135,12 @@ const AdminLayout = ({ children, user, onLogout }) => {
       groupKey: 'marketplace',
       children: [
         { name: 'Products', href: '/marketplace/products', icon: BadgeCheck },
-        // { name: 'Vendors', href: '/marketplace/vendors', icon: Users },
-        { name: 'Banners', href: '/marketplace/banners', icon: Image },
-        { name: 'Settings', href: '/marketplace/settings', icon: Settings },
         { name: 'Orders', href: '/marketplace/orders', icon: ClipboardList },
+        // { name: 'Vendors', href: '/marketplace/vendors', icon: Users },
         { name: 'Earnings', href: '/marketplace/earnings', icon: DollarSign },
+        { name: 'Banners', href: '/marketplace/banners', icon: Image },
         { name: 'Price History', href: '/marketplace/price-history', icon: History },
+        { name: 'Settings', href: '/marketplace/settings', icon: Settings },
       ],
     },
     {

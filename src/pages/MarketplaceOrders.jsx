@@ -237,7 +237,7 @@ const OrderDetailDialog = ({ orderId, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Order details</DialogTitle>
         </DialogHeader>
@@ -248,102 +248,104 @@ const OrderDetailDialog = ({ orderId, onClose }) => {
           <div className="py-6 text-sm text-red-600">{error}</div>
         ) : (
           <div className="space-y-4 py-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">Order number</span>
+            <div className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
               <span className="font-mono text-xs text-gray-700">
-                {detail._id.slice(-8).toUpperCase()}
+                Order #{detail._id.slice(-8).toUpperCase()}
               </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">Status</span>
               <Badge variant={STATUS_BADGE[detail.status] || 'secondary'}>
                 {detail.status.replace(/_/g, ' ')}
               </Badge>
             </div>
 
-            <div>
-              <h3 className="mb-1 font-medium text-gray-900">Customer</h3>
-              <p className="text-gray-700">{detail.buyerId?.name || '—'}</p>
-              <p className="text-gray-500">{detail.buyerId?.email || '—'}</p>
-            </div>
-
-            <div>
-              <h3 className="mb-1 font-medium text-gray-900">Payment</h3>
-              <p className="text-gray-700">{detail.payment?.method}</p>
-              {detail.payment?.payerName || detail.payment?.payerEmail ? (
-                <p className="text-gray-500">
-                  Paid by {detail.payment?.payerName || '—'}
-                  {detail.payment?.payerEmail ? ` (${detail.payment.payerEmail})` : ''}
-                </p>
-              ) : (
-                <p className="text-gray-400">Payer identity not available for this order.</p>
-              )}
-            </div>
-
-            <div>
-              <h3 className="mb-1 font-medium text-gray-900">Shipping address</h3>
-              {addr ? (
-                <div className="text-gray-700">
-                  <p>
-                    {addr.firstName} {addr.lastName}
-                  </p>
-                  <p>{addr.email}</p>
-                  {addr.phone && <p>{addr.phone}</p>}
-                  <p>{addr.address1}</p>
-                  {addr.address2 && <p>{addr.address2}</p>}
-                  <p>
-                    {addr.city}
-                    {addr.region ? `, ${addr.region}` : ''} {addr.zip}
-                  </p>
-                  <p>{addr.country}</p>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="mb-1 font-medium text-gray-900">Customer</h3>
+                  <p className="text-gray-700">{detail.buyerId?.name || '—'}</p>
+                  <p className="text-gray-500">{detail.buyerId?.email || '—'}</p>
                 </div>
-              ) : (
-                <p className="text-gray-400">No shipping address on file.</p>
-              )}
-              <p className="mt-1 text-xs text-gray-400">
-                No separate billing address is collected — PayPal handles billing on its own side;
-                the payer identity above is the closest equivalent we have.
-              </p>
-            </div>
 
-            <div>
-              <h3 className="mb-1 font-medium text-gray-900">Items</h3>
-              <ul className="space-y-1">
-                {(detail.items || []).map((item, idx) => (
-                  <li key={idx} className="flex justify-between text-gray-700">
-                    <span>
-                      {item.title} × {item.quantity}
-                    </span>
-                    <span>{money(item.unitPrice * item.quantity)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="border-t pt-3">
-              <div className="flex justify-between text-gray-500">
-                <span>Subtotal</span>
-                <span>{money(detail.subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-gray-500">
-                <span>Shipping</span>
-                <span>{money(detail.shippingPrice)}</span>
-              </div>
-              <div className="flex justify-between text-gray-500">
-                <span>Tax</span>
-                <span>{money(detail.taxPrice)}</span>
-              </div>
-              <div className="mt-1 flex justify-between border-t pt-1 font-semibold text-gray-900">
-                <span>Total order price</span>
-                <span>
-                  {money(
-                    (detail.subtotal ?? 0) + (detail.shippingPrice ?? 0) + (detail.taxPrice ?? 0),
+                <div>
+                  <h3 className="mb-1 font-medium text-gray-900">Payment</h3>
+                  <p className="text-gray-700">{detail.payment?.method}</p>
+                  {detail.payment?.payerName || detail.payment?.payerEmail ? (
+                    <p className="text-gray-500">
+                      Paid by {detail.payment?.payerName || '—'}
+                      {detail.payment?.payerEmail ? ` (${detail.payment.payerEmail})` : ''}
+                    </p>
+                  ) : (
+                    <p className="text-gray-400">Payer identity not available for this order.</p>
                   )}
-                </span>
+                </div>
+
+                <div>
+                  <h3 className="mb-1 font-medium text-gray-900">Shipping address</h3>
+                  {addr ? (
+                    <div className="text-gray-700">
+                      <p>
+                        {addr.firstName} {addr.lastName}
+                      </p>
+                      <p>{addr.email}</p>
+                      {addr.phone && <p>{addr.phone}</p>}
+                      <p>{addr.address1}</p>
+                      {addr.address2 && <p>{addr.address2}</p>}
+                      <p>
+                        {addr.city}
+                        {addr.region ? `, ${addr.region}` : ''} {addr.zip}
+                      </p>
+                      <p>{addr.country}</p>
+                    </div>
+                  ) : (
+                    <p className="text-gray-400">No shipping address on file.</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-400">
+                    No separate billing address is collected — PayPal handles billing on its own
+                    side; the payer identity above is the closest equivalent we have.
+                  </p>
+                </div>
               </div>
-              <div className="mt-1 flex justify-between font-medium text-gray-900">
-                <span>Vendor payout</span>
-                <span>{money(detail.vendorPayout)}</span>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="mb-1 font-medium text-gray-900">Items</h3>
+                  <ul className="space-y-1">
+                    {(detail.items || []).map((item, idx) => (
+                      <li key={idx} className="flex justify-between text-gray-700">
+                        <span>
+                          {item.title} × {item.quantity}
+                        </span>
+                        <span>{money(item.unitPrice * item.quantity)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-md border p-3">
+                  <div className="flex justify-between text-gray-500">
+                    <span>Subtotal</span>
+                    <span>{money(detail.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-500">
+                    <span>Shipping</span>
+                    <span>{money(detail.shippingPrice)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-500">
+                    <span>Tax</span>
+                    <span>{money(detail.taxPrice)}</span>
+                  </div>
+                  <div className="mt-1 flex justify-between border-t pt-1 font-semibold text-gray-900">
+                    <span>Total order price</span>
+                    <span>
+                      {money(
+                        (detail.subtotal ?? 0) + (detail.shippingPrice ?? 0) + (detail.taxPrice ?? 0),
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex justify-between font-medium text-gray-900">
+                    <span>Vendor payout</span>
+                    <span>{money(detail.vendorPayout)}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
