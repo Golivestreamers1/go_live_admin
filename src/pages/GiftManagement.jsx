@@ -118,6 +118,10 @@ const emptyGift = {
   name: '',
   coinValue: '',
   category: 'Trending',
+  /** Behavioral kind: gift (default) | combo (streak aggregation). Wheels use a separate dialog. */
+  type: 'gift',
+  comboWindowMs: '3000',
+  comboDisplaySize: '5',
   /** Crown gate — only used when category === 'Crown'. Hierarchical: a user with a higher
    *  tier can also send lower-tier gifts (Gold unlocks Bronze + Silver + Gold). */
   requiredCrownTier: '',
@@ -322,6 +326,11 @@ const GiftManagement = () => {
       name: gift.name ?? '',
       coinValue: gift.coinValue ?? '',
       category: findCategoryTab(categories, gift.category)?.key ?? gift.category ?? 'Trending',
+      type: gift.type === 'combo' ? 'combo' : 'gift',
+      comboWindowMs:
+        gift.comboWindowMs != null ? String(gift.comboWindowMs) : '3000',
+      comboDisplaySize:
+        gift.comboDisplaySize != null ? String(gift.comboDisplaySize) : '5',
       requiredCrownTier: gift.requiredCrownTier != null ? String(gift.requiredCrownTier) : '',
       requiredRole: gift.requiredRole ?? '',
       iconUrl: gift.iconUrl ?? '',
@@ -403,6 +412,15 @@ const GiftManagement = () => {
         name,
         coinValue,
         category: form.category || categories[0]?.key || 'Trending',
+        type: form.type === 'combo' ? 'combo' : 'gift',
+        comboWindowMs:
+          form.type === 'combo'
+            ? Math.max(500, Number(form.comboWindowMs) || 3000)
+            : null,
+        comboDisplaySize:
+          form.type === 'combo'
+            ? Math.max(1, Number(form.comboDisplaySize) || 5)
+            : null,
         /** Always send both (null when not applicable) so switching a gift OUT of a gated
          *  category clears its old gate instead of leaving it silently locked. */
         requiredCrownTier:
@@ -874,11 +892,22 @@ const GiftManagement = () => {
                             {g.wheel?.prizeCurrency === 'coins' ? 'coins' : 'rubies'} wheel
                           </Badge>
                         )}
+                        {g.type === 'combo' && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Combo ×{g.comboDisplaySize ?? 5}
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col items-start gap-1">
-                        <Badge variant="outline">{g.type === 'wheel' ? 'Wheel' : g.category || 'Popular'}</Badge>
+                        <Badge variant="outline">
+                          {g.type === 'wheel'
+                            ? 'Wheel'
+                            : g.type === 'combo'
+                              ? 'Combo'
+                              : g.category || 'Popular'}
+                        </Badge>
                         {/* Unlock rule for gated gifts — so admins can see at a glance who can send it. */}
                         {g.requiredCrownTier ? (
                           <Badge variant="secondary" className="text-[10px] font-medium">
@@ -965,6 +994,49 @@ const GiftManagement = () => {
               />
               <p className="text-xs text-muted-foreground">Streamer earns 55% of coins as rubies when the stream ends.</p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="giftType">Gift type</Label>
+              <select
+                id="giftType"
+                value={form.type}
+                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="gift">Normal gift</option>
+                <option value="combo">Combo / streak (5 Gift Combo)</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Combo gifts aggregate rapid taps into Gift ×N in chat. Cost is still price × quantity — combo is display only.
+              </p>
+            </div>
+            {form.type === 'combo' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="comboDisplaySize">Combo display size</Label>
+                  <Input
+                    id="comboDisplaySize"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={form.comboDisplaySize}
+                    onChange={(e) => setForm((f) => ({ ...f, comboDisplaySize: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">UI unit (e.g. 5) — not a send max.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="comboWindowMs">Streak window (ms)</Label>
+                  <Input
+                    id="comboWindowMs"
+                    type="number"
+                    min={500}
+                    max={60000}
+                    value={form.comboWindowMs}
+                    onChange={(e) => setForm((f) => ({ ...f, comboWindowMs: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Taps within this window share one combo.</p>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="category">Category *</Label>
               <select
