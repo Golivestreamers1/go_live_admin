@@ -88,6 +88,11 @@ export const marketplaceAdminService = {
     return response.data.data;
   },
 
+  async resyncAllProductPricing() {
+    const response = await api.post('/admin/marketplace/products/resync-pricing');
+    return response.data.data;
+  },
+
   async getVendors(params = {}) {
     const { search, suspended, page = 1, limit = 20 } = params;
     const queryParams = new URLSearchParams({
