@@ -50,11 +50,18 @@ const WHEEL_THEME_FIELDS = [
   { key: 'backgroundColor', label: 'Background' },
 ];
 
+const COST_RECIPIENTS = [
+  { value: 'none', label: 'Nobody (spent, not credited to anyone)' },
+  { value: 'streamer', label: 'Streamer' },
+  { value: 'viewer', label: 'Viewer' },
+];
+
 const makeWheelSegment = (i = 0) => ({
   label: '',
   value: '',
   chancePercent: '',
   color: DEFAULT_SEGMENT_COLORS[i % DEFAULT_SEGMENT_COLORS.length],
+  paysNothing: false,
 });
 
 const makeEmptyWheel = () => ({
@@ -63,8 +70,7 @@ const makeEmptyWheel = () => ({
   category: 'Special',
   prizeRecipient: 'streamer',
   prizeCurrency: 'rubies',
-  minTierCreditsZero: false,
-  creditsZeroThreshold: '',
+  costRecipient: 'none',
   segments: [makeWheelSegment(0), makeWheelSegment(1)],
   theme: { pointerColor: '', centerColor: '', textColor: '', ringColor: '', backgroundColor: '' },
   displayOrder: 0,
@@ -656,6 +662,7 @@ const GiftManagement = () => {
           value: s.value ?? '',
           chancePercent: s.chancePercent ?? '',
           color: s.color || DEFAULT_SEGMENT_COLORS[i % DEFAULT_SEGMENT_COLORS.length],
+          paysNothing: !!s.paysNothing,
         }))
       : [makeWheelSegment(0), makeWheelSegment(1)];
     setEditingWheel(gift);
@@ -665,8 +672,7 @@ const GiftManagement = () => {
       category: findCategoryTab(categories, gift.category)?.key ?? gift.category ?? wheelCategoryOptions[0]?.key ?? 'Trending',
       prizeRecipient: w.prizeRecipient === 'viewer' ? 'viewer' : 'streamer',
       prizeCurrency: w.prizeCurrency === 'coins' ? 'coins' : 'rubies',
-      minTierCreditsZero: !!w.minTierCreditsZero,
-      creditsZeroThreshold: Number(w.creditsZeroThreshold) > 0 ? Number(w.creditsZeroThreshold) : '',
+      costRecipient: ['streamer', 'viewer'].includes(w.costRecipient) ? w.costRecipient : 'none',
       segments,
       theme: {
         pointerColor: w.theme?.pointerColor ?? '',
@@ -730,6 +736,7 @@ const GiftManagement = () => {
         value: Number(s.value),
         chancePercent: Number(s.chancePercent),
         color: String(s.color || '').trim() || undefined,
+        paysNothing: !!s.paysNothing,
       }))
       .filter((s) => Number.isFinite(s.value) && s.value >= 0 && Number.isFinite(s.chancePercent) && s.chancePercent > 0);
     if (segments.length === 0) {
@@ -756,8 +763,7 @@ const GiftManagement = () => {
           cost,
           prizeRecipient: wheelForm.prizeRecipient,
           prizeCurrency: wheelForm.prizeCurrency,
-          minTierCreditsZero: !!wheelForm.minTierCreditsZero,
-          creditsZeroThreshold: Number(wheelForm.creditsZeroThreshold) > 0 ? Number(wheelForm.creditsZeroThreshold) : 0,
+          costRecipient: wheelForm.costRecipient,
           segments,
           theme: Object.keys(theme).length ? theme : undefined,
         },
@@ -1464,41 +1470,29 @@ const GiftManagement = () => {
                   ))}
                 </select>
               </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="costRecipient">Spin cost goes to</Label>
+                <select
+                  id="costRecipient"
+                  value={wheelForm.costRecipient}
+                  onChange={(e) => setWheelForm((f) => ({ ...f, costRecipient: e.target.value }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {COST_RECIPIENTS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Always paid as rubies, on every spin, regardless of the segment landed on. Independent
+                  of who the prize goes to — pick the same recipient for both if you want one side to
+                  get the bonus and the spend, or split them.
+                </p>
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Streamer + rubies = today's Mystery Wheel. Viewer + coins = today's Gifter Wheel.
+              Streamer + rubies = today's Mystery Wheel. Viewer + coins = today's Gifter Wheel. Use the
+              per-segment "Pays nothing" checkbox below to make specific prizes pay 0.
             </p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="minTierCreditsZero"
-                  checked={wheelForm.minTierCreditsZero}
-                  onChange={(e) => setWheelForm((f) => ({ ...f, minTierCreditsZero: e.target.checked }))}
-                  className="rounded border-input"
-                />
-                <Label htmlFor="minTierCreditsZero" className="cursor-pointer">
-                  Landing at or below the spin cost pays the winner nothing
-                </Label>
-              </div>
-              {wheelForm.minTierCreditsZero ? (
-                <div className="ml-6 space-y-1">
-                  <Label htmlFor="creditsZeroThreshold">Wins at or below this value pay nothing</Label>
-                  <Input
-                    id="creditsZeroThreshold"
-                    type="number"
-                    min={0}
-                    placeholder="Leave blank to use the spin cost"
-                    value={wheelForm.creditsZeroThreshold}
-                    onChange={(e) => setWheelForm((f) => ({ ...f, creditsZeroThreshold: e.target.value }))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    e.g. 1000 → a win of 1000 or less credits 0; only wins above 1000 are paid out.
-                    Only applies when the prize goes to the viewer (Gifter Wheel).
-                  </p>
-                </div>
-              ) : null}
-            </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto]">
               <div className="space-y-3">
@@ -1551,6 +1545,18 @@ const GiftManagement = () => {
                         onChange={(e) => updateSegment(idx, { chancePercent: e.target.value })}
                         placeholder="94.3"
                       />
+                    </div>
+                    <div className="flex items-center gap-1.5 pb-2">
+                      <input
+                        type="checkbox"
+                        id={`segPaysNothing-${idx}`}
+                        checked={!!s.paysNothing}
+                        onChange={(e) => updateSegment(idx, { paysNothing: e.target.checked })}
+                        className="rounded border-input"
+                      />
+                      <Label htmlFor={`segPaysNothing-${idx}`} className="cursor-pointer whitespace-nowrap text-[11px] text-muted-foreground">
+                        Pays nothing
+                      </Label>
                     </div>
                     <Button
                       type="button"
