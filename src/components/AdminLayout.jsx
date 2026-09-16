@@ -47,11 +47,13 @@ import {
   AlertTriangle,
   Share2,
   SlidersHorizontal,
-  Trophy,
   Radio,
   Send,
   Megaphone,
   Palette,
+  Flame,
+  FileText,
+  Trophy,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -192,6 +194,16 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Reported Posts',
       href: '/reported-posts',
       icon: FileWarning,
+    },
+    {
+      name: 'Feed Algorithm',
+      href: '/feed-algorithm',
+      icon: Flame,
+    },
+    {
+      name: 'Posts Management',
+      href: '/posts-management',
+      icon: FileText,
     },
     // {
     //   name: 'Cash out management',
