@@ -52,6 +52,7 @@ import {
   Send,
   Megaphone,
   Palette,
+  ListOrdered,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -219,6 +220,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Live streams',
       href: '/live-streams',
       icon: Radio,
+    },
+    {
+      name: 'Stream Order',
+      href: '/stream-order',
+      icon: ListOrdered,
     },
     {
       name: 'Cash out email change',
