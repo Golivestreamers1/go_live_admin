@@ -69,6 +69,8 @@ import MarketplaceEarnings from './pages/MarketplaceEarnings';
 import MarketplaceBanners from './pages/MarketplaceBanners';
 import MarketplacePriceHistory from './pages/MarketplacePriceHistory';
 import IpBans from './pages/IpBans';
+import FeedAlgorithmSettings from './pages/FeedAlgorithmSettings';
+import PostManagement from './pages/PostManagement';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -852,6 +854,26 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <MarketplaceEarnings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/feed-algorithm"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <FeedAlgorithmSettings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/posts-management"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PostManagement />
                 </AdminLayout>
               </ProtectedRoute>
             }
