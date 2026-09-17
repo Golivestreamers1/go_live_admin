@@ -338,6 +338,28 @@ function App() {
           />
 
           <Route
+            path="/promos"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/promos/:id"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoDetails />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/promo-codes"
             element={
               <ProtectedRoute>
@@ -350,6 +372,25 @@ function App() {
 
           <Route
             path="/promo-codes/:id"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoDetails />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/promos"
+            element={<Navigate to="/promos" replace />}
+          />
+          <Route
+            path="/admin/promo-codes"
+            element={<Navigate to="/promos" replace />}
+          />
+          <Route
+            path="/admin/promo-codes/:id"
             element={
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>

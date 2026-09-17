@@ -47,7 +47,7 @@ export default function PromoDetails() {
     return (
       <div className="p-8 text-center space-y-4">
         <p className="text-muted-foreground">Promo code not found</p>
-        <Button onClick={() => navigate("/admin/promo-codes")}>Back to Promo Codes</Button>
+        <Button onClick={() => navigate("/promos")}>Back to Promo Codes</Button>
       </div>
     );
   }
@@ -59,7 +59,7 @@ export default function PromoDetails() {
     <div className="space-y-6 p-6">
       {/* Back & Title */}
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => navigate("/admin/promo-codes")}>
+        <Button variant="outline" size="icon" onClick={() => navigate("/promos")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>

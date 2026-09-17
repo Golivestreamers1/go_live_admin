@@ -201,7 +201,7 @@ export default function PromoManagement() {
                   const isExpired = new Date() > new Date(p.expirationDate);
                   const isExhausted = p.currentUses >= p.maxUses;
                   return (
-                    <TableRow key={p._id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/promo-codes/${p._id}`)}>
+                    <TableRow key={p._id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/promos/${p._id}`)}>
                       <TableCell className="font-mono font-bold text-primary">{p.code}</TableCell>
                       <TableCell className="font-medium">{p.note}</TableCell>
                       <TableCell>
@@ -236,7 +236,7 @@ export default function PromoManagement() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/admin/promo-codes/${p._id}`)}
+                          onClick={() => navigate(`/promos/${p._id}`)}
                         >
                           <Eye className="h-4 w-4 mr-1" /> View Details
                         </Button>
