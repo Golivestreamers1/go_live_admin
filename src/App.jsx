@@ -52,6 +52,7 @@ import StreamerRubiesDetail from './pages/StreamerRubiesDetail';
 import UserStreamEarnings from './pages/UserStreamEarnings';
 import StreamerStreamGiftsAdmin from './pages/StreamerStreamGiftsAdmin';
 import LiveStreamsManagement from './pages/LiveStreamsManagement';
+import StreamOrderManagement from './pages/StreamOrderManagement';
 import SupportTickets from './pages/SupportTickets';
 import SupportTicketDetail from './pages/SupportTicketDetail';
 import SupportSettings from './pages/SupportSettings';
@@ -285,7 +286,10 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/ruby-crown-wallet" element={<Navigate to="/topspenders" replace />} />
+          <Route
+            path="/ruby-crown-wallet"
+            element={<Navigate to="/topspenders" replace />}
+          />
 
           <Route
             path="/finance"
@@ -674,6 +678,17 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <LiveStreamsManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/stream-order"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <StreamOrderManagement />
                 </AdminLayout>
               </ProtectedRoute>
             }

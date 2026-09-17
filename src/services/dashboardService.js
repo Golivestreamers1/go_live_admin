@@ -60,6 +60,41 @@ export const dashboardService = {
     return response.data.data;
   },
 
+  searchStreamers: async (q) => {
+    const response = await api.get(`/admin/users?search=${encodeURIComponent(q)}&limit=8`);
+    return response.data.data?.users || [];
+  },
+
+  // Stream order management
+  getStreamOrderConfig: async () => {
+    const response = await api.get('/admin/stream-order/pinned');
+    return response.data.data;
+  },
+  getStreamSchedules: async () => {
+    const response = await api.get('/admin/stream-order/schedules');
+    return response.data.data;
+  },
+  createStreamSchedule: async ({ streamerId, priority, startsAt, endsAt }) => {
+    const response = await api.post('/admin/stream-order/schedules', { streamerId, priority, startsAt, endsAt });
+    return response.data.data;
+  },
+  deleteStreamSchedule: async (id) => {
+    const response = await api.delete(`/admin/stream-order/schedules/${id}`);
+    return response.data.data;
+  },
+  pinManualStream: async (streamerId, priority) => {
+    const response = await api.put('/admin/stream-order/manual', { streamerId, priority });
+    return response.data.data;
+  },
+  unpinStream: async (streamId) => {
+    const response = await api.delete(`/admin/stream-order/pinned/${streamId}`);
+    return response.data.data;
+  },
+  previewStreamOrder: async () => {
+    const response = await api.get('/admin/stream-order/preview');
+    return response.data.data;
+  },
+
   // All-time / range stream totals + peaks + averages
   getStreamTotals: async () => {
     const response = await api.get('/dashboard/streams/totals');
