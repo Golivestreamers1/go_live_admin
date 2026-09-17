@@ -264,6 +264,12 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Tags,
     },
     {
+      name: 'Promo Codes',
+      href: '/promos',
+      icon: Tags,
+      pathMatch: 'prefix',
+    },
+    {
       name: 'Blog',
       href: '/blogs',
       icon: Newspaper,
