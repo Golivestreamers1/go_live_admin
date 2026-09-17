@@ -17,4 +17,16 @@ export const promoService = {
     const res = await api.get(`/promo-code/admin/details/${id}`, { params });
     return res.data.data;
   },
+  updatePromoCode: async (id, data) => {
+    const res = await api.put(`/promo-code/admin/update/${id}`, data);
+    return res.data?.data || res.data;
+  },
+  togglePromoStatus: async (id) => {
+    const res = await api.patch(`/promo-code/admin/toggle-status/${id}`);
+    return res.data?.data || res.data;
+  },
+  deletePromoCode: async (id) => {
+    const res = await api.delete(`/promo-code/admin/delete/${id}`);
+    return res.data?.data || res.data;
+  },
 };

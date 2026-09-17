@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import { Tag, Search, Plus, RefreshCw, Eye, Calendar, Percent, Users, FileText } from "lucide-react";
+import { Tag, Search, Plus, RefreshCw, Eye, Calendar, Percent, Users, FileText, Pencil, Trash2, Power } from "lucide-react";
 import { toast } from "sonner";
 
 export default function PromoManagement() {
@@ -35,8 +35,12 @@ export default function PromoManagement() {
 
   // Dialog State
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedPromo, setSelectedPromo] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [generatingCode, setGeneratingCode] = useState(false);
+
   const [formData, setFormData] = useState({
     customCode: "",
     note: "",
@@ -44,6 +48,15 @@ export default function PromoManagement() {
     maxUses: 100,
     startDate: new Date().toISOString().slice(0, 16),
     expirationDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16),
+  });
+
+  const [editFormData, setEditFormData] = useState({
+    note: "",
+    bonusPercentage: 10,
+    maxUses: 100,
+    startDate: "",
+    expirationDate: "",
+    isActive: true,
   });
 
   const fetchPromos = async (page = 1) => {
@@ -119,6 +132,87 @@ export default function PromoManagement() {
       fetchPromos(1);
     } catch (err) {
       toast.error("Failed to create promo code", {
+        description: err.response?.data?.message || err.message,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleStatus = async (promo, e) => {
+    if (e) e.stopPropagation();
+    try {
+      const res = await promoService.togglePromoStatus(promo._id);
+      toast.success(`Promo code "${promo.code}" is now ${res.isActive ? "Active" : "Inactive"}`);
+      fetchPromos(pagination.page);
+    } catch (err) {
+      toast.error("Failed to toggle status", {
+        description: err.response?.data?.message || err.message,
+      });
+    }
+  };
+
+  const handleOpenEdit = (promo, e) => {
+    if (e) e.stopPropagation();
+    setSelectedPromo(promo);
+    setEditFormData({
+      note: promo.note || "",
+      bonusPercentage: promo.bonusPercentage || 10,
+      maxUses: promo.maxUses || 100,
+      startDate: promo.startDate ? new Date(promo.startDate).toISOString().slice(0, 16) : "",
+      expirationDate: promo.expirationDate ? new Date(promo.expirationDate).toISOString().slice(0, 16) : "",
+      isActive: promo.isActive !== false,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdatePromo = async (e) => {
+    e.preventDefault();
+    if (!selectedPromo) return;
+    try {
+      setSubmitting(true);
+      await promoService.updatePromoCode(selectedPromo._id, {
+        note: editFormData.note,
+        bonusPercentage: Number(editFormData.bonusPercentage),
+        maxUses: Number(editFormData.maxUses),
+        startDate: editFormData.startDate,
+        expirationDate: editFormData.expirationDate,
+        isActive: editFormData.isActive,
+      });
+      toast.success("Promo code updated successfully!");
+      setEditDialogOpen(false);
+      fetchPromos(pagination.page);
+    } catch (err) {
+      toast.error("Failed to update promo code", {
+        description: err.response?.data?.message || err.message,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenDelete = (promo, e) => {
+    if (e) e.stopPropagation();
+    setSelectedPromo(promo);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeletePromo = async () => {
+    if (!selectedPromo) return;
+    try {
+      setSubmitting(true);
+      const res = await promoService.deletePromoCode(selectedPromo._id);
+      if (res?.archived) {
+        toast.info("Promo Code Archived", {
+          description: res.message || "Deactivated to preserve redemption history.",
+        });
+      } else {
+        toast.success("Promo Code Deleted Permanently");
+      }
+      setDeleteConfirmOpen(false);
+      fetchPromos(pagination.page);
+    } catch (err) {
+      toast.error("Failed to delete promo code", {
         description: err.response?.data?.message || err.message,
       });
     } finally {
@@ -233,13 +327,43 @@ export default function PromoManagement() {
                         )}
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/promos/${p._id}`)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" /> View Details
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title={p.isActive ? "Deactivate Promo Code" : "Activate Promo Code"}
+                            onClick={(e) => handleToggleStatus(p, e)}
+                          >
+                            <Power className={`h-4 w-4 ${p.isActive ? "text-green-600" : "text-muted-foreground"}`} />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit Promo Code"
+                            onClick={(e) => handleOpenEdit(p, e)}
+                          >
+                            <Pencil className="h-4 w-4 text-blue-600" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Delete / Archive Promo Code"
+                            onClick={(e) => handleOpenDelete(p, e)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="View Details & Redemptions"
+                            onClick={() => navigate(`/promos/${p._id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" /> Details
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -344,6 +468,127 @@ export default function PromoManagement() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Promo Code</DialogTitle>
+            <DialogDescription>
+              Code: <span className="font-mono font-bold text-primary">{selectedPromo?.code}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdatePromo} className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Promotion Note / Description</label>
+              <Input
+                value={editFormData.note}
+                onChange={(e) => setEditFormData({ ...editFormData, note: e.target.value })}
+                placeholder="e.g. Summer 2026 Promo"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Bonus %</label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={editFormData.bonusPercentage}
+                    onChange={(e) => setEditFormData({ ...editFormData, bonusPercentage: e.target.value })}
+                    required
+                  />
+                  <Percent className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Max Redemptions</label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={editFormData.maxUses}
+                  onChange={(e) => setEditFormData({ ...editFormData, maxUses: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Start Date</label>
+                <Input
+                  type="datetime-local"
+                  value={editFormData.startDate}
+                  onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Expiration Date</label>
+                <Input
+                  type="datetime-local"
+                  value={editFormData.expirationDate}
+                  onChange={(e) => setEditFormData({ ...editFormData, expirationDate: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <input
+                type="checkbox"
+                id="editIsActive"
+                checked={editFormData.isActive}
+                onChange={(e) => setEditFormData({ ...editFormData, isActive: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label htmlFor="editIsActive" className="text-sm font-medium cursor-pointer">
+                Promo Code Active
+              </label>
+            </div>
+
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Promo Code</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete promo code <span className="font-mono font-bold text-primary">{selectedPromo?.code}</span>?
+              {selectedPromo?.currentUses > 0 ? (
+                <span className="block mt-2 text-destructive font-semibold">
+                  ⚠️ This code has {selectedPromo.currentUses} existing redemption(s). Deleting it will safely deactivate/archive it to preserve audit records.
+                </span>
+              ) : (
+                <span className="block mt-2 text-muted-foreground">
+                  This action will permanently delete the code since it has 0 redemptions.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-4">
+            <Button type="button" variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeletePromo} disabled={submitting}>
+              {submitting ? "Processing..." : selectedPromo?.currentUses > 0 ? "Archive Code" : "Delete Permanently"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
