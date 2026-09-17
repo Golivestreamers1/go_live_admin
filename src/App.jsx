@@ -19,6 +19,8 @@ import AgencyDetails from './pages/AgencyDetails';
 import Settings from './pages/Settings';
 import AdminLogin from './pages/AdminLogin';
 import PackageManagement from './pages/PackageManagement';
+import PromoManagement from './pages/PromoManagement';
+import PromoDetails from './pages/PromoDetails';
 import SubscriptionManagement from './pages/SubscriptionManagement';
 import SubscriptionStats from './pages/SubscriptionStats';
 import QRCodeManagement from './pages/QRCodeManagement';
@@ -330,6 +332,69 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <PackageManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/promos"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/promos/:id"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoDetails />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/promo-codes"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/promo-codes/:id"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoDetails />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/promos"
+            element={<Navigate to="/promos" replace />}
+          />
+          <Route
+            path="/admin/promo-codes"
+            element={<Navigate to="/promos" replace />}
+          />
+          <Route
+            path="/admin/promo-codes/:id"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoDetails />
                 </AdminLayout>
               </ProtectedRoute>
             }
