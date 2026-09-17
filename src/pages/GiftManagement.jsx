@@ -1159,6 +1159,7 @@ const GiftManagement = () => {
               </div>
             )}
             {form.type !== 'combo' && (
+            <>
             <div className="space-y-2">
               <Label htmlFor="animationJson">Lottie animation (JSON)</Label>
               <p className="text-xs text-muted-foreground">
@@ -1444,6 +1445,7 @@ const GiftManagement = () => {
                 placeholder="Default"
               />
             </div>
+            </>
             )}
             <div className="space-y-2">
               <Label>Icon image {form.type === 'combo' ? '*' : '(optional)'}</Label>
