@@ -52,6 +52,7 @@ import StreamerRubiesDetail from './pages/StreamerRubiesDetail';
 import UserStreamEarnings from './pages/UserStreamEarnings';
 import StreamerStreamGiftsAdmin from './pages/StreamerStreamGiftsAdmin';
 import LiveStreamsManagement from './pages/LiveStreamsManagement';
+import StreamOrderManagement from './pages/StreamOrderManagement';
 import SupportTickets from './pages/SupportTickets';
 import SupportTicketDetail from './pages/SupportTicketDetail';
 import SupportSettings from './pages/SupportSettings';
@@ -68,6 +69,8 @@ import MarketplaceEarnings from './pages/MarketplaceEarnings';
 import MarketplaceBanners from './pages/MarketplaceBanners';
 import MarketplacePriceHistory from './pages/MarketplacePriceHistory';
 import IpBans from './pages/IpBans';
+import FeedAlgorithmSettings from './pages/FeedAlgorithmSettings';
+import PostManagement from './pages/PostManagement';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -283,7 +286,10 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/ruby-crown-wallet" element={<Navigate to="/topspenders" replace />} />
+          <Route
+            path="/ruby-crown-wallet"
+            element={<Navigate to="/topspenders" replace />}
+          />
 
           <Route
             path="/finance"
@@ -678,6 +684,17 @@ function App() {
           />
 
           <Route
+            path="/stream-order"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <StreamOrderManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/settings"
             element={
               <ProtectedRoute>
@@ -837,6 +854,26 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <MarketplaceEarnings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/feed-algorithm"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <FeedAlgorithmSettings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/posts-management"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PostManagement />
                 </AdminLayout>
               </ProtectedRoute>
             }
