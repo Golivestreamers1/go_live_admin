@@ -391,7 +391,13 @@ const GiftManagement = () => {
     const videoAndroidT = form.videoUrlAndroid?.trim() || '';
     const videoLumaT = form.videoUrlLumaMatte?.trim() || '';
     const animJsonT = form.animationJson?.trim() || '';
-    if (animJsonT) {
+    const isComboGift = form.type === 'combo';
+    if (isComboGift) {
+      if (!iconT) {
+        toast.error('Combo gifts need an icon image (no video / animation).');
+        return;
+      }
+    } else if (animJsonT) {
       try {
         JSON.parse(animJsonT);
       } catch {
@@ -399,7 +405,15 @@ const GiftManagement = () => {
         return;
       }
     }
-    if (!iconT && !animT && !animJsonT && !videoIosT && !videoAndroidT && !videoLumaT) {
+    if (
+      !isComboGift &&
+      !iconT &&
+      !animT &&
+      !animJsonT &&
+      !videoIosT &&
+      !videoAndroidT &&
+      !videoLumaT
+    ) {
       toast.error('Add Lottie JSON, luma-matte / platform videos, a GIF/image animation, and/or an icon — at least one is required.');
       return;
     }
@@ -436,21 +450,23 @@ const GiftManagement = () => {
         requiredRole:
           needsRoleGate(categories, form.category) && form.requiredRole ? form.requiredRole : null,
         iconUrl: iconT || undefined,
-        animationUrl: animT || undefined,
-        videoUrlIos: videoIosT || null,
-        videoUrlAndroid: videoAndroidT || null,
-        videoUrlLumaMatte: videoLumaT || null,
-        animationJson: animJsonT || null,
-        animationDurationMs: (() => {
-          const fromSec = parseDurationSecToMs(form.animationDurationSec);
-          if (fromSec != null) return fromSec;
-          if (typeof form.animationDurationMs === 'number' && form.animationDurationMs > 0) {
-            return form.animationDurationMs;
-          }
-          return null;
-        })(),
+        animationUrl: isComboGift ? null : animT || undefined,
+        videoUrlIos: isComboGift ? null : videoIosT || null,
+        videoUrlAndroid: isComboGift ? null : videoAndroidT || null,
+        videoUrlLumaMatte: isComboGift ? null : videoLumaT || null,
+        animationJson: isComboGift ? null : animJsonT || null,
+        animationDurationMs: isComboGift
+          ? null
+          : (() => {
+              const fromSec = parseDurationSecToMs(form.animationDurationSec);
+              if (fromSec != null) return fromSec;
+              if (typeof form.animationDurationMs === 'number' && form.animationDurationMs > 0) {
+                return form.animationDurationMs;
+              }
+              return null;
+            })(),
         heroWidthPercent: null,
-        heroHeightPercent: parseHeroPercentInput(form.heroHeightPercent),
+        heroHeightPercent: isComboGift ? null : parseHeroPercentInput(form.heroHeightPercent),
         displayOrder: Number(form.displayOrder) || 0,
         isActive: form.isActive,
       };
@@ -1005,14 +1021,40 @@ const GiftManagement = () => {
               <select
                 id="giftType"
                 value={form.type}
-                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm((f) => {
+                    if (next !== 'combo') return { ...f, type: next };
+                    /** Combo gifts are icon-only — clear hero / video fields. */
+                    return {
+                      ...f,
+                      type: next,
+                      animationUrl: '',
+                      animationJson: '',
+                      animationDurationMs: null,
+                      animationDurationSec: '',
+                      videoUrlIos: '',
+                      videoUrlAndroid: '',
+                      videoUrlLumaMatte: '',
+                      heroHeightPercent: '',
+                    };
+                  });
+                  if (next === 'combo') {
+                    setAnimationPreviewUrl('');
+                    setIosVideoPreviewUrl('');
+                    setAndroidVideoPreviewUrl('');
+                    setLumaMatteVideoPreviewUrl('');
+                  }
+                }}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="gift">Normal gift</option>
                 <option value="combo">Combo / streak (5 Gift Combo)</option>
               </select>
               <p className="text-xs text-muted-foreground">
-                Combo gifts aggregate rapid taps into Gift ×N in chat. Cost is still price × quantity — combo is display only.
+                {form.type === 'combo'
+                  ? 'Combo gifts show as a left toast (text + icon only). No video / Lottie — upload an icon below.'
+                  : 'Combo gifts aggregate rapid taps into Gift ×N in chat. Cost is still price × quantity — combo is display only.'}
               </p>
             </div>
             {form.type === 'combo' && (
@@ -1116,6 +1158,7 @@ const GiftManagement = () => {
                 </p>
               </div>
             )}
+            {form.type !== 'combo' && (
             <div className="space-y-2">
               <Label htmlFor="animationJson">Lottie animation (JSON)</Label>
               <p className="text-xs text-muted-foreground">
@@ -1401,10 +1444,13 @@ const GiftManagement = () => {
                 placeholder="Default"
               />
             </div>
+            )}
             <div className="space-y-2">
-              <Label>Icon image (optional)</Label>
+              <Label>Icon image {form.type === 'combo' ? '*' : '(optional)'}</Label>
               <p className="text-xs text-muted-foreground">
-                Small thumbnail in the gift strip. If you skip this, the app uses your animation (GIF/WebP) as the thumbnail; Lottie-only gifts show a default until you add a PNG/GIF icon.
+                {form.type === 'combo'
+                  ? 'Required. Combo gifts have no video — this icon shows in the gift picker and on the live toast.'
+                  : 'Small thumbnail in the gift strip. If you skip this, the app uses your animation (GIF/WebP) as the thumbnail; Lottie-only gifts show a default until you add a PNG/GIF icon.'}
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 <input
