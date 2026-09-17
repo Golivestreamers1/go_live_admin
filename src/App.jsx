@@ -283,7 +283,10 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/ruby-crown-wallet" element={<Navigate to="/topspenders" replace />} />
+          <Route
+            path="/ruby-crown-wallet"
+            element={<Navigate to="/topspenders" replace />}
+          />
 
           <Route
             path="/finance"

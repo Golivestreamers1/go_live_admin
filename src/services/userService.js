@@ -2,12 +2,13 @@ import api from './api';
 
 export const userService = {
   async getAllUsers(params = {}) {
-    const { page = 1, limit = 10, role, search } = params;
+    const { page = 1, limit = 10, role, search, crown } = params;
     const queryParams = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
       ...(role && { role }),
-      ...(search && { search })
+      ...(search && { search }),
+      ...(crown && crown !== 'all' && { crown })
     });
 
     const response = await api.get(`/admin/users?${queryParams}`);
