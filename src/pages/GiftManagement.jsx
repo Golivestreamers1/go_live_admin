@@ -31,6 +31,7 @@ import {
   isGatedCategoryTab,
   needsCrownGate,
   needsRoleGate,
+  defaultCategoryKey,
 } from '../utils/giftCategoryHelpers';
 
 const PRIZE_RECIPIENTS = [
@@ -56,10 +57,13 @@ const COST_RECIPIENTS = [
   { value: 'viewer', label: 'Viewer' },
 ];
 
+// Non-empty defaults — a blank value/chance would silently drop the segment
+// on submit (see handleWheelSubmit's filter), so a freshly opened "Add wheel"
+// dialog would look like Create does nothing if the admin doesn't touch these.
 const makeWheelSegment = (i = 0) => ({
   label: '',
-  value: '',
-  chancePercent: '',
+  value: 100,
+  chancePercent: 50,
   color: DEFAULT_SEGMENT_COLORS[i % DEFAULT_SEGMENT_COLORS.length],
   paysNothing: false,
 });
@@ -812,7 +816,11 @@ const GiftManagement = () => {
       closeWheelDialog();
       fetchGifts();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save wheel');
+      // A response-less error (network/CORS/client-side) never reached the
+      // server, so show the real client-side message instead of a generic
+      // one — that's the difference between "the backend rejected it" and
+      // "the request never went out," which matters a lot for debugging.
+      toast.error(err.response?.data?.message || err.message || 'Failed to save wheel');
     } finally {
       setWheelSubmitting(false);
     }
@@ -1627,7 +1635,7 @@ const GiftManagement = () => {
                   </span>
                 </div>
                 {wheelForm.segments.map((s, idx) => (
-                  <div key={idx} className="flex items-end gap-2">
+                  <div key={idx} className="flex flex-wrap items-end gap-2">
                     <div className="w-10 space-y-1">
                       <Label className="text-[10px] text-muted-foreground">Color</Label>
                       <input
@@ -1637,7 +1645,7 @@ const GiftManagement = () => {
                         className="h-9 w-10 rounded border border-input bg-background p-0.5"
                       />
                     </div>
-                    <div className="flex-1 space-y-1">
+                    <div className="min-w-[110px] flex-1 space-y-1">
                       <Label className="text-[10px] text-muted-foreground">Label</Label>
                       <Input
                         value={s.label}

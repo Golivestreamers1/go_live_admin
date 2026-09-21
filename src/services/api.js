@@ -29,18 +29,26 @@ const addRefreshSubscriber = (callback) => {
 
 api.interceptors.request.use(
   async (config) => {
-    const token = localStorage.getItem('adminAccessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-      if (config.headers?.delete) {
-        config.headers.delete('Content-Type');
-      } else {
-        delete config.headers['Content-Type'];
+    // Nothing here should ever block a request from being sent — auth/signing
+    // are additive, not the only gate (see attachGoLiveSignatureToAxiosConfig),
+    // so a bug in any of this must degrade gracefully instead of silently
+    // killing every write with no network call and no diagnostic.
+    try {
+      const token = localStorage.getItem('adminAccessToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
+      if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+        if (config.headers?.delete) {
+          config.headers.delete('Content-Type');
+        } else {
+          delete config.headers['Content-Type'];
+        }
+      }
+      await attachGoLiveSignatureToAxiosConfig(config);
+    } catch (err) {
+      console.error('[api] request interceptor failed — sending request as-is', err);
     }
-    await attachGoLiveSignatureToAxiosConfig(config);
     return config;
   },
   (error) => Promise.reject(error),

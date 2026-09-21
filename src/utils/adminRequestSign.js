@@ -110,39 +110,51 @@ export function pathnameForAxiosConfig(config) {
 export async function attachGoLiveSignatureToAxiosConfig(config) {
   if (!isApiSigningConfigured()) return config;
 
-  const method = (config.method || "get").toUpperCase();
-  const pathname = pathnameForAxiosConfig(config);
+  // Signing is defense-in-depth, not the only auth (the backend accepts a
+  // plain Bearer token too) — a client-side signing failure (a browser
+  // quirk, a WebCrypto hiccup, whatever) must never take down every admin
+  // write. Fail open: log it, send the request unsigned rather than not at
+  // all. This was silently killing every POST/PUT with a body (GET/HEAD
+  // have no body and never hit the code below, which is why only writes
+  // were affected) — the request never reached the network at all, and the
+  // UI only ever showed a generic "Failed to save" with no diagnostic.
+  try {
+    const method = (config.method || "get").toUpperCase();
+    const pathname = pathnameForAxiosConfig(config);
 
-  let bodyStr = "";
-  if (config.data instanceof FormData) {
-    bodyStr = "";
-  } else if (typeof config.data === "string") {
-    bodyStr = config.data;
-  } else if (config.data !== undefined && config.data !== null) {
-    bodyStr = JSON.stringify(config.data);
-    config.data = bodyStr;
-    if (config.headers?.set) {
-      config.headers.set("Content-Type", "application/json");
-    } else {
-      config.headers = {
-        ...config.headers,
-        "Content-Type": "application/json",
-      };
+    let bodyStr = "";
+    if (config.data instanceof FormData) {
+      bodyStr = "";
+    } else if (typeof config.data === "string") {
+      bodyStr = config.data;
+    } else if (config.data !== undefined && config.data !== null) {
+      bodyStr = JSON.stringify(config.data);
+      config.data = bodyStr;
+      if (config.headers?.set) {
+        config.headers.set("Content-Type", "application/json");
+      } else {
+        config.headers = {
+          ...config.headers,
+          "Content-Type": "application/json",
+        };
+      }
     }
-  }
 
-  const signed = await signAdminApiRequest({
-    method,
-    pathname,
-    body: bodyStr,
-  });
+    const signed = await signAdminApiRequest({
+      method,
+      pathname,
+      body: bodyStr,
+    });
 
-  for (const [key, value] of Object.entries(signed)) {
-    if (config.headers?.set) {
-      config.headers.set(key, value);
-    } else {
-      config.headers = { ...config.headers, [key]: value };
+    for (const [key, value] of Object.entries(signed)) {
+      if (config.headers?.set) {
+        config.headers.set(key, value);
+      } else {
+        config.headers = { ...config.headers, [key]: value };
+      }
     }
+  } catch (err) {
+    console.error("[adminRequestSign] failed to sign request — sending unsigned", err);
   }
 
   return config;
