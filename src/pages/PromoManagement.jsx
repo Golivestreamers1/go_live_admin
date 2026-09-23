@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import { Tag, Search, Plus, RefreshCw, Eye, Calendar, Percent, Users, FileText, Pencil, Trash2, Power } from "lucide-react";
+import { Tag, Search, Plus, RefreshCw, Eye, Calendar, Percent, Users, FileText, Pencil, Trash2, Power, X } from "lucide-react";
 import { toast } from "sonner";
 
 const getLocalDateTimeString = (d = new Date()) => {
@@ -71,13 +71,14 @@ export default function PromoManagement() {
     isActive: true,
   });
 
-  const fetchPromos = async (page = 1) => {
+  const fetchPromos = async (page = 1, searchOverride = undefined) => {
     try {
       setLoading(true);
+      const querySearch = searchOverride !== undefined ? searchOverride : searchTerm;
       const data = await promoService.listPromoCodes({
         page,
         limit: pagination.limit,
-        search: searchTerm,
+        search: querySearch,
         status: selectedStatus !== "all" ? selectedStatus : undefined,
       });
       setPromos(data.items || []);
@@ -98,6 +99,11 @@ export default function PromoManagement() {
   const handleSearch = (e) => {
     e.preventDefault();
     fetchPromos(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    fetchPromos(1, "");
   };
 
   const handleGenerateRandomCode = async () => {
@@ -265,18 +271,39 @@ export default function PromoManagement() {
 
       {/* Actions & Search */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <form onSubmit={handleSearch} className="flex gap-2 flex-1 max-w-sm">
+        <form onSubmit={handleSearch} className="flex gap-2 flex-1 max-w-md">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              type="search"
+              type="text"
               placeholder="Search by code or note..."
-              className="pl-8"
+              className="pl-8 pr-8"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchTerm(val);
+                if (!val.trim()) {
+                  fetchPromos(1, "");
+                }
+              }}
             />
+            {searchTerm && (
+              <button
+                type="button"
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={handleClearSearch}
+                title="Clear Search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
           <Button type="submit" variant="secondary">Search</Button>
+          {searchTerm && (
+            <Button type="button" variant="outline" onClick={handleClearSearch}>
+              Reset
+            </Button>
+          )}
         </form>
 
         <div className="w-48">
