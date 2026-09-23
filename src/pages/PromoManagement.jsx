@@ -25,6 +25,18 @@ import {
 import { Tag, Search, Plus, RefreshCw, Eye, Calendar, Percent, Users, FileText, Pencil, Trash2, Power } from "lucide-react";
 import { toast } from "sonner";
 
+const getLocalDateTimeString = (d = new Date()) => {
+  const dateObj = typeof d === "string" || typeof d === "number" ? new Date(d) : d;
+  if (isNaN(dateObj.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  const year = dateObj.getFullYear();
+  const month = pad(dateObj.getMonth() + 1);
+  const day = pad(dateObj.getDate());
+  const hours = pad(dateObj.getHours());
+  const minutes = pad(dateObj.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export default function PromoManagement() {
   const navigate = useNavigate();
   const [promos, setPromos] = useState([]);
@@ -46,8 +58,8 @@ export default function PromoManagement() {
     note: "",
     bonusPercentage: 10,
     maxUses: 100,
-    startDate: new Date().toISOString().slice(0, 16),
-    expirationDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16),
+    startDate: getLocalDateTimeString(new Date()),
+    expirationDate: getLocalDateTimeString(new Date(Date.now() + 30 * 86400000)),
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -108,6 +120,11 @@ export default function PromoManagement() {
       return;
     }
 
+    if (new Date(formData.expirationDate) <= new Date(formData.startDate)) {
+      toast.error("Expiration date must be after start date");
+      return;
+    }
+
     try {
       setSubmitting(true);
       await promoService.createPromoCode({
@@ -126,14 +143,13 @@ export default function PromoManagement() {
         note: "",
         bonusPercentage: 10,
         maxUses: 100,
-        startDate: new Date().toISOString().slice(0, 16),
-        expirationDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16),
+        startDate: getLocalDateTimeString(new Date()),
+        expirationDate: getLocalDateTimeString(new Date(Date.now() + 30 * 86400000)),
       });
       fetchPromos(1);
     } catch (err) {
-      toast.error("Failed to create promo code", {
-        description: err.response?.data?.message || err.message,
-      });
+      const msg = err.response?.data?.message || err.message || "Failed to create promo code";
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -146,9 +162,7 @@ export default function PromoManagement() {
       toast.success(`Promo code "${promo.code}" is now ${res.isActive ? "Active" : "Inactive"}`);
       fetchPromos(pagination.page);
     } catch (err) {
-      toast.error("Failed to toggle status", {
-        description: err.response?.data?.message || err.message,
-      });
+      toast.error(err.response?.data?.message || "Failed to toggle status");
     }
   };
 
@@ -159,8 +173,8 @@ export default function PromoManagement() {
       note: promo.note || "",
       bonusPercentage: promo.bonusPercentage || 10,
       maxUses: promo.maxUses || 100,
-      startDate: promo.startDate ? new Date(promo.startDate).toISOString().slice(0, 16) : "",
-      expirationDate: promo.expirationDate ? new Date(promo.expirationDate).toISOString().slice(0, 16) : "",
+      startDate: promo.startDate ? getLocalDateTimeString(promo.startDate) : "",
+      expirationDate: promo.expirationDate ? getLocalDateTimeString(promo.expirationDate) : "",
       isActive: promo.isActive !== false,
     });
     setEditDialogOpen(true);
@@ -169,6 +183,12 @@ export default function PromoManagement() {
   const handleUpdatePromo = async (e) => {
     e.preventDefault();
     if (!selectedPromo) return;
+
+    if (new Date(editFormData.expirationDate) <= new Date(editFormData.startDate)) {
+      toast.error("Expiration date must be after start date");
+      return;
+    }
+
     try {
       setSubmitting(true);
       await promoService.updatePromoCode(selectedPromo._id, {
@@ -183,9 +203,8 @@ export default function PromoManagement() {
       setEditDialogOpen(false);
       fetchPromos(pagination.page);
     } catch (err) {
-      toast.error("Failed to update promo code", {
-        description: err.response?.data?.message || err.message,
-      });
+      const msg = err.response?.data?.message || err.message || "Failed to update promo code";
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -229,7 +248,14 @@ export default function PromoManagement() {
           <p className="text-muted-foreground">Manage promo codes, usage limits, and campaign bonuses</p>
         </div>
         <Button onClick={() => {
-          handleGenerateRandomCode();
+          setFormData({
+            customCode: "",
+            note: "",
+            bonusPercentage: 10,
+            maxUses: 100,
+            startDate: getLocalDateTimeString(new Date()),
+            expirationDate: getLocalDateTimeString(new Date(Date.now() + 30 * 86400000)),
+          });
           setCreateDialogOpen(true);
         }}>
           <Plus className="mr-2 h-4 w-4" />
@@ -380,22 +406,21 @@ export default function PromoManagement() {
           <DialogHeader>
             <DialogTitle>Create New Promo Code</DialogTitle>
             <DialogDescription>
-              Randomized code generated automatically. Set promotion note, percentage, and limits.
+              Enter a custom code or click refresh to generate one. If left blank, a code will be generated automatically upon creation.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreatePromo} className="space-y-4 py-2">
             <div>
-              <label className="text-sm font-medium mb-1 block">Promo Code (Randomized)</label>
+              <label className="text-sm font-medium mb-1 block">Promo Code (Custom or Auto-Generated)</label>
               <div className="flex gap-2">
                 <Input
-                  className="font-mono uppercase font-bold"
+                  className="font-mono uppercase font-bold placeholder:normal-case placeholder:font-normal"
                   value={formData.customCode}
                   onChange={(e) => setFormData({ ...formData, customCode: e.target.value.toUpperCase() })}
-                  placeholder="e.g. PRM-X8K9M2"
-                  required
+                  placeholder="e.g. SUMMER2026 or leave blank"
                 />
-                <Button type="button" variant="outline" onClick={handleGenerateRandomCode} disabled={generatingCode}>
+                <Button type="button" variant="outline" onClick={handleGenerateRandomCode} disabled={generatingCode} title="Generate Random Code">
                   <RefreshCw className={`h-4 w-4 ${generatingCode ? "animate-spin" : ""}`} />
                 </Button>
               </div>
@@ -443,21 +468,30 @@ export default function PromoManagement() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Start Date</label>
-                <Input
-                  type="datetime-local"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type="datetime-local"
+                    className="text-[12px] pl-2 pr-8 min-w-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-2 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    required
+                  />
+                  <Calendar className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Expiration Date</label>
-                <Input
-                  type="datetime-local"
-                  value={formData.expirationDate}
-                  onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type="datetime-local"
+                    min={formData.startDate}
+                    className="text-[12px] pl-2 pr-8 min-w-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-2 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    value={formData.expirationDate}
+                    onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
+                    required
+                  />
+                  <Calendar className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
               </div>
             </div>
 
@@ -523,21 +557,30 @@ export default function PromoManagement() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Start Date</label>
-                <Input
-                  type="datetime-local"
-                  value={editFormData.startDate}
-                  onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type="datetime-local"
+                    className="text-[12px] pl-2 pr-8 min-w-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-2 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    value={editFormData.startDate}
+                    onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
+                    required
+                  />
+                  <Calendar className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Expiration Date</label>
-                <Input
-                  type="datetime-local"
-                  value={editFormData.expirationDate}
-                  onChange={(e) => setEditFormData({ ...editFormData, expirationDate: e.target.value })}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type="datetime-local"
+                    min={editFormData.startDate}
+                    className="text-[12px] pl-2 pr-8 min-w-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-2 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    value={editFormData.expirationDate}
+                    onChange={(e) => setEditFormData({ ...editFormData, expirationDate: e.target.value })}
+                    required
+                  />
+                  <Calendar className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
               </div>
             </div>
 
