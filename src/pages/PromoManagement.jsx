@@ -444,6 +444,7 @@ export default function PromoManagement() {
                     type="number"
                     min="1"
                     max="100"
+                    className="pr-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     value={formData.bonusPercentage}
                     onChange={(e) => setFormData({ ...formData, bonusPercentage: e.target.value })}
                     required
@@ -534,6 +535,7 @@ export default function PromoManagement() {
                     type="number"
                     min="1"
                     max="100"
+                    className="pr-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     value={editFormData.bonusPercentage}
                     onChange={(e) => setEditFormData({ ...editFormData, bonusPercentage: e.target.value })}
                     required
