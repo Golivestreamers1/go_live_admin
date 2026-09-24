@@ -47,11 +47,14 @@ import {
   AlertTriangle,
   Share2,
   SlidersHorizontal,
-  Trophy,
   Radio,
   Send,
   Megaphone,
   Palette,
+  Flame,
+  FileText,
+  Trophy,
+  ListOrdered,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 
@@ -193,6 +196,16 @@ const AdminLayout = ({ children, user, onLogout }) => {
       href: '/reported-posts',
       icon: FileWarning,
     },
+    {
+      name: 'Feed Algorithm',
+      href: '/feed-algorithm',
+      icon: Flame,
+    },
+    {
+      name: 'Posts Management',
+      href: '/posts-management',
+      icon: FileText,
+    },
     // {
     //   name: 'Cash out management',
     //   href: '/cashout-requests',
@@ -221,6 +234,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Radio,
     },
     {
+      name: 'Stream Order',
+      href: '/stream-order',
+      icon: ListOrdered,
+    },
+    {
       name: 'Cash out email change',
       href: '/cashout-email-change',
       icon: ClipboardList,
@@ -244,6 +262,12 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Gift categories',
       href: '/gift-categories',
       icon: Tags,
+    },
+    {
+      name: 'Promo Codes',
+      href: '/promos',
+      icon: Tags,
+      pathMatch: 'prefix',
     },
     {
       name: 'Blog',

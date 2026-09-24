@@ -19,6 +19,8 @@ import AgencyDetails from './pages/AgencyDetails';
 import Settings from './pages/Settings';
 import AdminLogin from './pages/AdminLogin';
 import PackageManagement from './pages/PackageManagement';
+import PromoManagement from './pages/PromoManagement';
+import PromoDetails from './pages/PromoDetails';
 import SubscriptionManagement from './pages/SubscriptionManagement';
 import SubscriptionStats from './pages/SubscriptionStats';
 import QRCodeManagement from './pages/QRCodeManagement';
@@ -52,6 +54,7 @@ import StreamerRubiesDetail from './pages/StreamerRubiesDetail';
 import UserStreamEarnings from './pages/UserStreamEarnings';
 import StreamerStreamGiftsAdmin from './pages/StreamerStreamGiftsAdmin';
 import LiveStreamsManagement from './pages/LiveStreamsManagement';
+import StreamOrderManagement from './pages/StreamOrderManagement';
 import SupportTickets from './pages/SupportTickets';
 import SupportTicketDetail from './pages/SupportTicketDetail';
 import SupportSettings from './pages/SupportSettings';
@@ -68,6 +71,8 @@ import MarketplaceEarnings from './pages/MarketplaceEarnings';
 import MarketplaceBanners from './pages/MarketplaceBanners';
 import MarketplacePriceHistory from './pages/MarketplacePriceHistory';
 import IpBans from './pages/IpBans';
+import FeedAlgorithmSettings from './pages/FeedAlgorithmSettings';
+import PostManagement from './pages/PostManagement';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -283,7 +288,10 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/ruby-crown-wallet" element={<Navigate to="/topspenders" replace />} />
+          <Route
+            path="/ruby-crown-wallet"
+            element={<Navigate to="/topspenders" replace />}
+          />
 
           <Route
             path="/finance"
@@ -324,6 +332,69 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <PackageManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/promos"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/promos/:id"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoDetails />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/promo-codes"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/promo-codes/:id"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoDetails />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/promos"
+            element={<Navigate to="/promos" replace />}
+          />
+          <Route
+            path="/admin/promo-codes"
+            element={<Navigate to="/promos" replace />}
+          />
+          <Route
+            path="/admin/promo-codes/:id"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PromoDetails />
                 </AdminLayout>
               </ProtectedRoute>
             }
@@ -678,6 +749,17 @@ function App() {
           />
 
           <Route
+            path="/stream-order"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <StreamOrderManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/settings"
             element={
               <ProtectedRoute>
@@ -837,6 +919,26 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <MarketplaceEarnings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/feed-algorithm"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <FeedAlgorithmSettings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/posts-management"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <PostManagement />
                 </AdminLayout>
               </ProtectedRoute>
             }

@@ -34,12 +34,13 @@ import {
 import { toast } from 'sonner';
 
 const UserManagement = () => {
-  const { params, setQuery } = useListQueryState({ filterKeys: ['search', 'role'] });
+  const { params, setQuery } = useListQueryState({ filterKeys: ['search', 'role', 'crown'] });
   const navigateWithReturn = useNavigateWithReturn();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(params.search);
   const [selectedRole, setSelectedRole] = useState(params.role);
+  const [selectedCrown, setSelectedCrown] = useState(params.crown || 'all');
   const [pagination, setPagination] = useState({
     current: 1,
     total: 1,
@@ -50,14 +51,15 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
 
-  const fetchUsers = async (page = 1, search = '', role = '') => {
+  const fetchUsers = async (page = 1, search = '', role = '', crown = 'all') => {
     try {
       setLoading(true);
       const response = await userService.getAllUsers({
         page,
         limit: 10,
         search,
-        role
+        role,
+        crown
       });
 
       setUsers(response.users);
@@ -72,20 +74,27 @@ const UserManagement = () => {
   useEffect(() => {
     setSearchTerm(params.search);
     setSelectedRole(params.role);
-  }, [params.search, params.role]);
+    setSelectedCrown(params.crown || 'all');
+  }, [params.search, params.role, params.crown]);
 
   useEffect(() => {
-    fetchUsers(params.page, params.search, params.role);
-  }, [params.page, params.search, params.role]);
+    fetchUsers(params.page, params.search, params.role, params.crown);
+  }, [params.page, params.search, params.role, params.crown]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setQuery({ page: 1, search: searchTerm, role: selectedRole });
+    setQuery({ page: 1, search: searchTerm, role: selectedRole, crown: selectedCrown });
   };
 
   const handleRoleFilter = (role) => {
     setSelectedRole(role);
-    setQuery({ page: 1, role, search: searchTerm });
+    setQuery({ page: 1, role, search: searchTerm, crown: selectedCrown });
+  };
+
+  const handleCrownFilter = (e) => {
+    const crown = e.target.value;
+    setSelectedCrown(crown);
+    setQuery({ page: 1, role: selectedRole, search: searchTerm, crown });
   };
 
   const handlePageChange = (newPage) => {
@@ -277,6 +286,17 @@ const UserManagement = () => {
               >
                 User
               </Button>
+              <select
+                value={selectedCrown}
+                onChange={handleCrownFilter}
+                className="border rounded-md px-3 py-1 text-sm bg-background ml-2"
+              >
+                <option value="all">All Crowns</option>
+                <option value="ruby">Ruby</option>
+                <option value="gold">Gold</option>
+                <option value="silver">Silver</option>
+                <option value="bronze">Bronze</option>
+              </select>
             </div>
           </div>
 
@@ -287,6 +307,8 @@ const UserManagement = () => {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Current Crown</TableHead>
+                  <TableHead>Past Crown</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Verified</TableHead>
                   <TableHead>Joined</TableHead>
@@ -319,6 +341,34 @@ const UserManagement = () => {
                         <div className="text-xs text-gray-500 mt-1">
                           Level {user.role.level}
                         </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {user.currentCrown ? (
+                        <Badge variant="default" className={`${
+                          user.currentCrown.tier === 4 ? 'bg-rose-500 hover:bg-rose-600' :
+                          user.currentCrown.tier === 3 ? 'bg-amber-500 hover:bg-amber-600' :
+                          user.currentCrown.tier === 2 ? 'bg-slate-400 hover:bg-slate-500' :
+                          'bg-orange-700 hover:bg-orange-800'
+                        } text-white border-none`}>
+                          {user.currentCrown.label}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {user.lastMonthCrown ? (
+                        <Badge variant="outline" className={`${
+                          user.lastMonthCrown.tier === 4 ? 'text-rose-600 border-rose-200' :
+                          user.lastMonthCrown.tier === 3 ? 'text-amber-600 border-amber-200' :
+                          user.lastMonthCrown.tier === 2 ? 'text-slate-600 border-slate-200' :
+                          'text-orange-700 border-orange-200'
+                        }`}>
+                          {user.lastMonthCrown.label}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>
