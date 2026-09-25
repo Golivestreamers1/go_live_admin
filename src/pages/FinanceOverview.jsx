@@ -395,11 +395,108 @@ const FinanceOverview = () => {
 
       {/* Headline */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Gross revenue" value={usd(h.grossUsd)} sub="Selected buckets + subscriptions" />
+        <Stat label="Gross revenue" value={usd(h.grossUsd)} sub="Selected coin buckets + subscriptions + merch" />
         <Stat label="Store & processor fees" value={`−${usd(h.feeUsd)}`} sub="Estimated — see assumptions" />
         <Stat label="Platform net (accrual)" value={usd(h.accrualNetUsd)} sub={`${pct(h.accrualMarginPct)} margin`} emphasis />
         <Stat label="Platform net (cash)" value={usd(h.cashNetUsd)} sub={`${pct(h.cashMarginPct)} margin`} emphasis />
       </div>
+
+      {/* Revenue by source */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Revenue by source</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Source</TableHead>
+                <TableHead className="text-right">Volume</TableHead>
+                <TableHead className="text-right">Gross</TableHead>
+                <TableHead className="text-right">Fees</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell>Coin packs (selected buckets)</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {num(data.revenue.byBucket.filter((b) => b.included).reduce((s, b) => s + b.count, 0))} purchases
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {usdPrecise(data.revenue.byBucket.filter((b) => b.included).reduce((s, b) => s + b.grossUsd, 0))}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {usdPrecise(data.revenue.byBucket.filter((b) => b.included).reduce((s, b) => s + b.feeUsd, 0))}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Streamer subscriptions</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {num(data.subscriptions.periods)} paid months
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{usdPrecise(data.subscriptions.grossUsd)}</TableCell>
+                <TableCell className="text-right tabular-nums">{usdPrecise(data.subscriptions.feeUsd)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>
+                  Premium subscription
+                  <div className="text-xs text-muted-foreground">
+                    {num(data.subscriptions.premium.activeSubscribers)} active
+                    {data.subscriptions.premium.priceConfigured
+                      ? ` · MRR ${usdPrecise(data.subscriptions.premium.mrrGrossUsd)}`
+                      : ''}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {num(data.subscriptions.premium.recordedCharges)} recorded charges
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {data.subscriptions.premium.priceConfigured ? (
+                    usdPrecise(data.subscriptions.premium.grossUsd)
+                  ) : (
+                    <span className="text-amber-700">price not configured</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {data.subscriptions.premium.priceConfigured ? usdPrecise(data.subscriptions.premium.feeUsd) : '—'}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>
+                  Merch store
+                  <div className="text-xs text-muted-foreground">
+                    Tax collected {usdPrecise(data.merch.taxCollectedUsd)} (excluded)
+                  </div>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{num(data.merch.orders)} paid orders</TableCell>
+                <TableCell className="text-right tabular-nums">{usdPrecise(data.merch.grossUsd)}</TableCell>
+                <TableCell className="text-right tabular-nums">{usdPrecise(data.merch.paypalFeeUsd)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+          <div className="grid gap-2 rounded-md border p-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+            {[
+              ['Merch gross', data.merch.grossUsd],
+              ['PayPal fees', -data.merch.paypalFeeUsd],
+              ['Printify cost', -data.merch.productionCostUsd],
+              ['Vendor payouts', -data.merch.vendorPayoutsUsd],
+              ['Refunds', -data.merch.refundsUsd],
+              ['Merch net', data.merch.netUsd],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <p className="text-xs text-muted-foreground">{k}</p>
+                <p className="font-medium tabular-nums">{usdPrecise(v)}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Merch: platform commission {usdPrecise(data.merch.platformCommissionUsd)}
+            {data.merch.refundedCount ? ` · ${num(data.merch.refundedCount)} refunded suborders` : ''}
+            {data.merch.failedCount ? ` · ${num(data.merch.failedCount)} failed (paid, not produced)` : ''}.{' '}
+            {data.subscriptions.caveat} {data.subscriptions.premium.caveat}
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Accrual vs cash */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -438,7 +535,12 @@ const FinanceOverview = () => {
                   <TableCell className="text-right tabular-nums">−{usdPrecise(data.cash.chargebackReserveUsd)}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell>Streamer &amp; grant obligations</TableCell>
+                  <TableCell>Merch production, shipping &amp; refunds</TableCell>
+                  <TableCell className="text-right tabular-nums">−{usdPrecise(data.accrual.merchCostsUsd)}</TableCell>
+                  <TableCell className="text-right tabular-nums">−{usdPrecise(data.cash.merchCostsUsd)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Streamer, vendor &amp; grant obligations (net of reversals)</TableCell>
                   <TableCell className="text-right tabular-nums">−{usdPrecise(data.accrual.obligationsUsd)}</TableCell>
                   <TableCell className="text-right text-muted-foreground">—</TableCell>
                 </TableRow>
@@ -446,6 +548,11 @@ const FinanceOverview = () => {
                   <TableCell>Withdrawals approved</TableCell>
                   <TableCell className="text-right text-muted-foreground">—</TableCell>
                   <TableCell className="text-right tabular-nums">−{usdPrecise(data.cash.withdrawalsApprovedUsd)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Agency payouts (processed)</TableCell>
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  <TableCell className="text-right tabular-nums">−{usdPrecise(data.cash.agencyPayoutsUsd)}</TableCell>
                 </TableRow>
                 <TableRow className="font-semibold">
                   <TableCell>Platform net</TableCell>
