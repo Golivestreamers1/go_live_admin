@@ -144,11 +144,13 @@ export const userService = {
     return response.data.data;
   },
 
-  async adjustUserRubies(userId, { direction, amount, reason }) {
+  /** target: 'wallet' (spendable rubies, default) or 'lifetime' (lifetimeRubies only). */
+  async adjustUserRubies(userId, { direction, amount, reason, target = 'wallet' }) {
     const response = await api.post(`/admin/users/${userId}/rubies/adjust`, {
       direction,
       amount,
       reason,
+      target,
     });
     return response.data.data;
   },

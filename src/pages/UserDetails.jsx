@@ -546,6 +546,8 @@ export default function UserDetails() {
   const [adjusting, setAdjusting] = useState(false);
 
   const [adjustRubyDirection, setAdjustRubyDirection] = useState('credit');
+  // 'wallet' = spendable rubies; 'lifetime' = lifetimeRubies only (no wallet / cash impact).
+  const [adjustRubyTarget, setAdjustRubyTarget] = useState('wallet');
   const [adjustRubyAmount, setAdjustRubyAmount] = useState('');
   const [adjustRubyReason, setAdjustRubyReason] = useState('');
   const [adjustRubyConfirmOpen, setAdjustRubyConfirmOpen] = useState(false);
@@ -885,6 +887,13 @@ export default function UserDetails() {
     if (currentAdmin?._id && String(currentAdmin._id) === String(id)) {
       return 'You cannot adjust your own balance';
     }
+    if (
+      adjustRubyTarget === 'lifetime' &&
+      adjustRubyDirection === 'debit' &&
+      amt > Number(overview?.wallet?.lifetimeRubies || 0)
+    ) {
+      return 'Debit exceeds current lifetime rubies';
+    }
     return null;
   })();
 
@@ -908,10 +917,15 @@ export default function UserDetails() {
         direction: adjustRubyDirection,
         amount: Number(adjustRubyAmount),
         reason: adjustRubyReason.trim(),
+        target: adjustRubyTarget,
       });
+      const isLifetime = adjustRubyTarget === 'lifetime';
       toast.success(
-        `${adjustRubyDirection === 'credit' ? 'Credited' : 'Debited'} ${fmtNum(result.amount)} rubies — new balance ${fmtNum(result.newBalance)}`
+        `${adjustRubyDirection === 'credit' ? 'Credited' : 'Debited'} ${fmtNum(result.amount)} ${
+          isLifetime ? 'lifetime rubies — new lifetime' : 'rubies — new balance'
+        } ${fmtNum(result.newBalance)}`
       );
+      if (isLifetime && lifetimeAudit) loadLifetimeAudit();
       setAdjustRubyAmount('');
       setAdjustRubyReason('');
       setAdjustRubyConfirmText('');
@@ -1327,7 +1341,7 @@ export default function UserDetails() {
                       </p>
                     </div>
                     <div className="rounded-md border p-3">
-                      <p className="text-xs text-muted-foreground">Expected (from ledger)</p>
+                      <p className="text-xs text-muted-foreground">Expected (ledger + admin adjustments)</p>
                       <p className="mt-1 text-xl font-bold text-blue-700 tabular-nums">
                         {fmtNum(lifetimeAudit.lifetimeRubies?.expected)}
                       </p>
@@ -1411,6 +1425,27 @@ export default function UserDetails() {
                         </p>
                         <p className="font-medium tabular-nums">
                           ignored
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">= Earned (actual, from ledger)</p>
+                        <p className="font-medium tabular-nums">
+                          {fmtNum(lifetimeAudit.breakdown?.earnedFromLedger)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">
+                          Admin lifetime adjustments ({lifetimeAudit.breakdown?.adminLifetimeAdjustmentCount || 0})
+                        </p>
+                        <p
+                          className={`font-medium tabular-nums ${
+                            (lifetimeAudit.breakdown?.adminLifetimeAdjustments || 0) < 0
+                              ? 'text-rose-700'
+                              : 'text-green-700'
+                          }`}
+                        >
+                          {(lifetimeAudit.breakdown?.adminLifetimeAdjustments || 0) > 0 ? '+' : ''}
+                          {fmtNum(lifetimeAudit.breakdown?.adminLifetimeAdjustments || 0)}
                         </p>
                       </div>
                       <div>
@@ -1603,14 +1638,38 @@ export default function UserDetails() {
                       </Badge>
                     </CardTitle>
                     <CardDescription>
-                      Add or remove rubies with a reason. Every adjustment is logged
-                      (WalletTransaction + AdminActionLog) and notifies the user in-app and
-                      via push.
+                      Add or remove rubies with a reason. Wallet adjustments are logged
+                      (WalletTransaction + AdminActionLog) and notify the user in-app and via
+                      push. Lifetime adjustments change only lifetime rubies (no wallet or cash
+                      impact, no notification) and are logged in AdminActionLog.
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <span className="text-xs text-muted-foreground">Balance</span>
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="adjust-ruby-target"
+                      value="wallet"
+                      checked={adjustRubyTarget === 'wallet'}
+                      onChange={() => setAdjustRubyTarget('wallet')}
+                    />
+                    <span className="font-medium">Wallet rubies</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="adjust-ruby-target"
+                      value="lifetime"
+                      checked={adjustRubyTarget === 'lifetime'}
+                      onChange={() => setAdjustRubyTarget('lifetime')}
+                    />
+                    <span className="font-medium">Lifetime rubies</span>
+                  </label>
+                </div>
                 <div className="flex flex-wrap items-center gap-4">
                   <label className="inline-flex items-center gap-2 text-sm">
                     <input
@@ -1651,9 +1710,11 @@ export default function UserDetails() {
                   </div>
                   <div className="flex items-end text-sm">
                     <div>
-                      <p className="text-xs text-muted-foreground">Preview</p>
+                      <p className="text-xs text-muted-foreground">
+                        Preview ({adjustRubyTarget === 'lifetime' ? 'lifetime rubies' : 'wallet rubies'})
+                      </p>
                       <p className="tabular-nums">
-                        {fmtNum(wallet.rubies)}
+                        {fmtNum(adjustRubyTarget === 'lifetime' ? wallet.lifetimeRubies : wallet.rubies)}
                         {' → '}
                         <span
                           className={
@@ -1663,7 +1724,7 @@ export default function UserDetails() {
                           }
                         >
                           {fmtNum(
-                            Number(wallet.rubies || 0) +
+                            Number((adjustRubyTarget === 'lifetime' ? wallet.lifetimeRubies : wallet.rubies) || 0) +
                               (adjustRubyDirection === 'credit' ? 1 : -1) *
                                 (Number(adjustRubyAmount) || 0)
                           )}
@@ -1675,7 +1736,10 @@ export default function UserDetails() {
 
                 <div>
                   <label className="text-xs text-muted-foreground">
-                    Reason (required, 10–500 chars) — visible to the user in their notification
+                    Reason (required, 10–500 chars) —{' '}
+                    {adjustRubyTarget === 'lifetime'
+                      ? 'stored in the admin log (the user is not notified)'
+                      : 'visible to the user in their notification'}
                   </label>
                   <textarea
                     className="mt-1 w-full rounded-md border border-gray-300 bg-white p-2 text-sm"
@@ -1709,10 +1773,16 @@ export default function UserDetails() {
                       You are about to{' '}
                       <span className="font-semibold">
                         {adjustRubyDirection === 'credit' ? 'CREDIT' : 'DEBIT'}{' '}
-                        {fmtNum(Number(adjustRubyAmount) || 0)} rubies
+                        {fmtNum(Number(adjustRubyAmount) || 0)}{' '}
+                        {adjustRubyTarget === 'lifetime' ? 'LIFETIME rubies' : 'rubies'}
                       </span>{' '}
                       to/from <span className="font-semibold">@{user.username || user.email}</span>.
                     </p>
+                    {adjustRubyTarget === 'lifetime' ? (
+                      <p className="text-xs text-muted-foreground">
+                        Wallet balance is not changed and no notification is sent.
+                      </p>
+                    ) : null}
                     <p className="text-xs text-muted-foreground whitespace-pre-wrap">
                       Reason: {adjustRubyReason.trim()}
                     </p>
@@ -1795,7 +1865,7 @@ export default function UserDetails() {
                       <TableHead>Action</TableHead>
                       <TableHead>Direction</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Balance after</TableHead>
+                      <TableHead className="text-right">Balance (before → after)</TableHead>
                       <TableHead>Reason</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1833,7 +1903,11 @@ export default function UserDetails() {
                           {fmtNum(a.amount)}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-xs">
+                          {a.previousBalance != null ? `${fmtNum(a.previousBalance)} → ` : ''}
                           {fmtNum(a.newBalance)}
+                          {a.action === 'lifetime_ruby_adjust' ? (
+                            <div className="text-[10px] text-muted-foreground">lifetime</div>
+                          ) : null}
                         </TableCell>
                         <TableCell className="max-w-md truncate text-xs">
                           {a.reason || '—'}
