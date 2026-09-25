@@ -48,14 +48,15 @@ const modeBadgeVariant = (mode) => {
   }
 };
 
-const StatTile = ({ icon: Icon, label, value, accent }) => (
-  <div className="flex items-center gap-3 rounded-lg border bg-card p-4">
+const StatTile = ({ icon: Icon, label, value, accent, hint }) => (
+  <div className="flex items-center gap-3 rounded-lg border bg-card p-4" title={hint}>
     <div className={`flex h-10 w-10 items-center justify-center rounded-md ${accent}`}>
       <Icon className="h-5 w-5" />
     </div>
     <div className="min-w-0">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-2xl font-bold leading-tight">{value}</p>
+      {hint ? <p className="truncate text-[11px] text-muted-foreground">{hint}</p> : null}
     </div>
   </div>
 );
@@ -92,9 +93,17 @@ const LiveNowCard = () => {
     },
     {
       icon: Eye,
-      label: 'Live Viewers',
+      label: 'Watching Now',
       value: data?.liveViewersNow ?? '—',
       accent: 'bg-blue-100 text-blue-600',
+      hint: 'Connected right now',
+    },
+    {
+      icon: Eye,
+      label: 'Viewers (as in app)',
+      value: data?.appViewersTotal ?? '—',
+      accent: 'bg-sky-100 text-sky-600',
+      hint: 'Everyone who joined this session',
     },
     {
       icon: Users,
@@ -161,7 +170,7 @@ const LiveNowCard = () => {
           <RefreshControl {...polling} />
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {tiles.map((t) => (
               <StatTile key={t.label} {...t} />
             ))}
@@ -200,9 +209,13 @@ const LiveNowCard = () => {
                       <TableRow>
                         <TableHead>Streamer</TableHead>
                         <TableHead>Title</TableHead>
-                        <TableHead className="text-right">Viewers</TableHead>
+                        <TableHead className="text-right" title="Connected right now">
+                          Watching now
+                        </TableHead>
+                        <TableHead className="text-right" title="Number shown in the app: everyone who joined this session">
+                          App count
+                        </TableHead>
                         <TableHead className="text-right">Peak</TableHead>
-                        <TableHead className="text-right">Unique</TableHead>
                         <TableHead>Mode</TableHead>
                         <TableHead>Provider</TableHead>
                         <TableHead className="text-right">Duration</TableHead>
@@ -226,8 +239,8 @@ const LiveNowCard = () => {
                             {s.title || <span className="italic">untitled</span>}
                           </TableCell>
                           <TableCell className="text-right font-semibold">{s.viewersNow}</TableCell>
+                          <TableCell className="text-right">{s.appViewerCount ?? s.uniqueViewers}</TableCell>
                           <TableCell className="text-right">{s.peak}</TableCell>
-                          <TableCell className="text-right">{s.uniqueViewers}</TableCell>
                           <TableCell>
                             <Badge variant={modeBadgeVariant(s.mode)} className="capitalize">
                               {s.mode}
