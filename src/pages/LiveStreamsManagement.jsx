@@ -53,9 +53,11 @@ const endStreamWarning = (stream) => {
   return 'This will end the stream immediately and disconnect all viewers.';
 };
 
+// Fallback only — the dashboard snapshot resolves mode from the Room. Every Agora stream has a
+// roomId (solo too), so roomId must not be read as "box".
 const deriveMode = (stream) => {
   if (stream?.battleId) return 'battle';
-  if (stream?.boxPartyHostStreamId || stream?.roomId) return 'box';
+  if (stream?.boxPartyHostStreamId) return 'box';
   return 'single';
 };
 
@@ -66,16 +68,29 @@ const modeBadgeVariant = (mode) => {
 };
 
 const LiveStreamsManagement = () => {
-  const polling = usePolling(() => dashboardService.getActiveLiveStreams(), {
-    defaultIntervalMs: 60_000,
-  });
+  // Rows for moderation + the dashboard live snapshot (mode, de-duplicated counts, viewer numbers).
+  const polling = usePolling(
+    async () => {
+      const [rows, live] = await Promise.all([
+        dashboardService.getActiveLiveStreams(),
+        dashboardService.getLive(),
+      ]);
+      return { rows, live };
+    },
+    { defaultIntervalMs: 60_000 },
+  );
   const { data, refresh, error, isLoading } = polling;
   const [search, setSearch] = useState('');
   const [streamToEnd, setStreamToEnd] = useState(null);
   const [ending, setEnding] = useState(false);
   const [endError, setEndError] = useState('');
 
-  const streams = Array.isArray(data) ? data : [];
+  const streams = Array.isArray(data?.rows) ? data.rows : [];
+  const live = data?.live;
+  const liveById = useMemo(
+    () => new Map((live?.topStreams || []).map((t) => [t.streamId, t])),
+    [live],
+  );
   const mappedStreams = useMemo(
     () =>
       streams.map((s) => ({
@@ -86,10 +101,12 @@ const LiveStreamsManagement = () => {
         streamerEmail: s.streamer?.email || '',
         provider: s.streamingProvider || 'agora',
         startedAt: s.startedAt || null,
-        mode: deriveMode(s),
+        mode: liveById.get(String(s._id))?.mode || deriveMode(s),
         isBoxGuest: Boolean(s.boxPartyHostStreamId),
+        viewersNow: liveById.get(String(s._id))?.viewersNow ?? 0,
+        appViewerCount: liveById.get(String(s._id))?.appViewerCount ?? 0,
       })),
-    [streams],
+    [streams, liveById],
   );
 
   const filteredStreams = useMemo(() => {
@@ -104,17 +121,14 @@ const LiveStreamsManagement = () => {
     );
   }, [mappedStreams, search]);
 
-  const stats = useMemo(() => {
-    let battles = 0;
-    let boxes = 0;
-    let singles = 0;
-    for (const s of mappedStreams) {
-      if (s.mode === 'battle') battles += 1;
-      else if (s.mode === 'box') boxes += 1;
-      else singles += 1;
-    }
-    return { battles, boxes, singles };
-  }, [mappedStreams]);
+  // Sessions, not rows: a battle is 2 streams and a box party is host + guests.
+  const stats = {
+    battles: live?.battlesInProgress ?? 0,
+    boxes: live?.boxPartiesInProgress ?? 0,
+    singles: live?.singleStreamsLive ?? 0,
+    watchingNow: live?.liveViewersNow ?? 0,
+    appViewers: live?.appViewersTotal ?? 0,
+  };
 
   const handleConfirmEnd = async () => {
     if (!streamToEnd?.streamId) return;
@@ -152,11 +166,23 @@ const LiveStreamsManagement = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Active streams</div>
               <div className="text-2xl font-bold">{mappedStreams.length}</div>
+            </CardContent>
+          </Card>
+          <Card title="Connected right now">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Watching now</div>
+              <div className="text-2xl font-bold">{stats.watchingNow}</div>
+            </CardContent>
+          </Card>
+          <Card title="What the app displays: everyone who joined this session">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Viewers (as in app)</div>
+              <div className="text-2xl font-bold">{stats.appViewers}</div>
             </CardContent>
           </Card>
           <Card>
@@ -173,7 +199,7 @@ const LiveStreamsManagement = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Box streams</div>
+              <div className="text-xs text-muted-foreground">Box parties</div>
               <div className="text-2xl font-bold">{stats.boxes}</div>
             </CardContent>
           </Card>
@@ -217,6 +243,12 @@ const LiveStreamsManagement = () => {
                       <TableHead>Streamer</TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead>Mode</TableHead>
+                      <TableHead className="text-right" title="Connected right now">
+                        Watching now
+                      </TableHead>
+                      <TableHead className="text-right" title="Number shown in the app: everyone who joined this session">
+                        App count
+                      </TableHead>
                       <TableHead>Provider</TableHead>
                       <TableHead className="text-right">Duration</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -252,7 +284,14 @@ const LiveStreamsManagement = () => {
                             )}
                             {stream.mode}
                           </Badge>
+                          {stream.isBoxGuest ? (
+                            <span className="ml-1 text-xs text-muted-foreground">guest</span>
+                          ) : null}
                         </TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">
+                          {stream.viewersNow}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{stream.appViewerCount}</TableCell>
                         <TableCell className="capitalize text-muted-foreground">
                           {stream.provider}
                         </TableCell>
