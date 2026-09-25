@@ -552,7 +552,10 @@ const ContestManagement = () => {
                 </TableHeader>
                 <TableBody>
                   {contests.map((c) => {
-                    const payablePrizes = (c.prizes || []).filter((p) => prizeAmount(p).amount > 0).length;
+                    const payable = (c.prizes || []).map(prizeAmount).filter((r) => r.amount > 0);
+                    const payablePrizes = payable.length;
+                    const hasCoinPrize = payable.some((r) => r.type === 'coins');
+                    const hasRubyPrize = payable.some((r) => r.type === 'rubies');
                     const paid = (c.prizeAwards || []).length;
                     return (
                       <TableRow key={c._id} className="cursor-pointer" onClick={() => openDetails(c)}>
@@ -568,7 +571,8 @@ const ContestManagement = () => {
                             <span className="text-muted-foreground">—</span>
                           ) : (
                             <span className="flex items-center gap-1">
-                              {payablePrizes > 0 && <Coins className="h-3.5 w-3.5 text-amber-500" />}
+                              {hasCoinPrize && <Coins className="h-3.5 w-3.5 text-amber-500" />}
+                              {hasRubyPrize && <Gem className="h-3.5 w-3.5 text-rose-600" />}
                               {(c.prizes || []).length} prize{(c.prizes || []).length > 1 ? 's' : ''}
                               {payablePrizes > 0 && (
                                 <span className="text-xs text-muted-foreground">
