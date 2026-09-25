@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Share2, Trophy, Gift, Sparkles, Globe, Layers, Menu } from 'lucide-react';
+import { Share2, Trophy, Gift, Sparkles, Globe, Layers, Menu, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Switch } from '../components/ui/switch';
@@ -10,6 +10,10 @@ import { featuresAllowedService } from '../services/featuresAllowedService';
 const DEFAULT_GIFT_QUEUE = 6;
 const MIN_GIFT_QUEUE = 1;
 const MAX_GIFT_QUEUE = 12;
+
+const DEFAULT_GIFT_AUDIO_VOLUME = 15;
+const MIN_GIFT_AUDIO_VOLUME = 0;
+const MAX_GIFT_AUDIO_VOLUME = 100;
 
 const PROFILE_MENU_ITEMS = [
   { key: 'messages', label: 'Messages' },
@@ -46,6 +50,12 @@ const clampGiftQueue = (raw) => {
   return Math.max(MIN_GIFT_QUEUE, Math.min(MAX_GIFT_QUEUE, Math.round(n)));
 };
 
+const clampGiftAudioVolume = (raw) => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return DEFAULT_GIFT_AUDIO_VOLUME;
+  return Math.max(MIN_GIFT_AUDIO_VOLUME, Math.min(MAX_GIFT_AUDIO_VOLUME, Math.round(n)));
+};
+
 const FeaturesAllowed = () => {
   const [settings, setSettings] = useState({
     referral: true,
@@ -54,9 +64,11 @@ const FeaturesAllowed = () => {
     mysteryWheel: true,
     coinsWebsite: false,
     maxGiftAnimationQueue: DEFAULT_GIFT_QUEUE,
+    giftAudioVolumePercent: DEFAULT_GIFT_AUDIO_VOLUME,
     profileMenu: { ...DEFAULT_PROFILE_MENU },
   });
   const [queueDraft, setQueueDraft] = useState(String(DEFAULT_GIFT_QUEUE));
+  const [volumeDraft, setVolumeDraft] = useState(String(DEFAULT_GIFT_AUDIO_VOLUME));
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -65,6 +77,7 @@ const FeaturesAllowed = () => {
       setLoading(true);
       const data = await featuresAllowedService.getSettings();
       const queue = clampGiftQueue(data?.maxGiftAnimationQueue ?? DEFAULT_GIFT_QUEUE);
+      const volume = clampGiftAudioVolume(data?.giftAudioVolumePercent ?? DEFAULT_GIFT_AUDIO_VOLUME);
       setSettings({
         referral: data?.referral !== false,
         contest: data?.contest !== false,
@@ -72,9 +85,11 @@ const FeaturesAllowed = () => {
         mysteryWheel: data?.mysteryWheel !== false,
         coinsWebsite: data?.coinsWebsite === true,
         maxGiftAnimationQueue: queue,
+        giftAudioVolumePercent: volume,
         profileMenu: normalizeProfileMenu(data?.profileMenu),
       });
       setQueueDraft(String(queue));
+      setVolumeDraft(String(volume));
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to load feature settings');
     } finally {
@@ -208,6 +223,25 @@ const FeaturesAllowed = () => {
       toast.success(`Live gift queue set to ${saved} (playing + waiting)`);
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to update gift queue size');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleSaveGiftAudioVolume = async () => {
+    const next = clampGiftAudioVolume(volumeDraft);
+    setVolumeDraft(String(next));
+    try {
+      setUpdating(true);
+      const updated = await featuresAllowedService.updateSettings({
+        giftAudioVolumePercent: next,
+      });
+      const saved = clampGiftAudioVolume(updated?.giftAudioVolumePercent ?? next);
+      setSettings((prev) => ({ ...prev, giftAudioVolumePercent: saved }));
+      setVolumeDraft(String(saved));
+      toast.success(`Default gift audio volume set to ${saved}%`);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update gift audio volume');
     } finally {
       setUpdating(false);
     }
@@ -458,6 +492,52 @@ const FeaturesAllowed = () => {
           <p className="text-sm text-muted-foreground">
             Allowed range {MIN_GIFT_QUEUE}–{MAX_GIFT_QUEUE}. Default is {DEFAULT_GIFT_QUEUE}.
             Higher values can slow or crash live on older phones.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="border-l-4 border-l-indigo-500">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <Volume2 className="h-5 w-5 text-indigo-600" />
+            Default gift audio volume (%)
+          </CardTitle>
+          <CardDescription className="mt-1">
+            Controls the default playback volume for live gift audio sounds and videos (0% = silent, 100% = max volume).
+            Applies across all live stream sessions when gift audio is enabled by the streamer.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="number"
+              min={MIN_GIFT_AUDIO_VOLUME}
+              max={MAX_GIFT_AUDIO_VOLUME}
+              step={1}
+              inputMode="numeric"
+              className="w-24"
+              value={volumeDraft}
+              onChange={(e) => setVolumeDraft(e.target.value)}
+              disabled={loading || updating}
+            />
+            <Button
+              type="button"
+              onClick={handleSaveGiftAudioVolume}
+              disabled={
+                loading ||
+                updating ||
+                clampGiftAudioVolume(volumeDraft) === settings.giftAudioVolumePercent
+              }
+            >
+              Save
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Current: {settings.giftAudioVolumePercent}%
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Allowed range {MIN_GIFT_AUDIO_VOLUME}%–{MAX_GIFT_AUDIO_VOLUME}%. Default is {DEFAULT_GIFT_AUDIO_VOLUME}%.
+            Recommended setting is 10%–25% so gift sounds don&apos;t overpower host mic audio.
           </p>
         </CardContent>
       </Card>
