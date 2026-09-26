@@ -39,6 +39,7 @@ import {
   ShieldHalf,
   Crown,
   TrendingUp,
+  FlaskConical,
   BadgeCheck,
   Gem,
   LifeBuoy,
@@ -165,6 +166,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Money Flow',
       href: '/finance',
       icon: TrendingUp,
+    },
+    {
+      name: 'Test Accounts',
+      href: '/test-accounts',
+      icon: FlaskConical,
     },
     {
       name: 'Top Spenders',

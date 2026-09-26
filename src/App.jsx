@@ -46,6 +46,7 @@ import WithdrawRequestDetails from './pages/WithdrawRequestDetails';
 import WithdrawRequestStreamDetails from './pages/WithdrawRequestStreamDetails';
 import TopSpenders from './pages/TopSpenders';
 import FinanceOverview from './pages/FinanceOverview';
+import TestAccounts from './pages/TestAccounts';
 import Referrals from './pages/Referrals';
 import GifterPayoutDetails from './pages/GifterPayoutDetails';
 import GifterRecipientsLookup from './pages/GifterRecipientsLookup';
@@ -299,6 +300,17 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <FinanceOverview />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/test-accounts"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <TestAccounts />
                 </AdminLayout>
               </ProtectedRoute>
             }
