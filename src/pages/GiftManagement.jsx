@@ -1628,7 +1628,7 @@ const GiftManagement = () => {
                   </span>
                 </div>
                 {wheelForm.segments.map((s, idx) => (
-                  <div key={idx} className="flex items-end gap-2">
+                  <div key={idx} className="flex flex-wrap items-end gap-2">
                     <div className="w-10 space-y-1">
                       <Label className="text-[10px] text-muted-foreground">Color</Label>
                       <input
@@ -1638,7 +1638,7 @@ const GiftManagement = () => {
                         className="h-9 w-10 rounded border border-input bg-background p-0.5"
                       />
                     </div>
-                    <div className="flex-1 space-y-1">
+                    <div className="min-w-[110px] flex-1 space-y-1">
                       <Label className="text-[10px] text-muted-foreground">Label</Label>
                       <Input
                         value={s.label}
