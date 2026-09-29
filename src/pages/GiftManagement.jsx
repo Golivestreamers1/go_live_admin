@@ -31,6 +31,7 @@ import {
   isGatedCategoryTab,
   needsCrownGate,
   needsRoleGate,
+  defaultCategoryKey,
 } from '../utils/giftCategoryHelpers';
 
 const PRIZE_RECIPIENTS = [
@@ -1569,7 +1570,13 @@ const GiftManagement = () => {
                 <select
                   id="prizeRecipient"
                   value={wheelForm.prizeRecipient}
-                  onChange={(e) => setWheelForm((f) => ({ ...f, prizeRecipient: e.target.value }))}
+                  onChange={(e) =>
+                    setWheelForm((f) => ({
+                      ...f,
+                      prizeRecipient: e.target.value,
+                      prizeCurrency: e.target.value === 'viewer' ? 'coins' : 'rubies',
+                    }))
+                  }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {PRIZE_RECIPIENTS.map((o) => (
@@ -1627,7 +1634,7 @@ const GiftManagement = () => {
                   </span>
                 </div>
                 {wheelForm.segments.map((s, idx) => (
-                  <div key={idx} className="flex items-end gap-2">
+                  <div key={idx} className="flex flex-wrap items-end gap-2">
                     <div className="w-10 space-y-1">
                       <Label className="text-[10px] text-muted-foreground">Color</Label>
                       <input
@@ -1637,7 +1644,7 @@ const GiftManagement = () => {
                         className="h-9 w-10 rounded border border-input bg-background p-0.5"
                       />
                     </div>
-                    <div className="flex-1 space-y-1">
+                    <div className="min-w-[110px] flex-1 space-y-1">
                       <Label className="text-[10px] text-muted-foreground">Label</Label>
                       <Input
                         value={s.label}
