@@ -31,6 +31,7 @@ import {
   isGatedCategoryTab,
   needsCrownGate,
   needsRoleGate,
+  defaultCategoryKey,
 } from '../utils/giftCategoryHelpers';
 
 const PRIZE_RECIPIENTS = [
