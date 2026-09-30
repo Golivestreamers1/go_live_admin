@@ -199,6 +199,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Ban,
     },
     {
+      name: 'Blocked Email Domains',
+      href: '/blocked-domains',
+      icon: ShieldAlert,
+    },
+    {
       name: 'Reported Posts',
       href: '/reported-posts',
       icon: FileWarning,
