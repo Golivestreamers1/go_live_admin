@@ -37,6 +37,7 @@ import {
   Sparkles,
   UserPlus,
   ShieldHalf,
+  ShieldAlert,
   Crown,
   TrendingUp,
   FlaskConical,
