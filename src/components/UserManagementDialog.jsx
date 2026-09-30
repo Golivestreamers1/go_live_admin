@@ -52,7 +52,8 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
     username: '',
     isActive: true,
     isVerified: false,
-    roleId: ''
+    roleId: '',
+    adminPermissions: [],
   });
 
   // Verification toggle state
@@ -64,6 +65,7 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
   const [error, setError] = useState('');
   const [roles, setRoles] = useState([]);
   const [rolesLoading, setRolesLoading] = useState(false);
+  const [permissionPages, setPermissionPages] = useState([]);
 
   // Password reset state
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
@@ -99,7 +101,8 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
         username: user.username || '',
         isActive: user.isActive ?? true,
         isVerified: user.isVerified ?? false,
-        roleId: user.role?._id || ''
+        roleId: user.role?._id || '',
+        adminPermissions: user.adminPermissions || []
       });
     }
     setError('');
@@ -123,6 +126,8 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
       if (response.data.success) {
         setRoles(response.data.data || []);
       }
+      const permissions = await api.get('/admin/roles/permissions');
+      setPermissionPages(permissions.data.data?.pages || []);
     } catch (err) {
       console.error('Failed to fetch roles:', err);
       setError('Failed to load roles');
@@ -243,13 +248,20 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
   const handleRoleChange = (roleId) => {
     setFormData(prev => ({
       ...prev,
-      roleId
+      roleId,
+      adminPermissions: ['staff', 'moderator'].includes(roleId)
+        ? prev.adminPermissions
+        : []
     }));
     if (error) setError('');
   };
 
   const handleSave = async () => {
     if (!user?._id) return;
+    if (canManageRoles() && ['staff', 'moderator'].includes(formData.roleId) && !formData.adminPermissions.length) {
+      setError('Select at least one page for this staff account');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -264,7 +276,10 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
         email: formData.email,
         username: formData.username,
         isActive: formData.isActive,
-        ...(roleChanged && { role: formData.roleId }) // Send ObjectId, not name
+        ...(roleChanged && { role: formData.roleId }),
+        ...(canManageRoles() && ['staff', 'moderator'].includes(formData.roleId)
+          ? { adminPermissions: formData.adminPermissions }
+          : {})
       };
 
       const response = await api.put(`/admin/users/${user._id}`, updateData);
@@ -291,7 +306,8 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
       username: user.username || '',
       isActive: user.isActive ?? true,
       isVerified: user.isVerified ?? false,
-      roleId: user.role?._id || ''
+      roleId: user.role?._id || '',
+      adminPermissions: user.adminPermissions || []
     });
     setIsEditing(false);
     setError('');
@@ -539,6 +555,35 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
                   </Select>
                 )}
               </div>
+
+              {canManageRoles() && ['staff', 'moderator'].includes(formData.roleId) && (
+                <div className="space-y-3 rounded-lg border p-4">
+                  <div>
+                    <Label>Staff page access</Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      These permissions apply only to this staff account.
+                    </p>
+                  </div>
+                  <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto">
+                    {permissionPages.map((page) => (
+                      <label key={page.key} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={formData.adminPermissions.includes(page.key)}
+                          onChange={() => setFormData((prev) => ({
+                            ...prev,
+                            adminPermissions: prev.adminPermissions.includes(page.key)
+                              ? prev.adminPermissions.filter((key) => key !== page.key)
+                              : [...prev.adminPermissions, page.key],
+                          }))}
+                          disabled={!canManageUser() || !isEditing || loading}
+                        />
+                        {page.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
             </div>
 

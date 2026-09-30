@@ -75,7 +75,6 @@ import MarketplacePriceHistory from './pages/MarketplacePriceHistory';
 import IpBans from './pages/IpBans';
 import FeedAlgorithmSettings from './pages/FeedAlgorithmSettings';
 import PostManagement from './pages/PostManagement';
-import StaffAccess from './pages/StaffAccess';
 import { canAccessAdminPath, getFirstAccessiblePath, isStaff } from './lib/adminAccess';
 import api from './services/api';
 
@@ -121,7 +120,7 @@ function App() {
         const userData = JSON.parse(savedUser);
         if (isStaff(userData)) {
           const response = await api.get('/admin/roles/permissions');
-          userData.staffPages = response.data.data?.staffPages || [];
+            userData.staffPages = response.data.data?.userPages || [];
           localStorage.setItem('adminUser', JSON.stringify(userData));
         }
         if (!cancelled) setUser(userData);
@@ -814,17 +813,6 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <Settings />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/staff-access"
-            element={
-              <ProtectedRoute>
-                <AdminLayout user={user} onLogout={handleLogout}>
-                  <StaffAccess />
                 </AdminLayout>
               </ProtectedRoute>
             }
