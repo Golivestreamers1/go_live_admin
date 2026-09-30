@@ -104,7 +104,6 @@ const LiveStreamsManagement = () => {
         mode: liveById.get(String(s._id))?.mode || deriveMode(s),
         isBoxGuest: Boolean(s.boxPartyHostStreamId),
         viewersNow: liveById.get(String(s._id))?.viewersNow ?? 0,
-        appViewerCount: liveById.get(String(s._id))?.appViewerCount ?? 0,
       })),
     [streams, liveById],
   );
@@ -124,10 +123,10 @@ const LiveStreamsManagement = () => {
   // Sessions, not rows: a battle is 2 streams and a box party is host + guests.
   const stats = {
     battles: live?.battlesInProgress ?? 0,
-    boxes: live?.boxPartiesInProgress ?? 0,
-    singles: live?.singleStreamsLive ?? 0,
-    watchingNow: live?.liveViewersNow ?? 0,
-    appViewers: live?.appViewersTotal ?? 0,
+    viewers: live?.liveViewersNow ?? 0,
+    streamers: live?.streamersOnline ?? 0,
+    peopleInBoxes: live?.peopleInBoxes ?? 0,
+    loggedInUsers: live?.loggedInUsers ?? 0,
   };
 
   const handleConfirmEnd = async () => {
@@ -170,25 +169,19 @@ const LiveStreamsManagement = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Active streams</div>
-              <div className="text-2xl font-bold">{mappedStreams.length}</div>
+              <div className="text-2xl font-bold">{live?.activeStreams ?? 0}</div>
             </CardContent>
           </Card>
-          <Card title="Connected right now">
+          <Card title="Viewers connected to live streams right now">
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Watching now</div>
-              <div className="text-2xl font-bold">{stats.watchingNow}</div>
-            </CardContent>
-          </Card>
-          <Card title="What the app displays: everyone who joined this session">
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Viewers (as in app)</div>
-              <div className="text-2xl font-bold">{stats.appViewers}</div>
+              <div className="text-xs text-muted-foreground">Active live viewers</div>
+              <div className="text-2xl font-bold">{stats.viewers}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Single</div>
-              <div className="text-2xl font-bold">{stats.singles}</div>
+              <div className="text-xs text-muted-foreground">Streamers live</div>
+              <div className="text-2xl font-bold">{stats.streamers}</div>
             </CardContent>
           </Card>
           <Card>
@@ -199,8 +192,16 @@ const LiveStreamsManagement = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Box parties</div>
-              <div className="text-2xl font-bold">{stats.boxes}</div>
+              <div className="text-xs text-muted-foreground">People in boxes</div>
+              <div className="text-2xl font-bold">{stats.peopleInBoxes}</div>
+              <div className="text-[11px] text-muted-foreground">Hosts and guests</div>
+            </CardContent>
+          </Card>
+          <Card title="App sessions with a heartbeat in the last 10 minutes">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">People logged in</div>
+              <div className="text-2xl font-bold">{stats.loggedInUsers}</div>
+              <div className="text-[11px] text-muted-foreground">Active in app</div>
             </CardContent>
           </Card>
         </div>
@@ -243,12 +244,7 @@ const LiveStreamsManagement = () => {
                       <TableHead>Streamer</TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead>Mode</TableHead>
-                      <TableHead className="text-right" title="Connected right now">
-                        Watching now
-                      </TableHead>
-                      <TableHead className="text-right" title="Number shown in the app: everyone who joined this session">
-                        App count
-                      </TableHead>
+                      <TableHead className="text-right" title="Viewers connected to this live stream right now">Active viewers</TableHead>
                       <TableHead>Provider</TableHead>
                       <TableHead className="text-right">Duration</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -288,10 +284,7 @@ const LiveStreamsManagement = () => {
                             <span className="ml-1 text-xs text-muted-foreground">guest</span>
                           ) : null}
                         </TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums">
-                          {stream.viewersNow}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{stream.appViewerCount}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{stream.viewersNow}</TableCell>
                         <TableCell className="capitalize text-muted-foreground">
                           {stream.provider}
                         </TableCell>
