@@ -43,6 +43,8 @@ const UserJourneyExplorer = () => {
   const [hasMoreUsers, setHasMoreUsers] = useState(true);
   const [hasMoreLogs, setHasMoreLogs] = useState(true);
   const [error, setError] = useState(null);
+  
+  const [usersData, setUsersData] = useState({});
 
   const observer = useRef();
 
@@ -71,6 +73,9 @@ const UserJourneyExplorer = () => {
       setError(null);
       const res = await getUserJourney("", range === 'custom' ? "" : range, 50, "", range === 'custom' ? startDate : "", range === 'custom' ? endDate : ""); // Fetch smaller chunk initially
       const logs = res.data || [];
+      if (res.users) {
+        setUsersData(prev => ({ ...prev, ...res.users }));
+      }
       setAllLogs(logs);
       setHasMoreUsers(logs.length >= 50);
       parseUsersFromLogs(logs);
@@ -89,8 +94,10 @@ const UserJourneyExplorer = () => {
       const cursor = allLogs.length > 0 ? allLogs[allLogs.length - 1].timestamp : "";
       const res = await getUserJourney("", range === 'custom' ? "" : range, 50, cursor, range === 'custom' ? startDate : "", range === 'custom' ? endDate : "");
       const newLogs = res.data || [];
+      if (res.users) {
+        setUsersData(prev => ({ ...prev, ...res.users }));
+      }
       
-      // If we got exactly the same last log, Loki pagination might have overlapped, but usually end is exclusive or we deduplicate
       const combined = [...allLogs, ...newLogs];
       setAllLogs(combined);
       setHasMoreUsers(newLogs.length >= 50);
@@ -121,6 +128,9 @@ const UserJourneyExplorer = () => {
       setError(null);
       setSelectedUser(uid);
       const res = await getUserJourney(uid, range === 'custom' ? "" : range, 50, "", range === 'custom' ? startDate : "", range === 'custom' ? endDate : "");
+      if (res.users) {
+        setUsersData(prev => ({ ...prev, ...res.users }));
+      }
       setUserLogs(res.data || []);
       setHasMoreLogs((res.data || []).length >= 50);
       setLogFilterText('');
@@ -138,6 +148,9 @@ const UserJourneyExplorer = () => {
       setLoadingMore(true);
       const cursor = userLogs.length > 0 ? userLogs[userLogs.length - 1].timestamp : "";
       const res = await getUserJourney(selectedUser, range === 'custom' ? "" : range, 50, cursor, range === 'custom' ? startDate : "", range === 'custom' ? endDate : "");
+      if (res.users) {
+        setUsersData(prev => ({ ...prev, ...res.users }));
+      }
       const newLogs = res.data || [];
       setUserLogs([...userLogs, ...newLogs]);
       setHasMoreLogs(newLogs.length >= 50);
@@ -237,7 +250,7 @@ const UserJourneyExplorer = () => {
           </h1>
           <p className="text-muted-foreground mt-1">
             {selectedUser 
-              ? `Tracing path for user: ${selectedUser}` 
+              ? `Tracing path for user: ${usersData[selectedUser]?.username || selectedUser}` 
               : "Showing active users from recent logs (Auto-paginated)"}
           </p>
         </div>
@@ -296,12 +309,16 @@ const UserJourneyExplorer = () => {
             >
               <CardContent className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 bg-blue-50 group-hover:bg-blue-100 rounded-full flex items-center justify-center transition-colors">
-                    <Users className="w-6 h-6 text-blue-600" />
-                  </div>
+                  {usersData[u.id]?.avatar ? (
+                    <img src={usersData[u.id].avatar} alt="Avatar" className="h-12 w-12 rounded-full object-cover border border-slate-200 shadow-sm" />
+                  ) : (
+                    <div className="h-12 w-12 bg-blue-50 group-hover:bg-blue-100 rounded-full flex items-center justify-center transition-colors">
+                      <Users className="w-6 h-6 text-blue-600" />
+                    </div>
+                  )}
                   <div>
                     <div className="font-semibold text-slate-800 text-sm" title={u.id}>
-                      User ID: {u.id.substring(0, 8)}...
+                      {usersData[u.id]?.username ? usersData[u.id].username : `User ID: ${u.id.substring(0, 8)}...`}
                     </div>
                     <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                       <Activity className="w-3 h-3 text-green-500" /> {u.count} recorded actions
