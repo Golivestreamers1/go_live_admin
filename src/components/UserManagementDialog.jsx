@@ -31,6 +31,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import api from '../services/api';
+import { isFullAdmin } from '../lib/adminAccess';
 import { userService } from '../services/userService';
 import { toast } from 'sonner';
 
@@ -85,6 +86,8 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
     const currentUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
     return user && currentUser.role?.level > user.role?.level;
   };
+
+  const canManageRoles = () => isFullAdmin(JSON.parse(localStorage.getItem('adminUser') || '{}'));
 
   // Initialize form data when user changes
   useEffect(() => {
@@ -142,10 +145,11 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
     switch (roleName) {
       case 'SUPER_ADMIN':
         return 'destructive';
+      case 'STAFF':
+      case 'MODERATOR':
+        return 'secondary';
       case 'ADMIN':
         return 'default';
-      case 'STAFF':
-        return 'secondary';
       case 'USER':
         return 'outline';
       default:
@@ -517,7 +521,7 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
                     value={formData.roleId}
                     onValueChange={handleRoleChange}
                     placeholder="Select a role"
-                    disabled={!canManageUser() || !isEditing || loading}
+                    disabled={!canManageRoles() || !canManageUser() || !isEditing || loading}
                   >
                     {roles.map((role) => (
                       <SelectItem key={role._id} value={role._id}>
