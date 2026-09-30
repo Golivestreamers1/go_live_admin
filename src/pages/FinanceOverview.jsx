@@ -401,7 +401,8 @@ const FinanceOverview = () => {
         <Stat label="Platform net (cash)" value={usd(h.cashNetUsd)} sub={`${pct(h.cashMarginPct)} margin`} emphasis />
       </div>
 
-      {/* Revenue by source */}
+      {/* Revenue by source — only when the backend sends merch + premium (older backends don't). */}
+      {data.merch && data.subscriptions?.premium ? (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Revenue by source</CardTitle>
@@ -497,6 +498,7 @@ const FinanceOverview = () => {
           </p>
         </CardContent>
       </Card>
+      ) : null}
 
       {/* Accrual vs cash */}
       <div className="grid gap-4 lg:grid-cols-3">

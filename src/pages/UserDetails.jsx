@@ -548,6 +548,10 @@ export default function UserDetails() {
   const [adjustRubyDirection, setAdjustRubyDirection] = useState('credit');
   // 'wallet' = spendable rubies; 'lifetime' = lifetimeRubies only (no wallet / cash impact).
   const [adjustRubyTarget, setAdjustRubyTarget] = useState('wallet');
+  // An older backend ignores `target` and would credit the WALLET instead, so only offer
+  // lifetime once the backend proves support (its audit reports admin lifetime adjustments).
+  const lifetimeAdjustSupported =
+    lifetimeAudit?.breakdown != null && 'adminLifetimeAdjustments' in lifetimeAudit.breakdown;
   const [adjustRubyAmount, setAdjustRubyAmount] = useState('');
   const [adjustRubyReason, setAdjustRubyReason] = useState('');
   const [adjustRubyConfirmOpen, setAdjustRubyConfirmOpen] = useState(false);
@@ -909,6 +913,10 @@ export default function UserDetails() {
   const submitAdjustRubies = async () => {
     if (adjustRubyConfirmText !== 'CONFIRM') {
       toast.error('Type CONFIRM to proceed');
+      return;
+    }
+    if (adjustRubyTarget === 'lifetime' && !lifetimeAdjustSupported) {
+      toast.error('Lifetime adjustment needs the updated backend');
       return;
     }
     try {
@@ -1659,16 +1667,25 @@ export default function UserDetails() {
                     />
                     <span className="font-medium">Wallet rubies</span>
                   </label>
-                  <label className="inline-flex items-center gap-2 text-sm">
+                  <label
+                    className={`inline-flex items-center gap-2 text-sm ${lifetimeAdjustSupported ? '' : 'opacity-50'}`}
+                    title={lifetimeAdjustSupported ? undefined : 'Needs the updated backend (lifetime audit must report admin adjustments)'}
+                  >
                     <input
                       type="radio"
                       name="adjust-ruby-target"
                       value="lifetime"
                       checked={adjustRubyTarget === 'lifetime'}
                       onChange={() => setAdjustRubyTarget('lifetime')}
+                      disabled={!lifetimeAdjustSupported}
                     />
                     <span className="font-medium">Lifetime rubies</span>
                   </label>
+                  {!lifetimeAdjustSupported ? (
+                    <span className="text-[11px] text-muted-foreground">
+                      (available once the lifetime audit loads from an updated backend)
+                    </span>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-4">
                   <label className="inline-flex items-center gap-2 text-sm">
