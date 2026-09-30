@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog';
-import { Radio, Eye, Users, Swords, Boxes, Square, Search } from 'lucide-react';
+import { Radio, Eye, Users, UserCheck, Swords, Boxes, Square, Search } from 'lucide-react';
 import dashboardService from '../../services/dashboardService';
 import { usePolling } from '../../hooks/usePolling';
 import RefreshControl from './RefreshControl';
@@ -90,38 +90,42 @@ const LiveNowCard = () => {
       label: 'Active Streams',
       value: data?.activeStreams ?? '—',
       accent: 'bg-red-100 text-red-600',
+      hint: 'Live host streams',
     },
     {
       icon: Eye,
-      label: 'Watching Now',
+      label: 'Active Live Viewers',
       value: data?.liveViewersNow ?? '—',
       accent: 'bg-blue-100 text-blue-600',
-      hint: 'Connected right now',
-    },
-    {
-      icon: Eye,
-      label: 'Viewers (as in app)',
-      value: data?.appViewersTotal ?? '—',
-      accent: 'bg-sky-100 text-sky-600',
-      hint: 'Everyone who joined this session',
+      hint: 'Connected to live streams right now',
     },
     {
       icon: Users,
-      label: 'Streamers Online',
+      label: 'Streamers Live',
       value: data?.streamersOnline ?? '—',
       accent: 'bg-emerald-100 text-emerald-600',
+      hint: 'Unique streamers currently live',
     },
     {
       icon: Swords,
       label: 'Battles',
       value: data?.battlesInProgress ?? '—',
       accent: 'bg-amber-100 text-amber-600',
+      hint: 'Active battle sessions',
     },
     {
       icon: Boxes,
-      label: 'Box Parties',
-      value: data?.boxPartiesInProgress ?? '—',
+      label: 'People in Boxes',
+      value: data?.peopleInBoxes ?? '—',
       accent: 'bg-violet-100 text-violet-600',
+      hint: 'Hosts and guests currently in live boxes',
+    },
+    {
+      icon: UserCheck,
+      label: 'People Logged In',
+      value: data?.loggedInUsers ?? '—',
+      accent: 'bg-cyan-100 text-cyan-600',
+      hint: 'App session heartbeat in the last 10 minutes',
     },
   ];
 
@@ -209,12 +213,7 @@ const LiveNowCard = () => {
                       <TableRow>
                         <TableHead>Streamer</TableHead>
                         <TableHead>Title</TableHead>
-                        <TableHead className="text-right" title="Connected right now">
-                          Watching now
-                        </TableHead>
-                        <TableHead className="text-right" title="Number shown in the app: everyone who joined this session">
-                          App count
-                        </TableHead>
+                        <TableHead className="text-right" title="Viewers connected to this live stream right now">Active viewers</TableHead>
                         <TableHead className="text-right">Peak</TableHead>
                         <TableHead>Mode</TableHead>
                         <TableHead>Provider</TableHead>
@@ -239,7 +238,6 @@ const LiveNowCard = () => {
                             {s.title || <span className="italic">untitled</span>}
                           </TableCell>
                           <TableCell className="text-right font-semibold">{s.viewersNow}</TableCell>
-                          <TableCell className="text-right">{s.appViewerCount ?? s.uniqueViewers}</TableCell>
                           <TableCell className="text-right">{s.peak}</TableCell>
                           <TableCell>
                             <Badge variant={modeBadgeVariant(s.mode)} className="capitalize">

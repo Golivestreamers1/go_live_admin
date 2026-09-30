@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
 import AdminLayout from './components/AdminLayout';
@@ -74,6 +74,9 @@ import MarketplacePriceHistory from './pages/MarketplacePriceHistory';
 import IpBans from './pages/IpBans';
 import FeedAlgorithmSettings from './pages/FeedAlgorithmSettings';
 import PostManagement from './pages/PostManagement';
+import StaffAccess from './pages/StaffAccess';
+import { canAccessAdminPath, getFirstAccessiblePath, isStaff } from './lib/adminAccess';
+import api from './services/api';
 
 // Auth check: token + user with admin/moderator level (level >= 3 or role name)
 const isAuthenticated = () => {
@@ -93,8 +96,13 @@ const isAuthenticated = () => {
 };
 
 const ProtectedRoute = ({ children }) => {
+  const location = useLocation();
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
+  }
+  const user = JSON.parse(localStorage.getItem('adminUser') || '{}');
+  if (!canAccessAdminPath(user, location.pathname)) {
+    return <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6"><div className="max-w-md rounded-lg border bg-white p-8 text-center"><h1 className="text-xl font-semibold">Page access not assigned</h1><p className="mt-2 text-sm text-muted-foreground">Contact an admin if you need access to this page.</p></div></div>;
   }
   return children;
 };
@@ -104,23 +112,39 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Check for existing authentication on app load
-    const savedUser = localStorage.getItem('adminUser');
-    if (savedUser && isAuthenticated()) {
+    let cancelled = false;
+    const restoreSession = async () => {
+      const savedUser = localStorage.getItem('adminUser');
+      if (!savedUser || !isAuthenticated()) return;
       try {
-        setUser(JSON.parse(savedUser));
+        const userData = JSON.parse(savedUser);
+        if (isStaff(userData)) {
+          const response = await api.get('/admin/roles/permissions');
+          userData.staffPages = response.data.data?.staffPages || [];
+          localStorage.setItem('adminUser', JSON.stringify(userData));
+        }
+        if (!cancelled) setUser(userData);
       } catch {
-        // Clear invalid user data
-        localStorage.removeItem('adminUser');
-        localStorage.removeItem('adminAccessToken');
-        localStorage.removeItem('adminRefreshToken');
+        if (!localStorage.getItem('adminAccessToken')) return;
+        const current = localStorage.getItem('adminUser');
+        try {
+          const userData = JSON.parse(current || '{}');
+          if (isStaff(userData)) userData.staffPages = [];
+          if (!cancelled) setUser(userData);
+        } catch {
+          localStorage.removeItem('adminUser');
+          localStorage.removeItem('adminAccessToken');
+          localStorage.removeItem('adminRefreshToken');
+        }
       }
-    }
+    };
+    void restoreSession();
+    return () => { cancelled = true; };
   }, []);
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
-    window.location.href = '/'; // Redirect to dashboard
+    window.location.href = getFirstAccessiblePath(userData);
   };
 
   const handleLogout = () => {
@@ -777,6 +801,17 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <Settings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/staff-access"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <StaffAccess />
                 </AdminLayout>
               </ProtectedRoute>
             }

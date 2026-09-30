@@ -58,6 +58,7 @@ import {
   ListOrdered,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
+import { canAccessAdminPath } from '../lib/adminAccess';
 
 const AdminLayout = ({ children, user, onLogout }) => {
   const location = useLocation();
@@ -407,7 +408,14 @@ const AdminLayout = ({ children, user, onLogout }) => {
       href: '/fraud-cascade',
       icon: AlertTriangle,
     });
+    navigation.push({ name: 'Staff Access', href: '/staff-access', icon: Shield });
   }
+
+  const visibleNavigation = navigation
+    .map((item) => item.isGroup
+      ? { ...item, children: item.children.filter((child) => canAccessAdminPath(user, child.href)) }
+      : item)
+    .filter((item) => item.isGroup ? item.children.length > 0 : canAccessAdminPath(user, item.href));
 
   const handleLogout = () => {
     if (onLogout) {
@@ -448,7 +456,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
             </Button>
           </div>
           <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-1">
-            {navigation.map((item) => {
+            {visibleNavigation.map((item) => {
               const Icon = item.icon;
 
               if (item.isGroup) {
@@ -533,7 +541,7 @@ const AdminLayout = ({ children, user, onLogout }) => {
         </div>
 
         <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-1">
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const Icon = item.icon;
 
             if (item.isGroup) {
