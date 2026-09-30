@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import { Button } from './ui/button';
 import {
   LayoutDashboard,
+  Activity,
   Users,
   Settings,
   Shield,
@@ -122,6 +123,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'Dashboard',
       href: '/',
       icon: LayoutDashboard,
+    },
+    {
+      name: 'User Journey',
+      href: '/user-journey',
+      icon: TrendingUp,
     },
     {
       name: 'App Stability',
