@@ -73,6 +73,7 @@ import MarketplaceEarnings from './pages/MarketplaceEarnings';
 import MarketplaceBanners from './pages/MarketplaceBanners';
 import MarketplacePriceHistory from './pages/MarketplacePriceHistory';
 import IpBans from './pages/IpBans';
+import BlockedDomains from './pages/BlockedDomains';
 import FeedAlgorithmSettings from './pages/FeedAlgorithmSettings';
 import PostManagement from './pages/PostManagement';
 import { canAccessAdminPath, getFirstAccessiblePath, isStaff } from './lib/adminAccess';
@@ -565,6 +566,17 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <IpBans />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/blocked-domains"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <BlockedDomains />
                 </AdminLayout>
               </ProtectedRoute>
             }

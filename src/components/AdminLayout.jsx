@@ -38,6 +38,7 @@ import {
   Sparkles,
   UserPlus,
   ShieldHalf,
+  ShieldAlert,
   Crown,
   TrendingUp,
   FlaskConical,
@@ -203,6 +204,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'IP Bans',
       href: '/ip-bans',
       icon: Ban,
+    },
+    {
+      name: 'Blocked Email Domains',
+      href: '/blocked-domains',
+      icon: ShieldAlert,
     },
     {
       name: 'Reported Posts',
