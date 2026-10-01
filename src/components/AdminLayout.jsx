@@ -58,6 +58,7 @@ import {
   FileText,
   Trophy,
   ListOrdered,
+  Globe,
 } from 'lucide-react';
 import { supportService } from '../services/supportService';
 import { canAccessAdminPath } from '../lib/adminAccess';
@@ -336,6 +337,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       name: 'App Theme',
       href: '/theme',
       icon: Palette,
+    },
+    {
+      name: 'Localization',
+      href: '/localization',
+      icon: Globe,
     },
     // {
     //   name: 'QR Codes',
