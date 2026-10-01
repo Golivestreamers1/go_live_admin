@@ -10,3 +10,9 @@ export const getUserJourney = async (userId = "", range = "24h", limit = 100, cu
   const response = await api.get(url);
   return response.data;
 };
+
+// { start, end } are YYYY-MM-DD Eastern days (inclusive); cohort is all | new | old.
+export const getRetention = async ({ start, end, cohort }) => {
+  const response = await api.get("/admin/analytics/retention", { params: { start, end, cohort } });
+  return response.data.data;
+};
