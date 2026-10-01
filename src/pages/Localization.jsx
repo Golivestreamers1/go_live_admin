@@ -6,10 +6,17 @@ export default function Localization() {
   const [languages, setLanguages] = useState([]);
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // New Language state
   const [newLangCode, setNewLangCode] = useState('');
   const [newLangName, setNewLangName] = useState('');
   const [newLangNative, setNewLangNative] = useState('');
   const [newLangDirection, setNewLangDirection] = useState('ltr');
+
+  // New Key state
+  const [newKeyString, setNewKeyString] = useState('');
+  const [newKeyCategory, setNewKeyCategory] = useState('common');
+  const [newKeyNamespace, setNewKeyNamespace] = useState('mobile');
 
   useEffect(() => {
     fetchData();
@@ -51,6 +58,22 @@ export default function Localization() {
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add language');
+    }
+  };
+
+  const handleCreateKey = async (e) => {
+    e.preventDefault();
+    if (!newKeyString) return;
+    try {
+      await i18nAdminService.createKey({
+        key: newKeyString,
+        category: newKeyCategory,
+        namespace: newKeyNamespace
+      });
+      setNewKeyString('');
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to create key');
     }
   };
 
@@ -178,27 +201,71 @@ export default function Localization() {
       )}
 
       {activeTab === 'keys' && (
-        <div className="bg-white rounded shadow border overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Key String</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Namespace</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Variables</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {(Array.isArray(keys) ? keys : []).map(k => (
-                <tr key={k._id}>
-                  <td className="px-6 py-4 font-mono text-sm">{k.key}</td>
-                  <td className="px-6 py-4">{k.category}</td>
-                  <td className="px-6 py-4">{k.namespace}</td>
-                  <td className="px-6 py-4">{k.variables?.join(', ') || '-'}</td>
+        <div className="space-y-8">
+          {/* Create Key Form */}
+          <form onSubmit={handleCreateKey} className="bg-white p-4 rounded shadow border max-w-lg space-y-4">
+            <h2 className="text-lg font-semibold">Create New Translation Key</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Key String (e.g. common.watchNow)</label>
+              <input
+                type="text"
+                required
+                className="mt-1 block w-full border rounded p-2"
+                value={newKeyString}
+                onChange={e => setNewKeyString(e.target.value)}
+                placeholder="common.watchNow"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Category</label>
+              <input
+                type="text"
+                className="mt-1 block w-full border rounded p-2"
+                value={newKeyCategory}
+                onChange={e => setNewKeyCategory(e.target.value)}
+                placeholder="common"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Namespace</label>
+              <select
+                className="mt-1 block w-full border rounded p-2"
+                value={newKeyNamespace}
+                onChange={e => setNewKeyNamespace(e.target.value)}
+              >
+                <option value="mobile">mobile</option>
+                <option value="web">web</option>
+                <option value="admin">admin</option>
+              </select>
+            </div>
+            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+              Create Key
+            </button>
+          </form>
+
+          {/* Keys Table */}
+          <div className="bg-white rounded shadow border overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Key String</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Namespace</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Variables</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {(Array.isArray(keys) ? keys : []).map(k => (
+                  <tr key={k._id}>
+                    <td className="px-6 py-4 font-mono text-sm font-semibold text-gray-900">{k.key}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{k.category}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{k.namespace}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{k.variables?.join(', ') || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

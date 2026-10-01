@@ -6,6 +6,7 @@ export const i18nAdminService = {
   getLanguages: () => api.get(`${API_BASE}/languages`),
   addLanguage: (data) => api.post(`${API_BASE}/languages`, data),
   getKeys: () => api.get(`${API_BASE}/keys`),
+  createKey: (data) => api.post(`${API_BASE}/keys`, data),
   getMissingKeys: (lang) => api.get(`${API_BASE}/missing?language=${lang}`),
   upsertValue: (data) => api.post(`${API_BASE}/values`, data),
   publishRelease: (data) => api.post(`${API_BASE}/releases/publish`, data),
