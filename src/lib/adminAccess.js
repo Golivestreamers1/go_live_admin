@@ -10,7 +10,7 @@ const PAGE_PATHS = {
   gifter_recipients: ["/gifter-recipients"], gifts: ["/gifts"], gift_categories: ["/gift-categories"],
   promos: ["/promos", "/promo-codes"], blogs: ["/blogs"], contests: ["/contests"], banners: ["/banners"],
   support: ["/support"], support_settings: ["/support/settings"], iap: ["/iap"], features: ["/features-allowed"],
-  theme: ["/theme"],
+  theme: ["/theme"], retention: ["/retention"],
 };
 
 const roleName = (user) => String(user?.role?.name || user?.role || "").toUpperCase();

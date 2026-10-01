@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/AdminDashboard';
 import UserJourneyExplorer from './pages/UserJourneyExplorer';
+import RetentionActions from './pages/RetentionActions';
 import Stabilization from './pages/Stabilization';
 import OptimizationImpact from './pages/OptimizationImpact';
 import NativeImagesMemoryLeak from './pages/NativeImagesMemoryLeak';
@@ -180,6 +181,17 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <UserJourneyExplorer />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/retention"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <RetentionActions />
                 </AdminLayout>
               </ProtectedRoute>
             }

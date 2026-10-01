@@ -10,3 +10,8 @@ export const getUserJourney = async (userId = "", range = "24h", limit = 100, cu
   const response = await api.get(url);
   return response.data;
 };
+
+export const getCohortActions = async (data) => {
+  const response = await api.post("/admin/analytics/cohort-actions", data);
+  return response.data;
+};
