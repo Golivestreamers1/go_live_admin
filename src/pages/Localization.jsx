@@ -22,10 +22,14 @@ export default function Localization() {
         i18nAdminService.getLanguages(),
         i18nAdminService.getKeys()
       ]);
-      setLanguages(langRes.data || []);
-      setKeys(keyRes.data || []);
+      const rawLangs = langRes.data?.data || langRes.data;
+      const rawKeys = keyRes.data?.data || keyRes.data;
+      setLanguages(Array.isArray(rawLangs) ? rawLangs : []);
+      setKeys(Array.isArray(rawKeys) ? rawKeys : []);
     } catch (e) {
       console.error(e);
+      setLanguages([]);
+      setKeys([]);
     } finally {
       setLoading(false);
     }
@@ -150,7 +154,7 @@ export default function Localization() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {languages.map(lang => (
+                {(Array.isArray(languages) ? languages : []).map(lang => (
                   <tr key={lang.code}>
                     <td className="px-6 py-4 font-bold text-gray-900">{lang.code}</td>
                     <td className="px-6 py-4">{lang.name}</td>
@@ -185,7 +189,7 @@ export default function Localization() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {keys.map(k => (
+              {(Array.isArray(keys) ? keys : []).map(k => (
                 <tr key={k._id}>
                   <td className="px-6 py-4 font-mono text-sm">{k.key}</td>
                   <td className="px-6 py-4">{k.category}</td>
