@@ -131,6 +131,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: TrendingUp,
     },
     {
+      name: 'Retention',
+      href: '/retention',
+      icon: Activity,
+    },
+    {
       name: 'App Stability',
       href: '/stabilization',
       icon: ShieldHalf,
