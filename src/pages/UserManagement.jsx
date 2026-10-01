@@ -238,7 +238,7 @@ const UserManagement = () => {
               className="flex items-center gap-2"
             >
               <UserPlus className="h-4 w-4" />
-              Register User
+              Add User
             </Button>
           </div>
         </CardHeader>
@@ -476,6 +476,7 @@ const UserManagement = () => {
         isOpen={createUserDialogOpen}
         onClose={() => setCreateUserDialogOpen(false)}
         onUserCreated={handleUserCreated}
+        variant="admin-user"
       />
     </div>
   );

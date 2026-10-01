@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import { iconRecruiterService } from '../services/iconRecruiterService';
+import api from '../services/api';
+import { isFullAdmin } from '../lib/adminAccess';
 import { toast } from 'sonner';
 
 const SIGNUP_EMAIL_REGEX =
@@ -34,13 +36,18 @@ export const CreateUserDialog = ({
   variant = 'default',
 }) => {
   const isIconRecruiterRegister = variant === 'icon-recruiter-verified';
+  const isAdminUserCreation = variant === 'admin-user';
+  const canAssignRoles = isFullAdmin(JSON.parse(localStorage.getItem('adminUser') || '{}'));
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
     referralCode: '',
+    roleId: 'user',
+    adminPermissions: [],
   });
+  const [permissionPages, setPermissionPages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -54,12 +61,19 @@ export const CreateUserDialog = ({
         password: '',
         confirmPassword: '',
         referralCode: '',
+        roleId: 'user',
+        adminPermissions: [],
       });
       setErrors({});
       setShowPassword(false);
       setShowConfirmPassword(false);
+      if (isAdminUserCreation) {
+        api.get('/admin/roles/permissions')
+          .then((response) => setPermissionPages(response.data.data?.pages || []))
+          .catch((error) => toast.error(error.response?.data?.message || 'Failed to load page permissions'));
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, isAdminUserCreation]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -73,7 +87,7 @@ export const CreateUserDialog = ({
     const name = formData.name.trim();
     const email = formData.email.trim().toLowerCase();
 
-    if (!name) newErrors.name = 'Username is required';
+    if (!name) newErrors.name = 'Name is required';
     if (!email) newErrors.email = 'Email is required';
     else if (!SIGNUP_EMAIL_REGEX.test(email)) {
       newErrors.email = 'Please enter a valid email address';
@@ -88,6 +102,9 @@ export const CreateUserDialog = ({
       newErrors.confirmPassword = 'Please confirm the password';
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
+    }
+    if (isAdminUserCreation && canAssignRoles && formData.roleId === 'staff' && !formData.adminPermissions.length) {
+      newErrors.adminPermissions = 'Select at least one page for this staff account';
     }
 
     setErrors(newErrors);
@@ -107,6 +124,16 @@ export const CreateUserDialog = ({
             password: formData.password,
             referralCode: formData.referralCode,
           })
+        : isAdminUserCreation
+          ? await userService.createUser({
+              firstName: formData.name.trim(),
+              email: formData.email.trim(),
+              password: formData.password,
+              roleId: canAssignRoles ? formData.roleId : 'user',
+              ...(canAssignRoles && formData.roleId === 'staff'
+                ? { adminPermissions: formData.adminPermissions }
+                : {}),
+            })
         : await userService.registerUser({
             name: formData.name.trim(),
             email: formData.email.trim(),
@@ -115,24 +142,25 @@ export const CreateUserDialog = ({
           });
 
       toast.success(
-        result.message ||
+        (isAdminUserCreation ? 'User created successfully' : result.message) ||
           (isIconRecruiterRegister
             ? 'User registered and verified'
             : 'User registered successfully')
       );
-      if (!isIconRecruiterRegister) {
+      if (!isIconRecruiterRegister && !isAdminUserCreation) {
         toast.info('Verification OTP has been sent to the user email.', {
           duration: 8000,
         });
-      } else {
+      } else if (isIconRecruiterRegister) {
         toast.info(
           'User is verified. Recruiters can invite them within 48 hours.',
           { duration: 8000 }
         );
       }
 
-      if (onUserCreated && result.data) {
-        onUserCreated(result.data);
+      const createdUser = isAdminUserCreation ? result.user : result.data;
+      if (onUserCreated && createdUser) {
+        onUserCreated(createdUser);
       }
 
       onClose();
@@ -157,24 +185,26 @@ export const CreateUserDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
-            Register User
+            {isAdminUserCreation ? 'Create User' : 'Register User'}
           </DialogTitle>
           <DialogDescription>
             {isIconRecruiterRegister
               ? 'Creates a verified app account for icon recruiter host invites. No OTP email is sent.'
-              : 'Creates an app account via the public register API. The user will receive an OTP email to verify their account.'}
+              : isAdminUserCreation
+                ? 'Create an account and assign a role. Staff page access can be selected here.'
+                : 'Creates an app account via the public register API. The user will receive an OTP email to verify their account.'}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Username *</Label>
+              <Label htmlFor="name">Name *</Label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 id="name"
                 type="text"
-                placeholder="Enter username"
+                placeholder="Enter name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 className={`pl-10 ${errors.name ? 'border-red-500' : ''}`}
@@ -186,6 +216,57 @@ export const CreateUserDialog = ({
               <p className="text-sm text-red-500">{errors.name}</p>
             )}
           </div>
+
+          {isAdminUserCreation && canAssignRoles && (
+            <div className="space-y-2">
+              <Label htmlFor="new-user-role">Role</Label>
+              <select
+                id="new-user-role"
+                value={formData.roleId}
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    roleId: e.target.value,
+                    adminPermissions: e.target.value === 'staff' ? prev.adminPermissions : [],
+                  }));
+                  setErrors((prev) => ({ ...prev, adminPermissions: '' }));
+                }}
+                disabled={loading}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="user">User</option>
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+            </div>
+          )}
+
+          {isAdminUserCreation && canAssignRoles && formData.roleId === 'staff' && (
+            <div className="space-y-2 rounded-md border p-3">
+              <Label>Staff page access</Label>
+              <p className="text-xs text-muted-foreground">Choose the admin pages this staff account can access.</p>
+              <div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto">
+                {permissionPages.map((page) => (
+                  <label key={page.key} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={formData.adminPermissions.includes(page.key)}
+                      onChange={() => setFormData((prev) => ({
+                        ...prev,
+                        adminPermissions: prev.adminPermissions.includes(page.key)
+                          ? prev.adminPermissions.filter((key) => key !== page.key)
+                          : [...prev.adminPermissions, page.key],
+                      }))}
+                      disabled={loading}
+                    />
+                    {page.label}
+                  </label>
+                ))}
+              </div>
+              {errors.adminPermissions && <p className="text-sm text-red-500">{errors.adminPermissions}</p>}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="email">Email address *</Label>
@@ -308,12 +389,12 @@ export const CreateUserDialog = ({
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Registering...
+                  {isAdminUserCreation ? 'Creating...' : 'Registering...'}
                 </>
               ) : (
                 <>
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Register User
+                  {isAdminUserCreation ? 'Create User' : 'Register User'}
                 </>
               )}
             </Button>

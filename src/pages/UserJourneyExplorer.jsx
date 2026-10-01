@@ -4,8 +4,13 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { getUserJourney } from '../services/analyticsService';
 import { ArrowLeft, Users, Activity, Eye, Search, AlertCircle, TerminalSquare, Loader2 } from 'lucide-react';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+
+const toLocalDateTimeInput = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+};
 
 const getHumanReadableAction = (method, url, msg) => {
   if (msg) return msg;
@@ -207,28 +212,20 @@ const UserJourneyExplorer = () => {
       
       {range === 'custom' && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 sm:flex-none">
-          <DatePicker 
-            selected={startDate ? new Date(startDate) : null}
-            onChange={(date) => setStartDate(date ? date.toISOString() : '')}
-            showTimeSelect
-            timeFormat="HH:mm"
-            timeIntervals={15}
-            timeCaption="Time"
-            dateFormat="MMM d, yyyy h:mm aa"
-            placeholderText="Start Date & Time"
-            className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm w-full sm:w-[200px] shadow-sm"
+          <input
+            type="datetime-local"
+            aria-label="Start date and time"
+            value={toLocalDateTimeInput(startDate)}
+            onChange={(event) => setStartDate(event.target.value ? new Date(event.target.value).toISOString() : '')}
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm w-full sm:w-[200px] shadow-sm"
           />
           <span className="text-sm font-medium text-slate-400 hidden sm:block">to</span>
-          <DatePicker 
-            selected={endDate ? new Date(endDate) : null}
-            onChange={(date) => setEndDate(date ? date.toISOString() : '')}
-            showTimeSelect
-            timeFormat="HH:mm"
-            timeIntervals={15}
-            timeCaption="Time"
-            dateFormat="MMM d, yyyy h:mm aa"
-            placeholderText="End Date & Time"
-            className="flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm w-full sm:w-[200px] shadow-sm"
+          <input
+            type="datetime-local"
+            aria-label="End date and time"
+            value={toLocalDateTimeInput(endDate)}
+            onChange={(event) => setEndDate(event.target.value ? new Date(event.target.value).toISOString() : '')}
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm w-full sm:w-[200px] shadow-sm"
           />
         </div>
       )}
