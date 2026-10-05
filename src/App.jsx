@@ -845,7 +845,6 @@ function App() {
           />
 
           <Route
-<<<<<<< HEAD
             path="/staff-access"
             element={
               <ProtectedRoute>
@@ -868,8 +867,6 @@ function App() {
           />
 
           <Route
-=======
->>>>>>> origin/feature/release-06
             path="/support"
             element={
               <ProtectedRoute>
