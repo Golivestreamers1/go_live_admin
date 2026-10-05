@@ -21,9 +21,9 @@ const ACTION_HINTS = {
   postsLiked: "From like notifications: self-likes are not counted.",
 };
 
-// "Today" in Eastern time — the backend reads both dates as whole ET days.
-const todayEastern = () =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+// A YYYY-MM-DD day in Eastern time — the backend reads both dates as whole ET days.
+const easternDaysAgo = (days) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(Date.now() - days * 86_400_000));
 
 const formatNumber = (value) => new Intl.NumberFormat("en-US").format(value || 0);
 
@@ -32,8 +32,9 @@ const usersAtLeast = (histogram, min) =>
   Object.entries(histogram || {}).reduce((sum, [n, users]) => (Number(n) >= min ? sum + users : sum), 0);
 
 const Retention = () => {
-  const [start, setStart] = useState("2026-01-01");
-  const [end, setEnd] = useState(todayEastern);
+  // Last 7 days: every range costs a scan of all activity inside it, so don't open on months.
+  const [start, setStart] = useState(() => easternDaysAgo(6));
+  const [end, setEnd] = useState(() => easternDaysAgo(0));
   const [cohort, setCohort] = useState("all");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -42,10 +43,24 @@ const Retention = () => {
   useEffect(() => {
     if (!start || !end || start > end) return;
     let cancelled = false;
+    const onError = (error) =>
+      !cancelled && toast.error(error?.response?.data?.message || "Failed to fetch retention");
     setLoading(true);
     getRetention({ start, end, cohort })
-      .then((result) => !cancelled && setData(result))
-      .catch((error) => !cancelled && toast.error(error?.response?.data?.message || "Failed to fetch retention"))
+      .then((result) => {
+        if (cancelled) return;
+        setData(result);
+        // Slow actions arrive as histogram: null; fill each in as its own request lands.
+        for (const { key } of result.actions.filter((a) => a.deferred)) {
+          getRetention({ start, end, cohort, action: key })
+            .then(({ actions: [loaded] }) => {
+              if (cancelled) return;
+              setData((prev) => ({ ...prev, actions: prev.actions.map((a) => (a.key === key ? loaded : a)) }));
+            })
+            .catch(onError);
+        }
+      })
+      .catch(onError)
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -103,6 +118,7 @@ const Retention = () => {
           <div className="divide-y">
             {(data?.actions || []).map((action) => {
               const min = minFor(action.key);
+              const pending = action.histogram === null;
               const users = usersAtLeast(action.histogram, min);
               const pct = data.cohortCount ? (users / data.cohortCount) * 100 : 0;
               return (
@@ -127,8 +143,14 @@ const Retention = () => {
                     {action.unit}
                   </div>
                   <div className="text-right">
-                    <div className="text-xl font-semibold text-gray-900">{formatNumber(users)}</div>
-                    <div className="text-xs text-gray-500">{pct.toFixed(1)}% of cohort</div>
+                    {pending ? (
+                      <div className="text-sm text-gray-400">Loading…</div>
+                    ) : (
+                      <>
+                        <div className="text-xl font-semibold text-gray-900">{formatNumber(users)}</div>
+                        <div className="text-xs text-gray-500">{pct.toFixed(1)}% of cohort</div>
+                      </>
+                    )}
                   </div>
                 </div>
               );

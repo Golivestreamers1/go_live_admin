@@ -12,7 +12,8 @@ export const getUserJourney = async (userId = "", range = "24h", limit = 100, cu
 };
 
 // { start, end } are YYYY-MM-DD Eastern days (inclusive); cohort is all | new | old.
-export const getRetention = async ({ start, end, cohort }) => {
-  const response = await api.get("/admin/analytics/retention", { params: { start, end, cohort } });
+// Without `action`, deferred actions come back with histogram: null — fetch each by key.
+export const getRetention = async ({ start, end, cohort, action }) => {
+  const response = await api.get("/admin/analytics/retention", { params: { start, end, cohort, action } });
   return response.data.data;
 };
