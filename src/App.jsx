@@ -77,6 +77,7 @@ import IpBans from './pages/IpBans';
 import BlockedDomains from './pages/BlockedDomains';
 import FeedAlgorithmSettings from './pages/FeedAlgorithmSettings';
 import PostManagement from './pages/PostManagement';
+import Localization from './pages/Localization';
 import { canAccessAdminPath, getFirstAccessiblePath, isStaff } from './lib/adminAccess';
 import api from './services/api';
 
@@ -837,6 +838,17 @@ function App() {
               <ProtectedRoute>
                 <AdminLayout user={user} onLogout={handleLogout}>
                   <Settings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/localization"
+            element={
+              <ProtectedRoute>
+                <AdminLayout user={user} onLogout={handleLogout}>
+                  <Localization />
                 </AdminLayout>
               </ProtectedRoute>
             }
