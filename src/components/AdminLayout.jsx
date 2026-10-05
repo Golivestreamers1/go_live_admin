@@ -431,7 +431,6 @@ const AdminLayout = ({ children, user, onLogout }) => {
       href: '/fraud-cascade',
       icon: AlertTriangle,
     });
-    navigation.push({ name: 'Staff Access', href: '/staff-access', icon: Shield });
   }
 
   const visibleNavigation = navigation

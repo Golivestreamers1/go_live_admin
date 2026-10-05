@@ -124,7 +124,7 @@ function App() {
         const userData = JSON.parse(savedUser);
         if (isStaff(userData)) {
           const response = await api.get('/admin/roles/permissions');
-          userData.staffPages = response.data.data?.staffPages || [];
+            userData.staffPages = response.data.data?.userPages || [];
           localStorage.setItem('adminUser', JSON.stringify(userData));
         }
         if (!cancelled) setUser(userData);
@@ -845,6 +845,7 @@ function App() {
           />
 
           <Route
+<<<<<<< HEAD
             path="/staff-access"
             element={
               <ProtectedRoute>
@@ -867,6 +868,8 @@ function App() {
           />
 
           <Route
+=======
+>>>>>>> origin/feature/release-06
             path="/support"
             element={
               <ProtectedRoute>

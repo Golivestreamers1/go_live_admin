@@ -15,13 +15,18 @@ const PAGE_PATHS = {
 
 const roleName = (user) => String(user?.role?.name || user?.role || "").toUpperCase();
 export const isFullAdmin = (user) => ["ADMIN", "SUPER_ADMIN"].includes(roleName(user));
+export const isSuperAdmin = (user) => roleName(user) === "SUPER_ADMIN";
 export const isStaff = (user) => ["STAFF", "MODERATOR"].includes(roleName(user));
 export const getFirstAccessiblePath = (user) => {
+  if (isSuperAdmin(user)) return "/";
   if (isFullAdmin(user)) return "/";
   const first = Object.entries(PAGE_PATHS).find(([key]) => (user?.staffPages || []).includes(key));
   return first?.[1]?.[0] || "/";
 };
 export const canAccessAdminPath = (user, pathname) => {
+  if (pathname === "/user-journey" || pathname.startsWith("/user-journey/")) {
+    return isSuperAdmin(user);
+  }
   if (isFullAdmin(user)) return true;
   if (!isStaff(user)) return false;
   const page = Object.entries(PAGE_PATHS)
