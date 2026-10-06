@@ -288,6 +288,11 @@ const AdminLayout = ({ children, user, onLogout }) => {
       icon: Tags,
     },
     {
+      name: 'Levels',
+      href: '/levels',
+      icon: TrendingUp,
+    },
+    {
       name: 'Promo Codes',
       href: '/promos',
       icon: Tags,
