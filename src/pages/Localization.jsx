@@ -34,8 +34,19 @@ export default function Localization() {
   const [newEnglishText, setNewEnglishText] = useState('');
   const [newTargetText, setNewTargetText] = useState('');
   const [newStringCategory, setNewStringCategory] = useState('common');
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [newCustomKey, setNewCustomKey] = useState('');
   const [creatingString, setCreatingString] = useState(false);
+
+  // Live JSON Editor state
+  const [editorMode, setEditorMode] = useState('table'); // 'table' | 'json'
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState(null);
+  const [jsonValidKeyCount, setJsonValidKeyCount] = useState(0);
+
+  // Delete Language Modal state
+  const [deleteTargetLang, setDeleteTargetLang] = useState(null);
+  const [deletingLang, setDeletingLang] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -46,6 +57,93 @@ export default function Localization() {
       fetchValues(selectedLang);
     }
   }, [activeTab, selectedLang]);
+
+  useEffect(() => {
+    if (editorMode === 'json' && keys.length > 0) {
+      const mapObj = {};
+      keys.forEach(k => {
+        const val = valuesMap[k._id] ?? englishMap[k._id] ?? '';
+        mapObj[k.key] = val;
+      });
+      const formatted = JSON.stringify(mapObj, null, 2);
+      setJsonText(formatted);
+      validateJson(formatted);
+    }
+  }, [editorMode, selectedLang, valuesMap, keys]);
+
+  const validateJson = (text) => {
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        setJsonError('JSON must be a valid key-value object e.g. { "common.welcome": "Hello" }');
+        setJsonValidKeyCount(0);
+        return false;
+      }
+      setJsonError(null);
+      setJsonValidKeyCount(Object.keys(parsed).length);
+      return true;
+    } catch (err) {
+      setJsonError(err.message);
+      setJsonValidKeyCount(0);
+      return false;
+    }
+  };
+
+  const handleJsonChange = (e) => {
+    const text = e.target.value;
+    setJsonText(text);
+    validateJson(text);
+  };
+
+  const handleFormatJson = () => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      const formatted = JSON.stringify(parsed, null, 2);
+      setJsonText(formatted);
+      validateJson(formatted);
+    } catch (err) {
+      alert(`Cannot format invalid JSON: ${err.message}`);
+    }
+  };
+
+  const handleBulkSaveJson = async () => {
+    if (!validateJson(jsonText)) {
+      alert('Please fix JSON syntax errors before saving.');
+      return;
+    }
+
+    const parsed = JSON.parse(jsonText);
+    setSavingKeyId('bulk');
+    try {
+      const keyMapByString = {};
+      keys.forEach(k => { keyMapByString[k.key] = k; });
+
+      for (const [keyStr, valStr] of Object.entries(parsed)) {
+        let keyObj = keyMapByString[keyStr];
+        if (!keyObj) {
+          const parts = keyStr.split('.');
+          const cat = parts.length > 1 ? parts[0] : 'common';
+          const keyRes = await i18nAdminService.createKey({ key: keyStr, category: cat, namespace: 'mobile' });
+          keyObj = keyRes.data?.data || keyRes.data;
+        }
+        if (keyObj && keyObj._id) {
+          await i18nAdminService.upsertValue({
+            keyId: keyObj._id,
+            languageCode: selectedLang,
+            value: String(valStr),
+            status: 'approved'
+          });
+        }
+      }
+      alert(`Successfully saved ${Object.keys(parsed).length} translation values for ${selectedLang.toUpperCase()}!`);
+      await fetchData();
+      if (selectedLang) await fetchValues(selectedLang);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to bulk save JSON values');
+    } finally {
+      setSavingKeyId(null);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -149,22 +247,28 @@ export default function Localization() {
     }
   };
 
-  const handleDeleteLanguage = async (code, name) => {
+  const openDeleteModal = (code, name) => {
     if (code === 'en') {
       alert('Cannot delete default language (en)');
       return;
     }
-    if (!window.confirm(`Are you sure you want to delete "${name || code}" (${code.toUpperCase()})?\n\nThis action will permanently delete all translation values stored for this language.`)) {
-      return;
-    }
+    setDeleteTargetLang({ code, name: name || code });
+  };
+
+  const confirmDeleteLanguage = async () => {
+    if (!deleteTargetLang) return;
+    setDeletingLang(true);
     try {
-      await i18nAdminService.deleteLanguage(code);
-      if (selectedLang === code) {
+      await i18nAdminService.deleteLanguage(deleteTargetLang.code);
+      if (selectedLang === deleteTargetLang.code) {
         setSelectedLang('en');
       }
-      fetchData();
+      setDeleteTargetLang(null);
+      await fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete language');
+    } finally {
+      setDeletingLang(false);
     }
   };
 
@@ -190,17 +294,18 @@ export default function Localization() {
     if (!newEnglishText.trim()) return;
     setCreatingString(true);
     try {
+      const finalCategory = newStringCategory === '__custom__' ? (customCategoryInput.trim() || 'common') : newStringCategory;
       const slug = newEnglishText
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, '')
         .replace(/\s+/g, '');
-      const generatedKey = newCustomKey.trim() || `${newStringCategory}.${slug}`;
+      const generatedKey = newCustomKey.trim() || `${finalCategory}.${slug}`;
 
       // 1. Create key
       const keyRes = await i18nAdminService.createKey({
         key: generatedKey,
-        category: newStringCategory,
+        category: finalCategory,
         namespace: 'mobile'
       });
       const createdKey = keyRes.data?.data || keyRes.data;
@@ -226,6 +331,7 @@ export default function Localization() {
       setNewEnglishText('');
       setNewTargetText('');
       setNewCustomKey('');
+      setCustomCategoryInput('');
       setShowAddStringModal(false);
       await fetchData();
       if (selectedLang) await fetchValues(selectedLang);
@@ -263,7 +369,10 @@ export default function Localization() {
     return <div className="p-6">Loading localization settings...</div>;
   }
 
-  const categories = ['all', ...Array.from(new Set(keys.map(k => k.category || 'common')))];
+  const defaultPresets = ['common', 'auth', 'shopScreen', 'wallet', 'chat', 'agencies', 'cashout', 'convert', 'login', 'otp', 'profile'];
+  const existingCategories = Array.from(new Set(keys.map(k => k.category || 'common').filter(Boolean)));
+  const filterCategories = existingCategories.sort();
+  const allKnownCategories = Array.from(new Set([...defaultPresets, ...existingCategories])).sort();
 
   const filteredKeys = keys.filter(k => {
     const categoryMatch = selectedCategory === 'all' || (k.category || 'common') === selectedCategory;
@@ -286,9 +395,12 @@ export default function Localization() {
         </div>
         <button
           onClick={() => setShowAddStringModal(true)}
-          className="px-4 py-2.5 bg-indigo-600 text-white font-semibold text-sm rounded-lg hover:bg-indigo-700 shadow-sm flex items-center gap-2 self-start sm:self-auto"
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-lg shadow-sm flex items-center gap-2 transition-colors self-start sm:self-auto"
         >
-          <span>➕</span> Add Translation String
+          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <span>Add Translation String</span>
         </button>
       </div>
 
@@ -415,11 +527,18 @@ export default function Localization() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Native Name</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Direction</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Default</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Release Version</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {(Array.isArray(languages) ? languages : []).map(lang => {
+                {([...(Array.isArray(languages) ? languages : [])].sort((a, b) => {
+                  const aDef = a.isDefault || a.code === 'en';
+                  const bDef = b.isDefault || b.code === 'en';
+                  if (aDef && !bDef) return -1;
+                  if (!aDef && bDef) return 1;
+                  return a.code.localeCompare(b.code);
+                })).map(lang => {
                   const baseUrl = window.location.origin.includes('5174')
                     ? 'http://localhost:8001'
                     : window.location.origin;
@@ -434,10 +553,15 @@ export default function Localization() {
                       <td className="px-6 py-4 uppercase text-xs font-semibold text-gray-500">{lang.direction}</td>
                       <td className="px-6 py-4 text-sm">
                         {isDefaultLang ? (
-                          <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-100 text-indigo-800 rounded-full">Default</span>
+                          <span className="px-2.5 py-0.5 text-xs font-semibold bg-indigo-100 text-indigo-800 rounded-full">Default</span>
                         ) : (
                           <span className="text-gray-400">No</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          v{lang.latestReleaseVersion || 1} (Live)
+                        </span>
                       </td>
                       <td className="px-6 py-4 space-x-2">
                         <button
@@ -455,7 +579,7 @@ export default function Localization() {
                           View Live JSON ↗
                         </a>
                         <button
-                          onClick={() => handleDeleteLanguage(lang.code, lang.name)}
+                          onClick={() => openDeleteModal(lang.code, lang.name)}
                           disabled={isDefaultLang}
                           className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                             isDefaultLang
@@ -497,17 +621,21 @@ export default function Localization() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Category / Domain</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Category / Domain Filter</label>
                 <select
                   className="border rounded-md p-2 text-sm text-gray-900 bg-gray-50 focus:ring-2 focus:ring-indigo-500"
                   value={selectedCategory}
                   onChange={e => setSelectedCategory(e.target.value)}
                 >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>
-                      {cat === 'all' ? 'All Categories' : cat}
-                    </option>
-                  ))}
+                  <option value="all">All Categories ({keys.length})</option>
+                  {filterCategories.map(cat => {
+                    const count = keys.filter(k => (k.category || 'common') === cat).length;
+                    return (
+                      <option key={cat} value={cat}>
+                        {cat} ({count})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -523,85 +651,185 @@ export default function Localization() {
               </div>
             </div>
 
-            <button
-              onClick={() => handlePublish(selectedLang)}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 shadow-sm flex items-center gap-2 self-start md:self-auto"
-            >
-              <span>🚀</span> Publish Live Release ({selectedLang.toUpperCase()})
-            </button>
+            <div className="flex items-center gap-3 self-start md:self-auto">
+              {/* View Mode Toggle: Table View vs Live JSON Editor */}
+              <div className="flex bg-gray-100 p-1 rounded-lg border">
+                <button
+                  onClick={() => setEditorMode('table')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                    editorMode === 'table' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  📋 Table View
+                </button>
+                <button
+                  onClick={() => setEditorMode('json')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                    editorMode === 'json' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  ⚡ Live JSON Editor
+                </button>
+              </div>
+
+              <button
+                onClick={() => handlePublish(selectedLang)}
+                className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 shadow-sm flex items-center gap-2"
+              >
+                <span>🚀</span> Publish Release ({selectedLang.toUpperCase()})
+              </button>
+            </div>
           </div>
 
-          {/* Values Editor Table - 3 Column Layout */}
-          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-            {loadingValues ? (
-              <div className="p-8 text-center text-gray-500">Loading translation values for {selectedLang.toUpperCase()}...</div>
-            ) : (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-2/5">English Reference Text</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Target Translation ({selectedLang.toUpperCase()})
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredKeys.map(k => {
-                    const enValue = englishMap[k._id] || '';
-                    const currentVal = valuesMap[k._id] ?? '';
-                    const isSaving = savingKeyId === k._id;
-                    const isSaved = savedKeyId === k._id;
+          {/* Content Switcher: Table View vs Live JSON Canvas */}
+          {editorMode === 'table' ? (
+            <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+              {loadingValues ? (
+                <div className="p-8 text-center text-gray-500">Loading translation values for {selectedLang.toUpperCase()}...</div>
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Category</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-2/5">English Reference Text</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Target Translation ({selectedLang.toUpperCase()})
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredKeys.map(k => {
+                      const enValue = englishMap[k._id] || '';
+                      const currentVal = valuesMap[k._id] ?? '';
+                      const isSaving = savingKeyId === k._id;
+                      const isSaved = savedKeyId === k._id;
 
-                    return (
-                      <tr key={k._id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 align-top">
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded border text-xs font-medium inline-block">
-                            {k.category || 'common'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 align-top">
-                          <div className="text-sm font-medium text-gray-900">
-                            {enValue || <span className="text-gray-400 italic">No English text set</span>}
-                          </div>
-                          <div className="text-xs font-mono text-gray-400 mt-1">{k.key}</div>
-                        </td>
-                        <td className="px-6 py-4 align-top">
-                          <div className="flex gap-3 items-center">
-                            <input
-                              type="text"
-                              className="flex-1 border rounded-md p-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                              value={currentVal}
-                              onChange={e => handleValueChange(k._id, e.target.value)}
-                              placeholder={`Enter ${selectedLang.toUpperCase()} translation...`}
-                            />
-                            <button
-                              onClick={() => handleSaveValue(k._id)}
-                              disabled={isSaving}
-                              className={`px-3 py-2 text-xs font-semibold rounded-md shadow-sm transition-colors min-w-[75px] ${
-                                isSaved
-                                  ? 'bg-green-100 text-green-800 border border-green-300'
-                                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                              }`}
-                            >
-                              {isSaving ? 'Saving...' : isSaved ? '✓ Saved' : 'Save'}
-                            </button>
-                          </div>
+                      return (
+                        <tr key={k._id} className="hover:bg-gray-50">
+                          <td className="px-4 py-4 align-top">
+                            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded border text-xs font-medium inline-block">
+                              {k.category || 'common'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="text-sm font-medium text-gray-900">
+                              {enValue || <span className="text-gray-400 italic">No English text set</span>}
+                            </div>
+                            <div className="text-xs font-mono text-gray-400 mt-1">{k.key}</div>
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="flex gap-3 items-center">
+                              <input
+                                type="text"
+                                className="flex-1 border rounded-md p-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                value={currentVal}
+                                onChange={e => handleValueChange(k._id, e.target.value)}
+                                placeholder={`Enter ${selectedLang.toUpperCase()} translation...`}
+                              />
+                              <button
+                                onClick={() => handleSaveValue(k._id)}
+                                disabled={isSaving}
+                                className={`px-3 py-2 text-xs font-semibold rounded-md shadow-sm transition-colors min-w-[75px] ${
+                                  isSaved
+                                    ? 'bg-green-100 text-green-800 border border-green-300'
+                                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                }`}
+                              >
+                                {isSaving ? 'Saving...' : isSaved ? '✓ Saved' : 'Save'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {filteredKeys.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
+                          No translation strings match your search or category filter.
                         </td>
                       </tr>
-                    );
-                  })}
-                  {filteredKeys.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
-                        No translation strings match your search or category filter.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm border p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <span>⚡ Live JSON Editor</span>
+                    <span className="text-xs font-mono bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded">
+                      {selectedLang.toUpperCase()}.json
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Directly inspect, edit, or paste raw JSON translation objects for {selectedLang.toUpperCase()}.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleFormatJson}
+                    className="px-3 py-1.5 bg-gray-100 text-gray-700 border text-xs font-semibold rounded-md hover:bg-gray-200 flex items-center gap-1.5"
+                  >
+                    <span>🧹</span> Format JSON
+                  </button>
+                  <button
+                    onClick={handleBulkSaveJson}
+                    disabled={!!jsonError || savingKeyId === 'bulk'}
+                    className={`px-4 py-1.5 text-xs font-semibold text-white rounded-md shadow-sm flex items-center gap-1.5 ${
+                      jsonError
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : savingKeyId === 'bulk'
+                        ? 'bg-indigo-400 cursor-wait'
+                        : 'bg-indigo-600 hover:bg-indigo-700'
+                    }`}
+                  >
+                    <span>💾</span> {savingKeyId === 'bulk' ? 'Saving JSON...' : 'Save & Apply JSON'}
+                  </button>
+                  <button
+                    onClick={() => handlePublish(selectedLang)}
+                    className="px-4 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-md hover:bg-green-700 shadow-sm flex items-center gap-1.5"
+                  >
+                    <span>🚀</span> Publish Release
+                  </button>
+                </div>
+              </div>
+
+              {/* Real-time Syntax Validation Bar */}
+              {jsonError ? (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md text-xs font-medium text-red-800 flex items-center gap-2">
+                  <span className="text-sm">🔴</span>
+                  <span>Syntax Error: {jsonError}</span>
+                </div>
+              ) : (
+                <div className="p-2.5 bg-green-50 border border-green-200 rounded-md text-xs font-medium text-green-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">🟢</span>
+                    <span>Valid JSON Object — {jsonValidKeyCount} translation keys detected.</span>
+                  </div>
+                  <span className="text-[11px] text-green-700 font-medium">Ready to save or publish live</span>
+                </div>
+              )}
+
+              {/* Code Canvas Editor */}
+              <div className="relative font-mono text-sm">
+                <textarea
+                  value={jsonText}
+                  onChange={handleJsonChange}
+                  rows={22}
+                  className={`w-full p-4 font-mono text-sm leading-relaxed rounded-lg border focus:ring-2 focus:outline-none transition-colors ${
+                    jsonError
+                      ? 'bg-red-950 text-red-200 border-red-500 focus:ring-red-500'
+                      : 'bg-gray-900 text-emerald-400 border-gray-800 focus:ring-indigo-500'
+                  }`}
+                  placeholder='{\n  "common.welcome": "Hello"\n}'
+                  spellCheck="false"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -702,18 +930,30 @@ export default function Localization() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700">Category / Domain</label>
+                <label className="block text-sm font-semibold text-gray-700">Category / Domain *</label>
                 <select
                   className="mt-1 block w-full border rounded-md p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
                   value={newStringCategory}
                   onChange={e => setNewStringCategory(e.target.value)}
                 >
-                  <option value="common">common (General App UI)</option>
-                  <option value="auth">auth (Login / Signup)</option>
-                  <option value="shopScreen">shopScreen (Store & Purchases)</option>
-                  <option value="wallet">wallet (Cash / Rubies)</option>
-                  <option value="chat">chat (Messages & Notifications)</option>
+                  {allKnownCategories.map(cat => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                  <option value="__custom__">➕ Add Custom Category...</option>
                 </select>
+
+                {newStringCategory === '__custom__' && (
+                  <input
+                    type="text"
+                    required
+                    className="mt-2 block w-full border rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Type custom category name (e.g. settings)"
+                    value={customCategoryInput}
+                    onChange={e => setCustomCategoryInput(e.target.value)}
+                  />
+                )}
               </div>
 
               {selectedLang !== 'en' && (
@@ -760,6 +1000,65 @@ export default function Localization() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Delete Language Confirmation Modal */}
+      {deleteTargetLang && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-center gap-3 border-b pb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Delete Language?</h3>
+                <p className="text-xs text-gray-500">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm text-gray-600">
+              <p>
+                Are you sure you want to delete <span className="font-bold text-gray-900">{deleteTargetLang.name}</span> (<span className="font-mono font-bold text-red-600">{deleteTargetLang.code.toUpperCase()}</span>)?
+              </p>
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800 space-y-1">
+                <div className="font-semibold flex items-center gap-1.5">
+                  <span>⚠️ Permanent Data Loss Warning</span>
+                </div>
+                <p>
+                  Deleting this language will permanently purge all translation values stored for <span className="font-mono font-bold">{deleteTargetLang.code.toUpperCase()}</span>.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetLang(null)}
+                disabled={deletingLang}
+                className="px-4 py-2 border rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteLanguage}
+                disabled={deletingLang}
+                className="px-5 py-2 bg-red-600 text-white rounded-md text-sm font-semibold hover:bg-red-700 shadow-sm transition-colors flex items-center gap-2"
+              >
+                {deletingLang ? (
+                  <>
+                    <span className="animate-spin">⏳</span> Deleting...
+                  </>
+                ) : (
+                  <>
+                    <span>🗑️</span> Delete Language
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
