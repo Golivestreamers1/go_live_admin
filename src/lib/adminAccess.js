@@ -7,7 +7,7 @@ const PAGE_PATHS = {
   posts: ["/posts-management"], withdrawals: ["/withdraw-requests", "/cashout-requests", "/cashout-email-change"],
   streamers_rubies: ["/streamers-rubies"], stream_earnings: ["/user-stream-earnings"],
   live_streams: ["/live-streams"], stream_order: ["/stream-order"],
-  gifter_recipients: ["/gifter-recipients"], gifts: ["/gifts"], gift_categories: ["/gift-categories"],
+  gifter_recipients: ["/gifter-recipients"], gifts: ["/gifts"], gift_categories: ["/gift-categories"], levels: ["/levels"],
   promos: ["/promos", "/promo-codes"], blogs: ["/blogs"], contests: ["/contests"], banners: ["/banners"],
   support: ["/support"], support_settings: ["/support/settings"], iap: ["/iap"], features: ["/features-allowed"],
   theme: ["/theme"],
