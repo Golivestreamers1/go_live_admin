@@ -273,8 +273,9 @@ export const UserManagementDialog = ({ isOpen, onClose, user, onUserUpdated }) =
       const updateData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
-        username: formData.username,
+        // Identity fields only when edited, so a role change never rewrites them.
+        ...(formData.email !== (user.email || '') && { email: formData.email }),
+        ...(formData.username !== (user.username || '') && { username: formData.username }),
         isActive: formData.isActive,
         ...(roleChanged && { role: formData.roleId }),
         ...(canManageRoles() && ['staff', 'moderator'].includes(formData.roleId)
