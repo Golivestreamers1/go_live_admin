@@ -100,7 +100,7 @@ const TestAccounts = () => {
   const markUser = async (u) => {
     const id = String(u._id);
     const label = u.email || u.username || u.name || id;
-    if (!window.confirm(`Mark ${label} as a test account? Their purchases will be excluded from Money Flow revenue.`)) {
+    if (!window.confirm(`Mark ${label} as a test account? All their activity will be hidden from Money Flow and from in-app rankings.`)) {
       return;
     }
     try {
@@ -119,7 +119,7 @@ const TestAccounts = () => {
     // The row id also works when the user document has since been deleted.
     const ref = String(row.id);
     const label = row.user?.email || row.user?.username || ref;
-    if (!window.confirm(`Remove the test flag from ${label}? Their purchases will count in Money Flow again.`)) {
+    if (!window.confirm(`Remove the test flag from ${label}? Their activity will count in Money Flow and rankings again.`)) {
       return;
     }
     try {
@@ -143,9 +143,10 @@ const TestAccounts = () => {
             Test Accounts
           </h1>
           <p className="text-sm text-muted-foreground">
-            Purchases by these users are excluded from{' '}
-            <Link to="/finance" className="underline">Money Flow</Link> revenue.
-            Nothing else about the account changes.
+            These users are excluded from every{' '}
+            <Link to="/finance" className="underline">Money Flow</Link> figure and
+            hidden from in-app leaderboards, top gifters, agency and contest rankings
+            and Ruby Crown slots. The account itself works normally.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchRows} disabled={loading}>

@@ -1,6 +1,6 @@
 import api from './api';
 
-/** Test accounts: purchases excluded from Money Flow revenue. Backend: /admin/test-accounts */
+/** Test accounts: hidden from Money Flow and in-app rankings. Backend: /admin/test-accounts */
 export const testAccountService = {
   /** @returns {{ items, total, page, limit }} */
   async list({ page = 1, limit = 200 } = {}) {
