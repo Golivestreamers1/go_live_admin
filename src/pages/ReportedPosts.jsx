@@ -90,11 +90,19 @@ const ReportedPosts = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deleteTarget?.reportedPost?._id) return;
+    if (!deleteTarget?.reportedPost?._id || !deleteTarget?._id) return;
     try {
       setDeleting(true);
       await reportService.deletePost(deleteTarget.reportedPost._id);
-      toast.success('Post deleted successfully');
+      // Mark this report (and any other pending reports for the same post) as reviewed
+      // so the admin list stops showing the resolved case. Best-effort: if this fails the
+      // post is already deleted, so we still consider the action a success.
+      try {
+        await reportService.setReportStatus(deleteTarget._id, 'reviewed');
+      } catch (statusErr) {
+        console.warn('Post deleted but report status update failed:', statusErr);
+      }
+      toast.success('Post deleted and report marked reviewed');
       setDeleteOpen(false);
       setDetailOpen(false);
       setDeleteTarget(null);

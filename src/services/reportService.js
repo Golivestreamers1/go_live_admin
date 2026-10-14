@@ -30,4 +30,13 @@ export const reportService = {
   async deletePost(id) {
     await api.delete(`/admin/posts/${id}`);
   },
+
+  /**
+   * Admin action on a reported post. Cascades the status to every other pending report
+   * pointing at the same post so one click resolves duplicate reports together.
+   * `status` must be "reviewed" or "dismissed".
+   */
+  async setReportStatus(reportId, status) {
+    await api.patch(`/admin/reports/posts/${reportId}`, { status });
+  },
 };
