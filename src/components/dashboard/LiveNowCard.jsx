@@ -76,7 +76,7 @@ const endStreamWarning = (stream) => {
 
 const LiveNowCard = () => {
   const polling = usePolling(() => dashboardService.getLive(), {
-    defaultIntervalMs: 60_000,
+    defaultIntervalMs: 30_000,
   });
   const { data, refresh } = polling;
   const [streamToEnd, setStreamToEnd] = useState(null);
@@ -84,48 +84,51 @@ const LiveNowCard = () => {
   const [endError, setEndError] = useState('');
   const [filter, setFilter] = useState('');
 
+  // Counted exactly as the app counts: only streams visible in the app, viewers as its badge shows.
+  const summary = data?.summary;
+  const viewers = (n) => `${n ?? 0} viewers`;
   const tiles = [
     {
-      icon: Radio,
-      label: 'Active Streams',
-      value: data?.activeStreams ?? '—',
-      accent: 'bg-red-100 text-red-600',
-      hint: 'Live host streams',
+      icon: Users,
+      label: 'People Live',
+      value: summary?.peopleLive ?? '—',
+      accent: 'bg-emerald-100 text-emerald-600',
+      hint: 'Everyone broadcasting, including box guests',
     },
     {
       icon: Eye,
-      label: 'Active Live Viewers',
-      value: data?.liveViewersNow ?? '—',
+      label: 'Viewers',
+      value: summary?.viewers ?? '—',
       accent: 'bg-blue-100 text-blue-600',
-      hint: 'Connected to live streams right now',
+      hint: 'Total of the viewer counts shown in the app',
     },
     {
-      icon: Users,
-      label: 'Streamers Live',
-      value: data?.streamersOnline ?? '—',
-      accent: 'bg-emerald-100 text-emerald-600',
-      hint: 'Unique streamers currently live',
-    },
-    {
-      icon: Swords,
-      label: 'Battles',
-      value: data?.battlesInProgress ?? '—',
-      accent: 'bg-amber-100 text-amber-600',
-      hint: 'Active battle sessions',
+      icon: Radio,
+      label: 'Single Streams',
+      value: summary?.single.streams ?? '—',
+      accent: 'bg-red-100 text-red-600',
+      hint: summary ? viewers(summary.single.viewers) : '',
     },
     {
       icon: Boxes,
-      label: 'People in Boxes',
-      value: data?.peopleInBoxes ?? '—',
+      label: 'Box Streams',
+      value: summary?.box.boxes ?? '—',
       accent: 'bg-violet-100 text-violet-600',
-      hint: 'Hosts and guests currently in live boxes',
+      hint: summary ? `${summary.box.guests} guests · ${viewers(summary.box.viewers)}` : '',
+    },
+    {
+      icon: Swords,
+      label: 'Battle Streams',
+      value: summary?.battle.battles ?? '—',
+      accent: 'bg-amber-100 text-amber-600',
+      hint: summary ? viewers(summary.battle.viewers) : '',
     },
     {
       icon: UserCheck,
       label: 'People Logged In',
-      value: data?.loggedInUsers ?? '—',
+      value: summary?.loggedIn ?? '—',
       accent: 'bg-cyan-100 text-cyan-600',
-      hint: 'App session heartbeat in the last 10 minutes',
+      hint: 'App open in the last 10 minutes',
     },
   ];
 
@@ -213,7 +216,7 @@ const LiveNowCard = () => {
                       <TableRow>
                         <TableHead>Streamer</TableHead>
                         <TableHead>Title</TableHead>
-                        <TableHead className="text-right" title="Viewers connected to this live stream right now">Active viewers</TableHead>
+                        <TableHead className="text-right" title="The viewer count the app shows for this stream">Viewers</TableHead>
                         <TableHead className="text-right">Peak</TableHead>
                         <TableHead>Mode</TableHead>
                         <TableHead>Provider</TableHead>
@@ -226,7 +229,18 @@ const LiveNowCard = () => {
                         <TableRow key={s.streamId}>
                           <TableCell className="font-medium">
                             <div className="min-w-0">
-                              <div>{s.streamer}</div>
+                              <div className="flex items-center gap-2">
+                                {s.streamer}
+                                {s.inApp === false ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-amber-300 text-amber-700"
+                                    title="Still marked live, but the host's app stopped responding, so the app no longer shows it. Not counted above."
+                                  >
+                                    Not in app
+                                  </Badge>
+                                ) : null}
+                              </div>
                               {s.username ? (
                                 <div className="truncate text-xs font-normal text-muted-foreground">
                                   @{s.username}
@@ -237,7 +251,9 @@ const LiveNowCard = () => {
                           <TableCell className="max-w-[240px] truncate text-muted-foreground">
                             {s.title || <span className="italic">untitled</span>}
                           </TableCell>
-                          <TableCell className="text-right font-semibold">{s.viewersNow}</TableCell>
+                          <TableCell className="text-right font-semibold" title={`${s.viewersNow} watching right now`}>
+                            {s.appViewerCount ?? s.viewersNow}
+                          </TableCell>
                           <TableCell className="text-right">{s.peak}</TableCell>
                           <TableCell>
                             <Badge variant={modeBadgeVariant(s.mode)} className="capitalize">
