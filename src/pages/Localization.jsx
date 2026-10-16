@@ -23,6 +23,7 @@ export default function Localization() {
   const [newLangName, setNewLangName] = useState('');
   const [newLangNative, setNewLangNative] = useState('');
   const [newLangDirection, setNewLangDirection] = useState('ltr');
+  const [newLangFlag, setNewLangFlag] = useState('');
 
   // New Key state
   const [newKeyString, setNewKeyString] = useState('');
@@ -236,11 +237,13 @@ export default function Localization() {
         code: newLangCode,
         name: newLangName,
         nativeName: newLangNative || newLangName,
-        direction: newLangDirection
+        direction: newLangDirection,
+        flag: newLangFlag.trim() || null
       });
       setNewLangCode('');
       setNewLangName('');
       setNewLangNative('');
+      setNewLangFlag('');
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add language');
@@ -502,6 +505,16 @@ export default function Localization() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700">Flag Emoji (e.g. 🇵🇹, 🇪🇸, 🇺🇸)</label>
+              <input
+                type="text"
+                className="mt-1 block w-full border rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                value={newLangFlag}
+                onChange={e => setNewLangFlag(e.target.value)}
+                placeholder=""
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700">Text Direction</label>
               <select
                 className="mt-1 block w-full border rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500"
@@ -522,6 +535,7 @@ export default function Localization() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Flag</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Code</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Native Name</th>
@@ -547,6 +561,7 @@ export default function Localization() {
 
                   return (
                     <tr key={lang.code} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-xl">{lang.flag || '—'}</td>
                       <td className="px-6 py-4 font-bold text-gray-900">{lang.code.toUpperCase()}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{lang.name}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{lang.nativeName}</td>
