@@ -5,6 +5,7 @@ const API_BASE = '/admin/i18n';
 export const i18nAdminService = {
   getLanguages: () => api.get(`${API_BASE}/languages`),
   addLanguage: (data) => api.post(`${API_BASE}/languages`, data),
+  updateLanguage: (code, data) => api.patch(`${API_BASE}/languages/${code}`, data),
   deleteLanguage: (code) => api.delete(`${API_BASE}/languages/${code}`),
   getKeys: () => api.get(`${API_BASE}/keys`),
   createKey: (data) => api.post(`${API_BASE}/keys`, data),
