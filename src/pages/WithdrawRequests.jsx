@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { withdrawRequestService } from '../services/withdrawRequestService';
+import { agencyAdminService } from '../services/agencyAdminService';
+import AgencyWithdrawRequestsSection from '../components/AgencyWithdrawRequestsSection';
 import { useListQueryState } from '../hooks/useListQueryState';
 import { useNavigateWithReturn } from '../hooks/useListNavigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -22,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-import { Wallet, User, Check, X, Eye, Trash2 } from 'lucide-react';
+import { Wallet, User, Check, X, Eye, Trash2, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const WithdrawRequests = () => {
@@ -39,6 +41,11 @@ const WithdrawRequests = () => {
     totalPages: 1,
   });
 
+  /** 'users' = streamer cashouts (below); 'agencies' = every agency's withdrawal requests. */
+  const [section, setSection] = useState(() =>
+    new URLSearchParams(window.location.search).get('section') === 'agencies' ? 'agencies' : 'users'
+  );
+  const [agencyPendingCount, setAgencyPendingCount] = useState(null);
   const [actionDialog, setActionDialog] = useState({ open: false, type: null, request: null });
   const [adminNotes, setAdminNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -76,6 +83,28 @@ const WithdrawRequests = () => {
   useEffect(() => {
     fetchRequests(params.page, params.status, params.search);
   }, [params.page, params.status, params.search]);
+
+  // Pending agency requests count for the section switch — so admins see them without opening each agency.
+  useEffect(() => {
+    let cancelled = false;
+    agencyAdminService
+      .listAllWithdrawals({ status: 'pending', page: 1, limit: 1 })
+      .then((data) => {
+        if (!cancelled) setAgencyPendingCount(Number(data?.total) || 0);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [section]);
+
+  const switchSection = (next) => {
+    setSection(next);
+    const url = new URL(window.location.href);
+    if (next === 'agencies') url.searchParams.set('section', 'agencies');
+    else url.searchParams.delete('section');
+    window.history.replaceState(window.history.state, '', url);
+  };
 
   const handleStatusFilter = (status) => {
     setQuery({ page: 1, status, search: params.search });
@@ -181,6 +210,31 @@ const WithdrawRequests = () => {
         </p>
       </div>
 
+      <div className="flex gap-2">
+        <Button
+          variant={section === 'users' ? 'default' : 'outline'}
+          onClick={() => switchSection('users')}
+        >
+          <User className="w-4 h-4 mr-2" />
+          Users
+        </Button>
+        <Button
+          variant={section === 'agencies' ? 'default' : 'outline'}
+          onClick={() => switchSection('agencies')}
+        >
+          <Building2 className="w-4 h-4 mr-2" />
+          Agencies
+          {agencyPendingCount > 0 && (
+            <Badge variant="destructive" className="ml-2">
+              {agencyPendingCount}
+            </Badge>
+          )}
+        </Button>
+      </div>
+
+      {section === 'agencies' ? (
+        <AgencyWithdrawRequestsSection />
+      ) : (
       <Card>
         <CardHeader>
           <CardTitle>Cashout requests</CardTitle>
@@ -354,6 +408,7 @@ const WithdrawRequests = () => {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <Dialog open={actionDialog.open} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="max-w-md">
