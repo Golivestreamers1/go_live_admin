@@ -24,6 +24,9 @@ export default function Localization() {
   const [newLangNative, setNewLangNative] = useState('');
   const [newLangDirection, setNewLangDirection] = useState('ltr');
   const [newLangFlag, setNewLangFlag] = useState('');
+  const [editingFlagLang, setEditingFlagLang] = useState(null);
+  const [editingFlagValue, setEditingFlagValue] = useState('');
+  const [savingFlag, setSavingFlag] = useState(false);
 
   // New Key state
   const [newKeyString, setNewKeyString] = useState('');
@@ -247,6 +250,20 @@ export default function Localization() {
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add language');
+    }
+  };
+
+  const handleSaveFlag = async (code) => {
+    try {
+      setSavingFlag(true);
+      await i18nAdminService.updateLanguage(code, { flag: editingFlagValue.trim() || null });
+      setEditingFlagLang(null);
+      setEditingFlagValue('');
+      await fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update flag');
+    } finally {
+      setSavingFlag(false);
     }
   };
 
@@ -531,18 +548,18 @@ export default function Localization() {
           </form>
 
           {/* Languages Table */}
-          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Flag</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Code</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Native Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Direction</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Default</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Release Version</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Flag</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Native Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Direction</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Default</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Release Version</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -561,50 +578,99 @@ export default function Localization() {
 
                   return (
                     <tr key={lang.code} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-xl">{lang.flag || '—'}</td>
-                      <td className="px-6 py-4 font-bold text-gray-900">{lang.code.toUpperCase()}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{lang.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{lang.nativeName}</td>
-                      <td className="px-6 py-4 uppercase text-xs font-semibold text-gray-500">{lang.direction}</td>
-                      <td className="px-6 py-4 text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {editingFlagLang === lang.code ? (
+                          <div className="inline-flex items-center space-x-1.5 bg-white p-1 rounded border shadow-sm">
+                            <input
+                              type="text"
+                              className="w-12 border rounded px-1.5 py-0.5 text-base text-center focus:ring-1 focus:ring-indigo-500 outline-none"
+                              value={editingFlagValue}
+                              onChange={e => setEditingFlagValue(e.target.value)}
+                              placeholder="🇵🇹"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              disabled={savingFlag}
+                              onClick={() => handleSaveFlag(lang.code)}
+                              className="px-2 py-1 bg-indigo-600 text-white rounded text-xs font-bold hover:bg-indigo-700 disabled:opacity-50"
+                              title="Save flag"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingFlagLang(null)}
+                              className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
+                              title="Cancel"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-2xl leading-none select-none" title={lang.flag || 'No flag set'}>
+                              {lang.flag || '—'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingFlagLang(lang.code);
+                                setEditingFlagValue(lang.flag || '');
+                              }}
+                              className="text-xs text-gray-400 hover:text-indigo-600 px-1.5 py-0.5 rounded hover:bg-indigo-50 transition-colors border border-transparent hover:border-indigo-200"
+                              title="Edit flag"
+                            >
+                              ✎
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">{lang.code.toUpperCase()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{lang.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{lang.nativeName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap uppercase text-xs font-semibold text-gray-500">{lang.direction}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {isDefaultLang ? (
                           <span className="px-2.5 py-0.5 text-xs font-semibold bg-indigo-100 text-indigo-800 rounded-full">Default</span>
                         ) : (
                           <span className="text-gray-400">No</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                           v{lang.latestReleaseVersion || 1} (Live)
                         </span>
                       </td>
-                      <td className="px-6 py-4 space-x-2">
-                        <button
-                          onClick={() => handlePublish(lang.code)}
-                          className="px-3 py-1 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 shadow-sm"
-                        >
-                          🚀 Publish Release
-                        </button>
-                        <a
-                          href={langBundleUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-block px-3 py-1 bg-gray-100 border text-gray-700 text-xs font-medium rounded hover:bg-gray-200"
-                        >
-                          View Live JSON ↗
-                        </a>
-                        <button
-                          onClick={() => openDeleteModal(lang.code, lang.name)}
-                          disabled={isDefaultLang}
-                          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                            isDefaultLang
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-                              : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-600 hover:text-white'
-                          }`}
-                          title={isDefaultLang ? 'Cannot delete default English language' : 'Delete language'}
-                        >
-                          Delete
-                        </button>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handlePublish(lang.code)}
+                            className="px-3 py-1 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 shadow-sm whitespace-nowrap"
+                          >
+                            🚀 Publish Release
+                          </button>
+                          <a
+                            href={langBundleUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1 bg-gray-100 border text-gray-700 text-xs font-medium rounded hover:bg-gray-200 whitespace-nowrap"
+                          >
+                            View Live JSON ↗
+                          </a>
+                          <button
+                            onClick={() => openDeleteModal(lang.code, lang.name)}
+                            disabled={isDefaultLang}
+                            className={`px-3 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap ${
+                              isDefaultLang
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                                : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-600 hover:text-white'
+                            }`}
+                            title={isDefaultLang ? 'Cannot delete default English language' : 'Delete language'}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
